@@ -39,10 +39,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isMounted) return
         
         setSession(session)
-        
+        // ابدأ جلب الملف التعريفي في الخلفية بدون انتظار
         if (session?.user) {
-          await fetchUserProfile(session.user)
+          fetchUserProfile(session.user)
         }
+        // لا نمنع واجهة المستخدم من التحميل
+        if (isMounted) setLoading(false)
       } catch (error) {
         console.error('Error getting initial session:', error)
       } finally {
@@ -64,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session)
         
         if (session?.user) {
-          await fetchUserProfile(session.user)
+          fetchUserProfile(session.user)
         } else {
           setUser(null)
         }

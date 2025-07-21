@@ -14,7 +14,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white shadow-sm border-b border-gray-200 backdrop-blur-sm bg-white/95">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Mobile menu button */}
@@ -40,12 +40,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* Right side */}
           <div className="flex items-center space-x-4 space-x-reverse">
             {/* Notifications */}
-            <button
-              type="button"
-              className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <Bell className="h-6 w-6" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
+              >
+                <Bell className="h-6 w-6" />
+              </button>
+              {/* Notification badge */}
+              <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                3
+              </span>
+            </div>
 
             {/* User menu */}
             <div className="relative flex items-center space-x-3 space-x-reverse">
@@ -58,15 +64,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                     مستخدم
                   </p>
                 </div>
-                <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary-600" />
+                <div className="h-10 w-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center shadow-md transition-transform duration-200 hover:scale-105">
+                  <User className="h-5 w-5 text-white" />
                 </div>
               </div>
 
               {/* Sign out button */}
               <button
                 onClick={handleSignOut}
-                className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
                 title="تسجيل الخروج"
               >
                 <LogOut className="h-5 w-5" />

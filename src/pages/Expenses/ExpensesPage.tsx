@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, Filter } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, Filter, DollarSign, TrendingUp, Clock, FileText } from 'lucide-react'
 import { ExpensesAPI } from '../../api'
 import { ExpenseWithCategory, ExpenseFilters } from '../../types'
 import { TeamsAPI } from '../../api'
@@ -97,7 +97,7 @@ const ExpensesPage: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
-      pending: 'status-pending',
+      pending: 'status-pending animate-pulse',
       approved: 'status-approved',
       rejected: 'status-rejected'
     }
@@ -128,11 +128,20 @@ const ExpensesPage: React.FC = () => {
     )
   }
 
+  // Calculate statistics
+  const totalExpenses = expenses.length
+  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+  const pendingExpenses = expenses.filter(e => e.status === 'pending').length
+  const approvedExpenses = expenses.filter(e => e.status === 'approved').length
+
   return (
     <div className="space-y-6">
+      {/* Header with gradient */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">إدارة المصروفات</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            إدارة المصروفات
+          </h1>
           <p className="text-gray-600 mt-1">إدارة مصروفات الشركة والموافقة عليها</p>
         </div>
         <button 
@@ -141,21 +150,73 @@ const ExpensesPage: React.FC = () => {
             setFormMode('create')
             setShowFormModal(true)
           }}
-          className="btn-primary"
+          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
         >
           <Plus className="h-5 w-5 ml-2" />
           إضافة مصروف جديد
         </button>
       </div>
 
-      <div className="card">
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="card-compact bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">إجمالي المصروفات</p>
+              <p className="text-2xl font-bold">{totalExpenses}</p>
+            </div>
+            <div className="p-3 bg-white/20 rounded-lg">
+              <FileText className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-green-500 to-green-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">إجمالي المبلغ</p>
+              <p className="text-2xl font-bold">{totalAmount.toLocaleString()} ج.م</p>
+            </div>
+            <div className="p-3 bg-white/20 rounded-lg">
+              <DollarSign className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm font-medium">في الانتظار</p>
+              <p className="text-2xl font-bold">{pendingExpenses}</p>
+            </div>
+            <div className="p-3 bg-white/20 rounded-lg">
+              <Clock className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm font-medium">موافق عليها</p>
+              <p className="text-2xl font-bold">{approvedExpenses}</p>
+            </div>
+            <div className="p-3 bg-white/20 rounded-lg">
+              <TrendingUp className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="card-compact">
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Filter className="text-gray-500" />
             <select
               value={filters.category_id || ''}
               onChange={(e)=>setFilters(prev=>{ const f={...prev, category_id:e.target.value||undefined}; return f })}
-              className="input-field"
+              className="input-field focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
             >
               <option value="">كل الفئات</option>
               {categories.map((c:any)=>(<option key={c.id} value={c.id}>{c.name_ar}</option>))}
@@ -165,7 +226,7 @@ const ExpensesPage: React.FC = () => {
             <select
               value={filters.team_id||''}
               onChange={(e)=>setFilters(prev=>({...prev, team_id:e.target.value||undefined}))}
-              className="input-field"
+              className="input-field focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
             >
               <option value="">كل الفرق</option>
               {teams.map((t:any)=>(<option key={t.id} value={t.id}>{t.name}</option>))}
@@ -175,7 +236,7 @@ const ExpensesPage: React.FC = () => {
             <select
               value={filters.status?.[0]||''}
               onChange={(e)=>setFilters(prev=>({...prev, status:e.target.value? [e.target.value as any]:undefined}))}
-              className="input-field"
+              className="input-field focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
             >
               <option value="">كل الحالات</option>
               <option value="pending">معلق</option>
@@ -184,7 +245,7 @@ const ExpensesPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <button onClick={fetchExpenses} className="btn-secondary">تصفية</button>
+            <button onClick={fetchExpenses} className="btn-secondary hover:scale-105 transition-all duration-200">تصفية</button>
           </div>
         </div>
         <div className="relative">
@@ -192,14 +253,22 @@ const ExpensesPage: React.FC = () => {
           <input
             type="text"
             placeholder="البحث في المصروفات..."
-            className="input pr-10"
+            className="input pr-10 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        {searchTerm && (
+          <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              تم العثور على {filteredExpenses.length} نتيجة للبحث عن "{searchTerm}"
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className="card">
+      {/* Main Table */}
+      <div className="card-elevated">
         <div className="overflow-x-auto">
           <table className="table">
             <thead className="table-header">
@@ -237,7 +306,7 @@ const ExpensesPage: React.FC = () => {
                           setFormMode('edit')
                           setShowFormModal(true)
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all hover:scale-110 shadow-sm hover:shadow-md"
                         title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
@@ -247,7 +316,7 @@ const ExpensesPage: React.FC = () => {
                           setSelectedExpense(expense)
                           setShowDeleteModal(true)
                         }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all hover:scale-110 shadow-sm hover:shadow-md"
                         title="حذف"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -256,14 +325,14 @@ const ExpensesPage: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleApproveExpense(expense.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded"
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all hover:scale-110 shadow-sm hover:shadow-md"
                             title="موافقة"
                           >
                             <Check className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleRejectExpense(expense.id)}
-                            className="p-2 text-yellow-600 hover:bg-yellow-50 rounded"
+                            className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all hover:scale-110 shadow-sm hover:shadow-md"
                             title="رفض"
                           >
                             <XCircle className="h-4 w-4" />
@@ -307,9 +376,7 @@ const ExpensesPage: React.FC = () => {
           setSelectedExpense(undefined)
         }}
         onConfirm={handleDeleteExpense}
-        title="حذف المصروف"
-        message="هل أنت متأكد من رغبتك في حذف هذا المصروف؟ لا يمكن التراجع عن هذا الإجراء."
-        itemName={selectedExpense?.description}
+        message={`هل أنت متأكد من رغبتك في حذف المصروف "${selectedExpense?.description}"؟ لا يمكن التراجع عن هذا الإجراء.`}
         loading={deleteLoading}
       />
     </div>

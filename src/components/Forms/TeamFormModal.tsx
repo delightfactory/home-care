@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, Users, Search, XCircle } from 'lucide-react'
+import { X, Save, Users, Search, XCircle, User, FileText, CheckCircle, Crown } from 'lucide-react'
 import { TeamsAPI, WorkersAPI } from '../../api'
 import { TeamWithMembers, TeamForm, WorkerWithTeam, TeamInsert, TeamUpdate } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
+import SmartModal from '../UI/SmartModal'
+
 import toast from 'react-hot-toast'
 
 interface TeamFormModalProps {
@@ -31,6 +33,8 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
   const [workers, setWorkers] = useState<WorkerWithTeam[]>([])
   const [memberSearch, setMemberSearch] = useState('')
   const [originalMemberIds, setOriginalMemberIds] = useState<string[]>([])
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (isOpen) {
@@ -78,10 +82,26 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
     }
   }
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'اسم الفريق مطلوب'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+    validateForm()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.name.trim()) {
+    if (!validateForm()) {
       toast.error('يرجى إدخال اسم الفريق')
       return
     }
@@ -120,172 +140,246 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <Users className="h-5 w-5 text-blue-600 ml-2" />
-            <h2 className="text-lg font-semibold">
-              {mode === 'create' ? 'إضافة فريق جديد' : 'تعديل بيانات الفريق'}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-            disabled={loading}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <SmartModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={mode === 'create' ? 'إضافة فريق جديد' : 'تعديل بيانات الفريق'}
+      subtitle={mode === 'create' ? 'إنشاء فريق عمل جديد' : 'تحديث معلومات الفريق'}
+      icon={<Users className="h-6 w-6 text-white" />}
+      size="lg"
+      headerGradient="from-primary-500 to-primary-700"
+    >
 
-        {loadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <LoadingSpinner size="medium" />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                اسم الفريق *
+      {loadingData ? (
+        <div className="p-8 flex justify-center">
+          <LoadingSpinner size="large" text="جاري تحميل البيانات..." />
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="space-y-2">
+              <label className="flex items-center label label-required text-gray-700 font-medium">
+                <Users className="h-4 w-4 ml-2 text-primary-500" />
+                اسم الفريق
               </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="input-field"
-                placeholder="أدخل اسم الفريق"
-                required
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onBlur={() => handleBlur('name')}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${
+                    errors.name ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'
+                  } ${
+                    touched.name && !errors.name && formData.name ? 'border-green-500 focus:ring-green-500' : ''
+                  }`}
+                  placeholder="أدخل اسم الفريق"
+                  required
+                  disabled={loading}
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  {touched.name && !errors.name && formData.name ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Users className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {errors.name && (
+                <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
+                  <X className="h-3 w-3 ml-1" />
+                  {errors.name}
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <Crown className="h-4 w-4 ml-2 text-primary-500" />
                 قائد الفريق
               </label>
-              <select
-                value={formData.leader_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, leader_id: e.target.value }))}
-                className="input-field"
-                disabled={loading}
-              >
-                <option value="">اختر قائد الفريق</option>
-                {workers.map((worker) => (
-                  <option key={worker.id} value={worker.id}>
-                    {worker.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={formData.leader_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, leader_id: e.target.value }))}
+                  onBlur={() => handleBlur('leader_id')}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                    touched.leader_id && formData.leader_id ? 'border-green-500 focus:ring-green-500' : ''
+                  }`}
+                  disabled={loading}
+                >
+                  <option value="">اختر قائد الفريق</option>
+                  {workers.map((worker) => (
+                    <option key={worker.id} value={worker.id}>
+                      {worker.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  {touched.leader_id && formData.leader_id ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Crown className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <FileText className="h-4 w-4 ml-2 text-primary-500" />
                 الوصف
               </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="input-field"
-                placeholder="أدخل وصف الفريق"
-                rows={3}
-                disabled={loading}
-              />
+              <div className="relative">
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onBlur={() => handleBlur('description')}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                    touched.description && formData.description ? 'border-green-500 focus:ring-green-500' : ''
+                  }`}
+                  placeholder="أدخل وصف الفريق (اختياري)"
+                  rows={3}
+                  disabled={loading}
+                />
+                <div className="absolute left-3 top-3">
+                  {touched.description && formData.description ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <FileText className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {formData.description && (
+                <p className="text-xs text-gray-500">
+                  {formData.description.length} حرف
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ملاحظة
-              </label>
-              <p className="text-sm text-gray-500">
-                سيتم تفعيل الفريق تلقائياً عند الإنشاء
-              </p>
+
+
+            {/* Info Note */}
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-primary-600 ml-2" />
+                <div>
+                  <p className="text-sm font-medium text-primary-800">ملاحظة</p>
+                  <p className="text-sm text-primary-600 mt-1">
+                    سيتم تفعيل الفريق تلقائياً عند الإنشاء
+                  </p>
+                </div>
+              </div>
             </div>
 
-                        <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="space-y-3">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <Users className="h-4 w-4 ml-2 text-primary-500" />
                 أعضاء الفريق
               </label>
-              <div className="relative mb-2">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <div className="relative">
                 <input
                   type="text"
                   placeholder="بحث عن عامل..."
-                  className="input pr-8"
+                  className="input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10"
                   value={memberSearch}
                   onChange={(e)=>setMemberSearch(e.target.value)}
                   disabled={loading}
                 />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
               </div>
-              <div className="border rounded-lg h-40 overflow-y-auto p-2 space-y-1 bg-gray-50">
-                {workers
-                  .filter(w=> w.name.toLowerCase().includes(memberSearch.toLowerCase()))
-                  .map(worker=>{
-                    const selected = formData.member_ids.includes(String(worker.id))
-                    return (
-                      <label key={worker.id} className="flex items-center text-sm cursor-pointer px-2 py-1 rounded hover:bg-gray-100">
-                        <input
-                          type="checkbox"
-                          className="form-checkbox h-4 w-4 text-blue-600"
-                          checked={selected}
-                          onChange={()=>{
-                            setFormData(prev=>{
-                              const ids = selected ? prev.member_ids.filter(id=>id!==String(worker.id)) : [...prev.member_ids, String(worker.id)]
-                              return {...prev, member_ids: ids}
-                            })
-                          }}
-                        />
-                        <span className="ml-2">{worker.name}</span>
-                      </label>
-                    )
-                  })}
+              <div className="border border-gray-200 rounded-xl h-40 overflow-y-auto bg-gray-50">
+                <div className="p-3 space-y-2">
+                  {workers
+                    .filter(w=> w.name.toLowerCase().includes(memberSearch.toLowerCase()))
+                    .map(worker=>{
+                      const selected = formData.member_ids.includes(String(worker.id))
+                      return (
+                        <label key={worker.id} className={`flex items-center text-sm cursor-pointer px-3 py-2 rounded-lg transition-all duration-200 ${
+                          selected ? 'bg-primary-100 border border-primary-200 shadow-sm' : 'hover:bg-white hover:shadow-sm'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            className="form-checkbox h-4 w-4 text-primary-600 rounded focus:ring-primary-500"
+                            checked={selected}
+                            onChange={()=>{
+                              setFormData(prev=>{
+                                const ids = selected ? prev.member_ids.filter(id=>id!==String(worker.id)) : [...prev.member_ids, String(worker.id)]
+                                return {...prev, member_ids: ids}
+                              })
+                            }}
+                          />
+                          <div className="mr-3 flex items-center">
+                            <User className="h-4 w-4 text-gray-500 ml-2" />
+                            <span className={selected ? 'text-primary-700 font-medium' : 'text-gray-700'}>{worker.name}</span>
+                          </div>
+                        </label>
+                      )
+                    })}
+                  {workers.filter(w=> w.name.toLowerCase().includes(memberSearch.toLowerCase())).length === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      <User className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p>لا توجد عمال متاحين</p>
+                    </div>
+                  )}
+                </div>
               </div>
               {formData.member_ids.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {formData.member_ids.map(id=>{
-                    const worker = workers.find(w=>w.id===id)
-                    if(!worker) return null
-                    return (
-                      <span key={id} className="badge badge-blue flex items-center">
-                        {worker.name}
-                        <XCircle
-                          className="h-3 w-3 ml-1 cursor-pointer"
-                          onClick={()=> setFormData(prev=>({...prev, member_ids: prev.member_ids.filter(i=>i!==String(id))}))}
-                        />
-                      </span>
-                    )
-                  })}
+                <div className="mt-3">
+                  <p className="text-sm text-gray-600 mb-2 flex items-center">
+                    <Users className="h-4 w-4 ml-1" />
+                    الأعضاء المحددين ({formData.member_ids.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.member_ids.map(id=>{
+                      const worker = workers.find(w=>w.id===id)
+                      if(!worker) return null
+                      return (
+                        <span key={id} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 border border-primary-200 shadow-sm">
+                          <User className="h-3 w-3 ml-1" />
+                          {worker.name}
+                          <button
+                            type="button"
+                            className="mr-2 hover:text-primary-600 transition-colors duration-200"
+                            onClick={()=> setFormData(prev=>({...prev, member_ids: prev.member_ids.filter(i=>i!==String(id))}))}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end space-x-3 space-x-reverse pt-4">
+            <div className="flex justify-end space-x-3 space-x-reverse pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="btn-secondary"
+                className="btn-secondary flex items-center transition-all duration-200"
                 disabled={loading}
               >
+                <X className="h-4 w-4 ml-2" />
                 إلغاء
               </button>
               <button
                 type="submit"
-                className="btn-primary"
-                disabled={loading}
+                disabled={loading || !formData.name.trim()}
+                className="btn-primary flex items-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <LoadingSpinner size="small" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
                 ) : (
-                  <>
-                    <Save className="h-4 w-4 ml-2" />
-                    {mode === 'create' ? 'إضافة' : 'حفظ التغييرات'}
-                  </>
+                  <Save className="h-4 w-4 ml-2" />
                 )}
+                {loading ? 'جاري الحفظ...' : (mode === 'create' ? 'إنشاء' : 'تحديث')}
               </button>
             </div>
-          </form>
-        )}
-      </div>
-    </div>
+        </form>
+      )}
+    </SmartModal>
   )
 }
 

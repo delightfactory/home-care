@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil } from 'lucide-react'
+import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route, Clock, CheckCircle } from 'lucide-react'
 import { RoutesAPI, TeamsAPI } from '../../api'
 import {
   RouteWithOrders,
@@ -129,11 +129,11 @@ const RoutesPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">إدارة خطوط السير</h1>
-          <p className="text-gray-600 mt-1">تخطيط وتتبع خطوط سير الفرق</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة خطوط السير</h1>
+          <p className="text-gray-600 mt-2">تخطيط وتتبع خطوط سير الفرق</p>
         </div>
         <button
-          className="btn-primary"
+          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           onClick={() => {
             setSelectedRoute(undefined)
             setFormMode('create')
@@ -144,13 +144,61 @@ const RoutesPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Routes Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600">إجمالي المسارات</p>
+              <p className="text-2xl font-bold text-blue-800">{routes.length}</p>
+            </div>
+            <div className="p-3 bg-blue-500 rounded-lg">
+              <Route className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">مخططة</p>
+              <p className="text-2xl font-bold text-gray-800">{routes.filter(r => r.status === 'planned').length}</p>
+            </div>
+            <div className="p-3 bg-gray-500 rounded-lg">
+              <Calendar className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className={`card-compact bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 ${routes.filter(r => r.status === 'in_progress').length > 0 ? 'animate-pulse' : ''}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-600">قيد التنفيذ</p>
+              <p className="text-2xl font-bold text-yellow-800">{routes.filter(r => r.status === 'in_progress').length}</p>
+            </div>
+            <div className="p-3 bg-yellow-500 rounded-lg">
+              <Clock className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600">مكتملة</p>
+              <p className="text-2xl font-bold text-green-800">{routes.filter(r => r.status === 'completed').length}</p>
+            </div>
+            <div className="p-3 bg-green-500 rounded-lg">
+              <CheckCircle className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
-      <div className="card space-y-4 md:space-y-0 md:flex md:items-center md:gap-4">
+      <div className="card-compact space-y-4 md:space-y-0 md:flex md:items-center md:gap-4">
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Calendar className="h-5 w-5 text-gray-400" />
           <input
             type="date"
-            className="input"
+            className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
           />
@@ -159,7 +207,7 @@ const RoutesPage: React.FC = () => {
         <div className="flex items-center gap-2 w-full md:w-60">
           <Users className="h-5 w-5 text-gray-400" />
           <select
-            className="select w-full"
+            className="select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
           >
@@ -175,7 +223,7 @@ const RoutesPage: React.FC = () => {
         <div className="flex items-center gap-2 w-full md:w-52">
           <MapPin className="h-5 w-5 text-gray-400" />
           <select
-            className="select w-full"
+            className="select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
           >
@@ -188,30 +236,30 @@ const RoutesPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="card overflow-x-auto">
-        <table className="min-w-full text-sm rtl:text-right">
-          <thead>
-            <tr className="bg-gray-50 text-gray-600">
-              <th className="px-4 py-3">الاسم</th>
-              <th className="px-4 py-3">التاريخ</th>
-              <th className="px-4 py-3">الفريق</th>
-              <th className="px-4 py-3">الحالة</th>
-              <th className="px-4 py-3">عدد الطلبات</th>
-              <th className="px-4 py-3">إجراءات</th>
+      <div className="card-elevated overflow-x-auto">
+        <table className="table">
+          <thead className="table-header">
+            <tr>
+              <th className="table-header-cell">الاسم</th>
+              <th className="table-header-cell">التاريخ</th>
+              <th className="table-header-cell">الفريق</th>
+              <th className="table-header-cell">الحالة</th>
+              <th className="table-header-cell">عدد الطلبات</th>
+              <th className="table-header-cell">إجراءات</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="table-body">
             {routes.map((r) => (
-              <tr key={r.id} className="border-b last:border-0">
-                <td className="px-4 py-3 font-medium">{r.name}</td>
-                <td className="px-4 py-3">{r.date}</td>
-                <td className="px-4 py-3">{r.team?.name || '-'}</td>
-                <td className="px-4 py-3">{statusBadge(r.status)}</td>
-                <td className="px-4 py-3">{r.route_orders?.length || 0}</td>
-                <td className="px-4 py-3 space-x-1 space-x-reverse whitespace-nowrap">
+              <tr key={r.id} className="table-row">
+                <td className="table-cell font-medium">{r.name}</td>
+                <td className="table-cell">{r.date}</td>
+                <td className="table-cell">{r.team?.name || '-'}</td>
+                <td className="table-cell">{statusBadge(r.status)}</td>
+                <td className="table-cell">{r.route_orders?.length || 0}</td>
+                <td className="table-cell space-x-1 space-x-reverse whitespace-nowrap">
                   {/* Edit */}
                   <button
-                    className="icon-btn text-blue-600"
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                     title="تعديل"
                     onClick={() => {
                       setSelectedRoute(r)
@@ -223,7 +271,7 @@ const RoutesPage: React.FC = () => {
                   </button>
                   {/* Manage Orders */}
                   <button
-                    className="icon-btn text-amber-600"
+                    className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                     title="إدارة الطلبات"
                     onClick={() => {
                       setRouteForOrders(r)
@@ -235,7 +283,7 @@ const RoutesPage: React.FC = () => {
                   {/* Start */}
                   {r.status === 'planned' && (
                     <button
-                      className="icon-btn text-green-600"
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                       title="بدء الخط"
                       onClick={() => handleStartRoute(r)}
                     >
@@ -245,7 +293,7 @@ const RoutesPage: React.FC = () => {
                   {/* Complete */}
                   {r.status === 'in_progress' && (
                     <button
-                      className="icon-btn text-green-700"
+                      className="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                       title="إكمال الخط"
                       onClick={() => handleCompleteRoute(r)}
                     >
@@ -255,7 +303,7 @@ const RoutesPage: React.FC = () => {
                   {/* Delete */}
                   {r.status === 'planned' && (
                     <button
-                      className="icon-btn text-red-600"
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                       title="حذف"
                       onClick={() => {
                         setSelectedRoute(r)
@@ -270,8 +318,8 @@ const RoutesPage: React.FC = () => {
             ))}
             {routes.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
-                  لا توجد بيانات مطابقة
+                <td colSpan={6} className="table-cell text-center py-8">
+                  <p className="text-gray-500">لا توجد بيانات مطابقة</p>
                 </td>
               </tr>
             )}
@@ -305,9 +353,7 @@ const RoutesPage: React.FC = () => {
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={() => handleDeleteRoute(selectedRoute)}
-          title="تأكيد الحذف"
-          message="هل أنت متأكد من حذف خط السير؟"
-          itemName={selectedRoute.name}
+          message={`هل أنت متأكد من حذف خط السير "${selectedRoute.name}"؟`}
         />
       )}
     </div>

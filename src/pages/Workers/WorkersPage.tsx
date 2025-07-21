@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Edit, Trash2, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Users, UserCheck, UserX, Clock } from 'lucide-react'
 import { WorkersAPI } from '../../api'
 import { WorkerWithTeam } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -66,8 +66,9 @@ const WorkersPage: React.FC = () => {
       on_leave: 'في إجازة'
     }
 
+    const isActive = status === 'active'
     return (
-      <span className={`badge ${statusClasses[status as keyof typeof statusClasses] || 'badge-gray'}`}>
+      <span className={`badge ${statusClasses[status as keyof typeof statusClasses] || 'badge-gray'} ${isActive ? 'animate-pulse' : ''}`}>
         {statusTexts[status as keyof typeof statusTexts] || status}
       </span>
     )
@@ -90,8 +91,8 @@ const WorkersPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">إدارة العمال</h1>
-          <p className="text-gray-600 mt-1">إدارة العمال ومهاراتهم وحالتهم</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة العمال</h1>
+          <p className="text-gray-600 mt-2">إدارة العمال ومهاراتهم وحالتهم</p>
         </div>
         <button 
           onClick={() => {
@@ -99,27 +100,82 @@ const WorkersPage: React.FC = () => {
             setFormMode('create')
             setShowFormModal(true)
           }}
-          className="btn-primary"
+          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
         >
           <Plus className="h-5 w-5 ml-2" />
           إضافة عامل جديد
         </button>
       </div>
 
-      <div className="card">
+      {/* Workers Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600">إجمالي العمال</p>
+              <p className="text-2xl font-bold text-blue-800">{workers.length}</p>
+            </div>
+            <div className="p-3 bg-blue-500 rounded-lg">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600">نشطين</p>
+              <p className="text-2xl font-bold text-green-800">{workers.filter(w => w.status === 'active').length}</p>
+            </div>
+            <div className="p-3 bg-green-500 rounded-lg">
+              <UserCheck className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600">غير نشطين</p>
+              <p className="text-2xl font-bold text-red-800">{workers.filter(w => w.status === 'inactive').length}</p>
+            </div>
+            <div className="p-3 bg-red-500 rounded-lg">
+              <UserX className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-600">في إجازة</p>
+              <p className="text-2xl font-bold text-yellow-800">{workers.filter(w => w.status === 'on_leave').length}</p>
+            </div>
+            <div className="p-3 bg-yellow-500 rounded-lg">
+              <Clock className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card-compact">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="text"
             placeholder="البحث عن عامل بالاسم أو رقم الهاتف..."
-            className="input pr-10"
+            className="input pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        {searchTerm && (
+          <div className="mt-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
+            <p className="text-sm text-primary-700">
+              عرض {filteredWorkers.length} من أصل {workers.length} عامل
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className="card">
+      <div className="card-elevated">
         <div className="overflow-x-auto">
           <table className="table">
             <thead className="table-header">
@@ -165,7 +221,7 @@ const WorkersPage: React.FC = () => {
                           setFormMode('edit')
                           setShowFormModal(true)
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                         title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
@@ -175,7 +231,7 @@ const WorkersPage: React.FC = () => {
                           setSelectedWorker(worker)
                           setShowDeleteModal(true)
                         }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                         title="حذف"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -217,9 +273,7 @@ const WorkersPage: React.FC = () => {
           setSelectedWorker(undefined)
         }}
         onConfirm={handleDeleteWorker}
-        title="حذف العامل"
-        message="هل أنت متأكد من رغبتك في حذف هذا العامل؟ قد يؤثر ذلك على الفرق والطلبات المرتبطة."
-        itemName={selectedWorker?.name}
+        message={`هل أنت متأكد من رغبتك في حذف العامل "${selectedWorker?.name}"؟ قد يؤثر ذلك على الفرق والطلبات المرتبطة.`}
         loading={deleteLoading}
       />
     </div>

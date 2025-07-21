@@ -191,9 +191,12 @@ export class OrdersAPI {
     updates: OrderUpdate
   ): Promise<ApiResponse<Order>> {
     try {
+      // Exclude fields that do not belong to the `orders` table schema (e.g. services list)
+      const { services: _services, ...orderUpdates } = updates as Record<string, any>
+
       const { data, error } = await supabase
         .from('orders')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...orderUpdates, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single()

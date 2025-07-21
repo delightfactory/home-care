@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, User } from 'lucide-react'
+import { X, Save, User, MapPin, Phone, Home, FileText, CheckCircle } from 'lucide-react'
 import { CustomersAPI } from '../../api'
 import { Customer, CustomerForm } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
+import SmartModal from '../UI/SmartModal'
 import toast from 'react-hot-toast'
 
 interface CustomerFormModalProps {
@@ -29,6 +30,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (customer && mode === 'edit') {
@@ -75,7 +77,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     setErrors({})
   }, [customer, mode, isOpen])
 
-  const validateForm = (): boolean => {
+  const validateForm = (): Record<string, string> => {
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
@@ -92,14 +94,15 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
       newErrors.address = 'العنوان مطلوب'
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return newErrors
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) return
+    const validationErrors = validateForm()
+    setErrors(validationErrors)
+    if (Object.keys(validationErrors).length > 0) return
 
     setLoading(true)
     try {
@@ -136,183 +139,285 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     const newValue = type === 'checkbox' ? checked : value
     setFormData(prev => ({ ...prev, [name]: newValue }))
     
+    // Mark field as touched
+    setTouched(prev => ({ ...prev, [name]: true }))
+    
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
   }
 
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name } = e.target
+    setTouched(prev => ({ ...prev, [name]: true }))
+    
+    // Validate on blur
+    const validationErrors = validateForm()
+    if (validationErrors[name]) {
+      setErrors(prev => ({ ...prev, [name]: validationErrors[name] }))
+    }
+  }
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-primary-100 rounded-lg ml-3">
-              <User className="h-5 w-5 text-primary-600" />
+    <SmartModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={mode === 'create' ? 'إضافة عميل جديد' : 'تعديل بيانات العميل'}
+      subtitle={mode === 'create' ? 'أدخل بيانات العميل الجديد' : 'قم بتعديل بيانات العميل'}
+      icon={<User className="h-6 w-6 text-white" />}
+      size="md"
+      headerGradient="from-primary-500 via-primary-600 to-primary-700"
+    >
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="space-y-2">
+            <label className="flex items-center label label-required text-gray-700 font-medium">
+              <User className="h-4 w-4 ml-2 text-primary-500" />
+              اسم العميل
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${errors.name ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'} ${touched.name && !errors.name && formData.name ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل اسم العميل"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.name && !errors.name && formData.name ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <User className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              {mode === 'create' ? 'إضافة عميل جديد' : 'تعديل بيانات العميل'}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="label label-required">اسم العميل</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`input ${errors.name ? 'input-error' : ''}`}
-              placeholder="أدخل اسم العميل"
-              disabled={loading}
-            />
             {errors.name && (
-              <p className="text-sm text-red-600 mt-1">{errors.name}</p>
+              <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
+                <X className="h-3 w-3 ml-1" />
+                {errors.name}
+              </p>
             )}
           </div>
 
-          <div>
-            <label className="label label-required">رقم الهاتف</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className={`input ${errors.phone ? 'input-error' : ''}`}
-              placeholder="أدخل رقم الهاتف"
-              disabled={loading}
-            />
+          <div className="space-y-2">
+            <label className="flex items-center label label-required text-gray-700 font-medium">
+              <Phone className="h-4 w-4 ml-2 text-primary-500" />
+              رقم الهاتف
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${errors.phone ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'} ${touched.phone && !errors.phone && formData.phone ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل رقم الهاتف"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.phone && !errors.phone && formData.phone ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Phone className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
             {errors.phone && (
-              <p className="text-sm text-red-600 mt-1">{errors.phone}</p>
+              <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
+                <X className="h-3 w-3 ml-1" />
+                {errors.phone}
+              </p>
             )}
           </div>
 
-          <div>
-            <label className="label label-required">العنوان</label>
-            <textarea
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              className={`input ${errors.address ? 'input-error' : ''}`}
-              placeholder="أدخل العنوان التفصيلي"
-              rows={3}
-              disabled={loading}
-            />
+          <div className="space-y-2">
+            <label className="flex items-center label label-required text-gray-700 font-medium">
+              <Home className="h-4 w-4 ml-2 text-primary-500" />
+              العنوان
+            </label>
+            <div className="relative">
+              <textarea
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${errors.address ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'} ${touched.address && !errors.address && formData.address ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل العنوان التفصيلي"
+                rows={3}
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-3">
+                {touched.address && !errors.address && formData.address ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Home className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
             {errors.address && (
-              <p className="text-sm text-red-600 mt-1">{errors.address}</p>
+              <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
+                <X className="h-3 w-3 ml-1" />
+                {errors.address}
+              </p>
             )}
           </div>
 
-          <div>
-            <label className="label">المنطقة</label>
-            <input
-              type="text"
-              name="area"
-              value={formData.area}
-              onChange={handleChange}
-              className="input"
-              placeholder="أدخل المنطقة (اختياري)"
-              disabled={loading}
-            />
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <MapPin className="h-4 w-4 ml-2 text-primary-500" />
+              المنطقة
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                name="area"
+                value={formData.area}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.area && formData.area ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل المنطقة (اختياري)"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.area && formData.area ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Coordinates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">دوائر العرض (Latitude)</label>
-              <input
-                type="number"
-                name="latitude"
-                value={formData.latitude ?? ''}
-                onChange={handleChange}
-                className="input"
-                placeholder="مثال: 30.0444"
-                step="0.0001"
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <label className="label">خطوط الطول (Longitude)</label>
-              <input
-                type="number"
-                name="longitude"
-                value={formData.longitude ?? ''}
-                onChange={handleChange}
-                className="input"
-                placeholder="مثال: 31.2357"
-                step="0.0001"
-                disabled={loading}
-              />
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <h3 className="flex items-center text-sm font-medium text-gray-700 mb-3">
+              <MapPin className="h-4 w-4 ml-2 text-primary-500" />
+              الإحداثيات الجغرافية (اختياري)
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label text-sm">دوائر العرض (Latitude)</label>
+                <input
+                  type="number"
+                  name="latitude"
+                  value={formData.latitude ?? ''}
+                  onChange={handleChange}
+                  className="input text-sm transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300"
+                  placeholder="مثال: 30.0444"
+                  step="0.0001"
+                  disabled={loading}
+                />
+              </div>
+              <div>
+                <label className="label text-sm">خطوط الطول (Longitude)</label>
+                <input
+                  type="number"
+                  name="longitude"
+                  value={formData.longitude ?? ''}
+                  onChange={handleChange}
+                  className="input text-sm transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300"
+                  placeholder="مثال: 31.2357"
+                  step="0.0001"
+                  disabled={loading}
+                />
+              </div>
             </div>
           </div>
 
           {/* Active Toggle */}
-          <div>
-            <label className="inline-flex items-center mt-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="is_active"
-                checked={formData.is_active ?? true}
-                onChange={handleChange}
-                className="form-checkbox h-4 w-4 text-primary-600"
-              />
-              <span className="ml-2 text-gray-700">العميل نشط</span>
+          <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
+            <label className="inline-flex items-center cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  checked={formData.is_active ?? true}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <div className={`w-11 h-6 rounded-full transition-all duration-200 ${formData.is_active ? 'bg-primary-500' : 'bg-gray-300'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-all duration-200 ${formData.is_active ? 'translate-x-5' : 'translate-x-0.5'} mt-0.5`}></div>
+                </div>
+              </div>
+              <span className="ml-3 text-gray-700 font-medium group-hover:text-primary-600 transition-colors duration-200">
+                العميل نشط
+              </span>
+              {formData.is_active && (
+                <CheckCircle className="h-4 w-4 text-green-500 ml-2" />
+              )}
             </label>
+            <p className="text-xs text-gray-500 mt-2">
+              {formData.is_active ? 'العميل متاح لاستقبال الطلبات' : 'العميل غير متاح حالياً'}
+            </p>
           </div>
 
-          <div>
-            <label className="label">ملاحظات</label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              className="input"
-              placeholder="أدخل أي ملاحظات إضافية (اختياري)"
-              rows={2}
-              disabled={loading}
-            />
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <FileText className="h-4 w-4 ml-2 text-primary-500" />
+              ملاحظات
+            </label>
+            <div className="relative">
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.notes && formData.notes ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل أي ملاحظات إضافية (اختياري)"
+                rows={3}
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-3">
+                {touched.notes && formData.notes ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <FileText className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+            {formData.notes && (
+              <p className="text-xs text-gray-500">
+                {formData.notes.length} حرف
+              </p>
+            )}
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end space-x-3 space-x-reverse pt-4">
+          <div className="flex justify-end space-x-3 space-x-reverse pt-6 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary"
+              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               disabled={loading}
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               disabled={loading}
             >
               {loading ? (
-                <LoadingSpinner size="small" />
+                <div className="flex items-center">
+                  <LoadingSpinner size="small" variant="dots" />
+                  <span className="mr-2">جاري الحفظ...</span>
+                </div>
               ) : (
-                <>
+                <div className="flex items-center">
                   <Save className="h-4 w-4 ml-2" />
                   {mode === 'create' ? 'إضافة العميل' : 'حفظ التغييرات'}
-                </>
+                </div>
               )}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </SmartModal>
   )
 }
 

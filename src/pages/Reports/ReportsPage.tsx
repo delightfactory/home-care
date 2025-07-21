@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { BarChart3, Calendar, Download } from 'lucide-react'
+import { BarChart3, Calendar, Download, TrendingUp, Users, DollarSign, Target } from 'lucide-react'
 import { ReportsAPI } from '../../api'
 import { MonthlyReport, DailyDashboard, TeamSummary } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -71,9 +71,12 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with gradient */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">التقارير والإحصائيات</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            التقارير والإحصائيات
+          </h1>
           <p className="text-gray-600 mt-1">تقارير الأداء اليومية والشهرية</p>
         </div>
         <div className="flex space-x-3 space-x-reverse">
@@ -81,9 +84,9 @@ const ReportsPage: React.FC = () => {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="input"
+            className="input focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
           />
-          <button className="btn-secondary">
+          <button className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl">
             <Download className="h-5 w-5 ml-2" />
             تصدير
           </button>
@@ -91,7 +94,7 @@ const ReportsPage: React.FC = () => {
       </div>
 
       {/* Daily Report */}
-      <div className="card">
+      <div className="card-elevated">
         <div className="card-header">
           <div className="flex items-center">
             <Calendar className="h-6 w-6 text-blue-600 ml-2" />
@@ -101,21 +104,49 @@ const ReportsPage: React.FC = () => {
         
         {todayDashboard ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-600 font-medium">إجمالي الطلبات</p>
-              <p className="text-2xl font-bold text-blue-900">{todayDashboard?.total_orders}</p>
+            <div className="card-compact bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:scale-105 transition-all duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">إجمالي الطلبات</p>
+                  <p className="text-2xl font-bold">{todayDashboard?.total_orders}</p>
+                </div>
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <Target className="h-6 w-6" />
+                </div>
+              </div>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600 font-medium">الطلبات المكتملة</p>
-              <p className="text-2xl font-bold text-green-900">{todayDashboard?.completed_orders}</p>
+            <div className="card-compact bg-gradient-to-br from-green-500 to-green-600 text-white hover:scale-105 transition-all duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">الطلبات المكتملة</p>
+                  <p className="text-2xl font-bold">{todayDashboard?.completed_orders}</p>
+                </div>
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+              </div>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <p className="text-sm text-yellow-600 font-medium">إجمالي الإيرادات</p>
-              <p className="text-2xl font-bold text-yellow-900">{todayDashboard?.total_revenue} ج.م</p>
+            <div className="card-compact bg-gradient-to-br from-yellow-500 to-orange-500 text-white hover:scale-105 transition-all duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-yellow-100 text-sm font-medium">إجمالي الإيرادات</p>
+                  <p className="text-2xl font-bold">{todayDashboard?.total_revenue} ج.م</p>
+                </div>
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <DollarSign className="h-6 w-6" />
+                </div>
+              </div>
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-purple-600 font-medium">الفرق النشطة</p>
-              <p className="text-2xl font-bold text-purple-900">{todayDashboard?.active_teams}</p>
+            <div className="card-compact bg-gradient-to-br from-purple-500 to-purple-600 text-white hover:scale-105 transition-all duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">الفرق النشطة</p>
+                  <p className="text-2xl font-bold">{todayDashboard?.active_teams}</p>
+                </div>
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <Users className="h-6 w-6" />
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -126,7 +157,7 @@ const ReportsPage: React.FC = () => {
       </div>
 
       {/* Team Performance */}
-      <div className="card">
+      <div className="card-elevated">
         <div className="card-header">
           <div className="flex items-center">
             <BarChart3 className="h-6 w-6 text-indigo-600 ml-2" />
@@ -135,22 +166,22 @@ const ReportsPage: React.FC = () => {
         </div>
         {teamSummaries.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="table-auto w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600 text-left">
-                  <th className="p-2">الفريق</th>
-                  <th className="p-2">الطلبات المكتملة</th>
-                  <th className="p-2">الإيرادات</th>
-                  <th className="p-2">المصروفات</th>
+            <table className="table">
+              <thead className="table-header">
+                <tr>
+                  <th className="table-header-cell">الفريق</th>
+                  <th className="table-header-cell">الطلبات المكتملة</th>
+                  <th className="table-header-cell">الإيرادات</th>
+                  <th className="table-header-cell">المصروفات</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="table-body">
                 {teamSummaries.map(ts => (
-                  <tr key={ts.team_id} className="border-b">
-                    <td className="p-2 font-medium">{ts.team_name}</td>
-                    <td className="p-2">{ts.orders_completed}</td>
-                    <td className="p-2">{ts.total_revenue} ج.م</td>
-                    <td className="p-2">{ts.total_expenses} ج.م</td>
+                  <tr key={ts.team_id} className="table-row hover:bg-gray-50 transition-colors">
+                    <td className="table-cell font-medium">{ts.team_name}</td>
+                    <td className="table-cell">{ts.orders_completed}</td>
+                    <td className="table-cell text-green-600 font-semibold">{ts.total_revenue} ج.م</td>
+                    <td className="table-cell text-red-600 font-semibold">{ts.total_expenses} ج.م</td>
                   </tr>
                 ))}
               </tbody>
@@ -162,7 +193,7 @@ const ReportsPage: React.FC = () => {
       </div>
 
       {/* Monthly Report */}
-      <div className="card">
+      <div className="card-elevated">
         <div className="card-header">
           <div className="flex items-center">
             <BarChart3 className="h-6 w-6 text-green-600 ml-2" />
@@ -175,51 +206,83 @@ const ReportsPage: React.FC = () => {
         {monthReport ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-600 font-medium">إجمالي الطلبات</p>
-                <p className="text-2xl font-bold text-blue-900">{monthReport.total_orders}</p>
+              <div className="card-compact bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium">إجمالي الطلبات</p>
+                    <p className="text-2xl font-bold">{monthReport.total_orders}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-lg">
+                    <Target className="h-6 w-6" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-sm text-green-600 font-medium">إجمالي الإيرادات</p>
-                <p className="text-2xl font-bold text-green-900">{monthReport.total_revenue} ج.م</p>
+              <div className="card-compact bg-gradient-to-br from-green-500 to-green-600 text-white hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">إجمالي الإيرادات</p>
+                    <p className="text-2xl font-bold">{monthReport.total_revenue} ج.م</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-lg">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-red-50 p-4 rounded-lg">
-                <p className="text-sm text-red-600 font-medium">إجمالي المصروفات</p>
-                <p className="text-2xl font-bold text-red-900">{monthReport.total_expenses} ج.م</p>
+              <div className="card-compact bg-gradient-to-br from-red-500 to-red-600 text-white hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-red-100 text-sm font-medium">إجمالي المصروفات</p>
+                    <p className="text-2xl font-bold">{monthReport.total_expenses} ج.م</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-lg">
+                    <TrendingUp className="h-6 w-6 transform rotate-180" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm text-purple-600 font-medium">صافي الربح</p>
-                <p className={`text-2xl font-bold ${monthReport.net_profit >= 0 ? 'text-green-900' : 'text-red-900'}`}>
-                  {monthReport.net_profit} ج.م
-                </p>
+              <div className={`card-compact ${monthReport.net_profit >= 0 ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' : 'bg-gradient-to-br from-orange-500 to-red-500'} text-white hover:scale-105 transition-all duration-200`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`${monthReport.net_profit >= 0 ? 'text-emerald-100' : 'text-orange-100'} text-sm font-medium`}>صافي الربح</p>
+                    <p className="text-2xl font-bold">{monthReport.net_profit} ج.م</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-lg">
+                    <TrendingUp className={`h-6 w-6 ${monthReport.net_profit < 0 ? 'transform rotate-180' : ''}`} />
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-900 mb-3">أداء الفرق</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">متوسط الطلبات لكل فريق:</span>
-                    <span className="font-medium">{monthReport.avg_orders_per_team}</span>
+              <div className="card-compact bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200">
+                <h4 className="font-semibold text-indigo-900 mb-3 flex items-center">
+                  <Users className="h-5 w-5 ml-2" />
+                  أداء الفرق
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
+                    <span className="text-indigo-700">متوسط الطلبات لكل فريق:</span>
+                    <span className="font-bold text-indigo-900">{Math.round(monthReport.avg_orders_per_team)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">متوسط التقييم:</span>
-                    <span className="font-medium">{monthReport.avg_rating}/5</span>
+                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
+                    <span className="text-indigo-700">متوسط التقييم:</span>
+                    <span className="font-bold text-indigo-900">{monthReport.avg_rating.toFixed(1)}/5</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-900 mb-3">إحصائيات إضافية</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">العملاء الجدد:</span>
-                    <span className="font-medium">{monthReport.new_customers}</span>
+              <div className="card-compact bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200">
+                <h4 className="font-semibold text-purple-900 mb-3 flex items-center">
+                  <BarChart3 className="h-5 w-5 ml-2" />
+                  إحصائيات إضافية
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
+                    <span className="text-purple-700">العملاء الجدد:</span>
+                    <span className="font-bold text-purple-900">{monthReport.new_customers}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">معدل إكمال الطلبات:</span>
-                    <span className="font-medium">
+                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
+                    <span className="text-purple-700">معدل إكمال الطلبات:</span>
+                    <span className="font-bold text-purple-900">
                       {monthReport.total_orders > 0 
                         ? Math.round((monthReport.completed_orders / monthReport.total_orders) * 100)
                         : 0}%

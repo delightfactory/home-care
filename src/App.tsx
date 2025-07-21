@@ -1,24 +1,27 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import Layout from './components/Layout/Layout'
-import LoginPage from './pages/Auth/LoginPage'
-import SignUpPage from './pages/Auth/SignUpPage'
-import DashboardPage from './pages/Dashboard/DashboardPage'
-import CustomersPage from './pages/Customers/CustomersPage'
-import ServicesPage from './pages/Services/ServicesPage'
-import OrdersPage from './pages/Orders/OrdersPage'
-import WorkersPage from './pages/Workers/WorkersPage'
-import TeamsPage from './pages/Teams/TeamsPage'
-import ExpensesPage from './pages/Expenses/ExpensesPage'
-import ReportsPage from './pages/Reports/ReportsPage'
-import RoutesPage from './pages/Routes/RoutesPage'
-import SettingsPage from './pages/Settings/SettingsPage'
-import RolesPage from './pages/Admin/RolesPage'
+
 import LoadingSpinner from './components/UI/LoadingSpinner'
 import { AdminGuard } from './hooks/usePermissions'
+
+// Lazy-loaded pages for code-splitting
+const LoginPage = React.lazy(() => import('./pages/Auth/LoginPage'))
+const SignUpPage = React.lazy(() => import('./pages/Auth/SignUpPage'))
+const DashboardPage = React.lazy(() => import('./pages/Dashboard/DashboardPage'))
+const CustomersPage = React.lazy(() => import('./pages/Customers/CustomersPage'))
+const ServicesPage = React.lazy(() => import('./pages/Services/ServicesPage'))
+const OrdersPage = React.lazy(() => import('./pages/Orders/OrdersPage'))
+const WorkersPage = React.lazy(() => import('./pages/Workers/WorkersPage'))
+const TeamsPage = React.lazy(() => import('./pages/Teams/TeamsPage'))
+const RoutesPage = React.lazy(() => import('./pages/Routes/RoutesPage'))
+const ExpensesPage = React.lazy(() => import('./pages/Expenses/ExpensesPage'))
+const ReportsPage = React.lazy(() => import('./pages/Reports/ReportsPage'))
+const SettingsPage = React.lazy(() => import('./pages/Settings/SettingsPage'))
+const RolesPage = React.lazy(() => import('./pages/Admin/RolesPage'))
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -123,7 +126,9 @@ const App: React.FC = () => {
     <AuthProvider>
       <Router>
         <div className="App">
-          <AppRoutes />
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+            <AppRoutes />
+          </Suspense>
           <Toaster
             position="top-center"
             toastOptions={{

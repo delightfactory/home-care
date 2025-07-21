@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Shield, Settings, Plus, Edit, Trash2, UserCheck, UserX } from 'lucide-react'
+import { Users, Shield, Settings, Plus, Edit, Trash2, UserCheck, UserX, UserCog, Lock } from 'lucide-react'
 import { RolesAPI, type Role, type UserWithRole } from '../../lib/api/roles'
 import RoleFormModal from '../../components/Forms/RoleFormModal'
 import UserRoleModal from '../../components/Forms/UserRoleModal'
@@ -178,24 +178,72 @@ const RolesPage: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <Shield className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">إدارة الأدوار والصلاحيات</h1>
+          <Shield className="h-8 w-8 text-primary-600" />
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة الأدوار والصلاحيات</h1>
         </div>
-        <p className="text-gray-600">
+        <p className="text-gray-600 mt-2">
           إدارة أدوار المستخدمين وصلاحياتهم في النظام
         </p>
       </div>
 
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600">إجمالي الأدوار</p>
+              <p className="text-2xl font-bold text-blue-800">{roles.length}</p>
+            </div>
+            <div className="p-3 bg-blue-500 rounded-lg">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600">الأدوار النشطة</p>
+              <p className="text-2xl font-bold text-green-800">{roles.filter(r => r.is_active).length}</p>
+            </div>
+            <div className="p-3 bg-green-500 rounded-lg">
+              <Lock className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-600">إجمالي المستخدمين</p>
+              <p className="text-2xl font-bold text-purple-800">{users.length}</p>
+            </div>
+            <div className="p-3 bg-purple-500 rounded-lg">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-orange-600">المستخدمون النشطون</p>
+              <p className="text-2xl font-bold text-orange-800">{users.filter(u => u.is_active).length}</p>
+            </div>
+            <div className="p-3 bg-orange-500 rounded-lg">
+              <UserCog className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" dir="ltr">
+        <div className="card-compact">
+          <nav className="flex space-x-8" dir="ltr">
             <button
               onClick={() => setActiveTab('roles')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
                 activeTab === 'roles'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-primary-100 text-primary-700 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -205,10 +253,10 @@ const RolesPage: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
                 activeTab === 'users'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-primary-100 text-primary-700 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -228,7 +276,7 @@ const RolesPage: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleCreateRole}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 <Plus className="h-4 w-4" />
                 إضافة دور جديد
@@ -239,7 +287,7 @@ const RolesPage: React.FC = () => {
           {/* Roles Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {roles.map((role) => (
-              <div key={role.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div key={role.id} className="card-elevated hover:shadow-xl transition-all duration-300 hover:scale-105">
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(role.name)}`}>
@@ -250,13 +298,13 @@ const RolesPage: React.FC = () => {
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleEditRole(role)}
-                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteRole(role)}
-                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -295,7 +343,7 @@ const RolesPage: React.FC = () => {
           <div className="mb-6 flex justify-between items-center">
             <button
               onClick={handleCreateUser}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               <Plus className="h-4 w-4" />
               إضافة مستخدم جديد
@@ -303,32 +351,32 @@ const RolesPage: React.FC = () => {
           </div>
 
           {/* Users Table */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="card-elevated overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="table">
+                <thead className="table-header">
                   <tr>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="table-header-cell">
                       المستخدم
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="table-header-cell">
                       الدور
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="table-header-cell">
                       الحالة
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="table-header-cell">
                       تاريخ الإنشاء
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="table-header-cell">
                       الإجراءات
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="table-body">
                   {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={user.id} className="table-row">
+                      <td className="table-cell">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {user.full_name}
@@ -338,7 +386,7 @@ const RolesPage: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="table-cell">
                         {user.role ? (
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(user.role.name)}`}>
                             {user.role.name_ar}
@@ -347,7 +395,7 @@ const RolesPage: React.FC = () => {
                           <span className="text-gray-400 text-sm">بدون دور</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="table-cell">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           user.is_active 
                             ? 'bg-green-100 text-green-800' 
@@ -356,38 +404,38 @@ const RolesPage: React.FC = () => {
                           {user.is_active ? 'نشط' : 'غير نشط'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="table-cell text-gray-500">
                         {new Date(user.created_at).toLocaleDateString('ar-AE')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="table-cell">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEditUserRole(user)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                             title="تغيير الدور"
                           >
                             <Settings className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleEditUser(user)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                             title="تعديل المستخدم"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user)}
-                            className="text-gray-400 hover:text-red-600 transition-colors"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                             title="حذف المستخدم"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleToggleUserStatus(user)}
-                            className={`transition-colors ${
+                            className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md ${
                               user.is_active 
-                                ? 'text-red-600 hover:text-red-900' 
-                                : 'text-green-600 hover:text-green-900'
+                                ? 'text-red-600 hover:bg-red-50' 
+                                : 'text-green-600 hover:bg-green-50'
                             }`}
                             title={user.is_active ? 'إلغاء التفعيل' : 'تفعيل'}
                           >
@@ -460,7 +508,7 @@ const RolesPage: React.FC = () => {
             setDeleteTarget(null)
           }}
           onConfirm={confirmDelete}
-          title={deleteTarget.type === 'role' ? 'حذف الدور' : 'حذف المستخدم'}
+          title={`حذف ${deleteTarget.type === 'role' ? 'الدور' : 'المستخدم'}`}
           message={`هل أنت متأكد من حذف ${deleteTarget.type === 'role' ? 'الدور' : 'المستخدم'} "${deleteTarget.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
         />
       )}

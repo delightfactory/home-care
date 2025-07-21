@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { X, Shield, Save } from 'lucide-react'
+import { X, Shield, Save, User, Globe, FileText, CheckCircle, Settings } from 'lucide-react'
 import { RolesAPI, type Role, type RolePermissions } from '../../lib/api/roles'
+import SmartModal from '../UI/SmartModal'
 import toast from 'react-hot-toast'
 
 interface RoleFormModalProps {
@@ -11,6 +12,8 @@ interface RoleFormModalProps {
 
 const RoleFormModal: React.FC<RoleFormModalProps> = ({ role, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     name: '',
     name_ar: '',
@@ -44,11 +47,30 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({ role, onClose, onSuccess 
     }
   }, [role])
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'اسم الدور بالإنجليزية مطلوب'
+    }
+    
+    if (!formData.name_ar.trim()) {
+      newErrors.name_ar = 'اسم الدور بالعربية مطلوب'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+    validateForm()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.name.trim() || !formData.name_ar.trim()) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة')
+    if (!validateForm()) {
       return
     }
 
@@ -123,80 +145,119 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({ role, onClose, onSuccess 
   ]
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <Shield className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">
-              {role ? 'تعديل الدور' : 'إضافة دور جديد'}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+    <SmartModal
+      isOpen={true}
+      onClose={onClose}
+      title={role ? 'تعديل الدور' : 'إضافة دور جديد'}
+      subtitle={role ? 'تحديث بيانات الدور والصلاحيات' : 'إنشاء دور جديد مع تحديد الصلاحيات'}
+      icon={<Shield className="h-6 w-6 text-white" />}
+      size="xl"
+      headerGradient="from-blue-600 to-indigo-600"
+    >
 
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto p-6">
+      <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto p-6">
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   اسم الدور (بالإنجليزية) *
                 </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="manager"
-                  required
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Globe className={`h-5 w-5 ${touched.name && errors.name ? 'text-red-400' : 'text-gray-400'}`} />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onBlur={() => handleBlur('name')}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      touched.name && errors.name
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400'
+                    }`}
+                    placeholder="manager"
+                    required
+                  />
+                  {touched.name && !errors.name && formData.name && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <CheckCircle className="h-5 w-5 text-green-400" />
+                    </div>
+                  )}
+                </div>
+                {touched.name && errors.name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   اسم الدور (بالعربية) *
                 </label>
-                <input
-                  type="text"
-                  value={formData.name_ar}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name_ar: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="المدير العام"
-                  required
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className={`h-5 w-5 ${touched.name_ar && errors.name_ar ? 'text-red-400' : 'text-gray-400'}`} />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.name_ar}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name_ar: e.target.value }))}
+                    onBlur={() => handleBlur('name_ar')}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      touched.name_ar && errors.name_ar
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400'
+                    }`}
+                    placeholder="المدير العام"
+                    required
+                  />
+                  {touched.name_ar && !errors.name_ar && formData.name_ar && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <CheckCircle className="h-5 w-5 text-green-400" />
+                    </div>
+                  )}
+                </div>
+                {touched.name_ar && errors.name_ar && (
+                  <p className="mt-1 text-sm text-red-600">{errors.name_ar}</p>
+                )}
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   الوصف
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="وصف مختصر للدور وصلاحياته"
-                />
+                <div className="relative">
+                  <div className="absolute top-3 left-3 pointer-events-none">
+                    <FileText className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-all duration-200"
+                    rows={3}
+                    placeholder="وصف مختصر للدور وصلاحياته"
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                  الدور نشط
-                </label>
+              <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_active" className="mr-3 flex items-center text-sm font-medium text-gray-900">
+                    <CheckCircle className="h-4 w-4 ml-2 text-green-500" />
+                    نشط
+                  </label>
+                </div>
+                <span className="text-xs text-gray-500 mr-auto">
+                  {formData.is_active ? 'الدور متاح للاستخدام' : 'الدور غير متاح للاستخدام'}
+                </span>
               </div>
             </div>
 
@@ -222,7 +283,15 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({ role, onClose, onSuccess 
             {/* Permissions */}
             {!permissions.admin && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">الصلاحيات التفصيلية</h3>
+                <div className="flex items-center mb-4">
+                  <div className="bg-blue-100 p-2 rounded-lg ml-3">
+                    <Settings className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">الصلاحيات التفصيلية</h3>
+                    <p className="text-sm text-gray-500">حدد الصلاحيات المتاحة لهذا الدور</p>
+                  </div>
+                </div>
                 <div className="space-y-6">
                   {permissionSections.map((section) => {
                     const sectionPermissions = permissions[section.key as keyof RolePermissions]
@@ -301,33 +370,33 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({ role, onClose, onSuccess 
                 </div>
               </div>
             )}
-          </div>
+        </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {role ? 'تحديث' : 'إنشاء'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 flex items-center gap-2"
+          >
+            <X className="h-4 w-4" />
+            إلغاء
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 border border-transparent rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {loading ? 'جاري الحفظ...' : (role ? 'تحديث' : 'إنشاء')}
+          </button>
+        </div>
+      </form>
+    </SmartModal>
   )
 }
 

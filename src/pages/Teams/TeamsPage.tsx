@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Search, Edit, Trash2, Users } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Users, UserCheck, UserX, Target } from 'lucide-react'
 import { TeamsAPI } from '../../api'
 import { TeamWithMembers } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -88,8 +88,8 @@ const TeamsPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">إدارة الفرق</h1>
-          <p className="text-gray-600 mt-1">إدارة فرق العمل وأعضائها</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة الفرق</h1>
+          <p className="text-gray-600 mt-2">إدارة فرق العمل وأعضائها</p>
         </div>
         <button 
           onClick={() => {
@@ -97,32 +97,87 @@ const TeamsPage: React.FC = () => {
             setFormMode('create')
             setShowFormModal(true)
           }}
-          className="btn-primary"
+          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
         >
           <Plus className="h-5 w-5 ml-2" />
           إضافة فريق جديد
         </button>
       </div>
 
-      <div className="card">
+      {/* Teams Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600">إجمالي الفرق</p>
+              <p className="text-2xl font-bold text-blue-800">{teams.length}</p>
+            </div>
+            <div className="p-3 bg-blue-500 rounded-lg">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600">فرق نشطة</p>
+              <p className="text-2xl font-bold text-green-800">{teams.filter(t => t.status === 'active').length}</p>
+            </div>
+            <div className="p-3 bg-green-500 rounded-lg">
+              <UserCheck className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600">فرق غير نشطة</p>
+              <p className="text-2xl font-bold text-red-800">{teams.filter(t => t.status === 'inactive').length}</p>
+            </div>
+            <div className="p-3 bg-red-500 rounded-lg">
+              <UserX className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="card-compact bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-600">إجمالي الأعضاء</p>
+              <p className="text-2xl font-bold text-purple-800">{teams.reduce((sum, t) => sum + (t.members?.length || 0), 0)}</p>
+            </div>
+            <div className="p-3 bg-purple-500 rounded-lg">
+              <Target className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card-compact">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="text"
             placeholder="البحث عن فريق بالاسم..."
-            className="input pr-10"
+            className="input pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        {searchTerm && (
+          <div className="mt-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
+            <p className="text-sm text-primary-700">
+              عرض {filteredTeams.length} من أصل {teams.length} فريق
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTeams.map((team) => (
-          <div key={team.id} className="card">
+          <div key={team.id} className="card-elevated hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
             <div className="flex items-start justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-lg">
+                <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg shadow-sm">
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="mr-3">
@@ -130,7 +185,9 @@ const TeamsPage: React.FC = () => {
                   <p className="text-sm text-gray-600">{team.description}</p>
                 </div>
               </div>
-              {getStatusBadge(team.status)}
+              <div className={team.status === 'active' ? 'animate-pulse' : ''}>
+                {getStatusBadge(team.status)}
+              </div>
             </div>
 
             <div className="mt-4 space-y-3">
@@ -175,7 +232,7 @@ const TeamsPage: React.FC = () => {
                   setFormMode('edit')
                   setShowFormModal(true)
                 }}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                 title="تعديل"
               >
                 <Edit className="h-4 w-4" />
@@ -185,7 +242,7 @@ const TeamsPage: React.FC = () => {
                   setSelectedTeam(team)
                   setShowDeleteModal(true)
                 }}
-                className="p-2 text-red-600 hover:bg-red-50 rounded"
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                 title="حذف"
               >
                 <Trash2 className="h-4 w-4" />
@@ -223,9 +280,7 @@ const TeamsPage: React.FC = () => {
           setSelectedTeam(undefined)
         }}
         onConfirm={handleDeleteTeam}
-        title="حذف الفريق"
-        message="هل أنت متأكد من رغبتك في حذف هذا الفريق؟ قد يؤثر ذلك على الطلبات والعمال المرتبطين."
-        itemName={selectedTeam?.name}
+        message={`هل أنت متأكد من رغبتك في حذف الفريق "${selectedTeam?.name}"؟ قد يؤثر ذلك على الطلبات والعمال المرتبطين.`}
         loading={deleteLoading}
       />
     </div>

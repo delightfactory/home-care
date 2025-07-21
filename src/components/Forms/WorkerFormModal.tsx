@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, User } from 'lucide-react'
+import { X, Save, User, Phone, DollarSign, Award, Car, CheckCircle, Plus } from 'lucide-react'
 import { WorkersAPI } from '../../api'
 import { Worker, WorkerForm } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
+import SmartModal from '../UI/SmartModal'
+import DateTimePicker from '../UI/DateTimePicker'
 import toast from 'react-hot-toast'
 
 interface WorkerFormModalProps {
@@ -24,12 +26,13 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
     name: '',
     phone: '',
     hire_date: '',
-    salary: 0,
+    salary: undefined,
     skills: [],
     can_drive: false
   })
   const [loading, setLoading] = useState(false)
   const [skillInput, setSkillInput] = useState('')
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (worker && mode === 'edit') {
@@ -37,7 +40,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
         name: worker.name,
         phone: worker.phone || '',
         hire_date: worker.hire_date,
-        salary: worker.salary || 0,
+        salary: worker.salary || undefined,
         skills: worker.skills || [],
         can_drive: worker.can_drive || false
       })
@@ -46,12 +49,16 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
         name: '',
         phone: '',
         hire_date: '',
-        salary: 0,
+        salary: undefined,
         skills: [],
         can_drive: false
       })
     }
   }, [worker, mode, isOpen])
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,105 +125,144 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <User className="h-5 w-5 text-blue-600 ml-2" />
-            <h2 className="text-lg font-semibold">
-              {mode === 'create' ? 'إضافة عامل جديد' : 'تعديل بيانات العامل'}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-            disabled={loading}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <SmartModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={mode === 'create' ? 'إضافة عامل جديد' : 'تعديل بيانات العامل'}
+      subtitle={mode === 'create' ? 'أدخل بيانات العامل الجديد' : 'قم بتعديل بيانات العامل'}
+      icon={<User className="h-5 w-5 text-white" />}
+      size="md"
+      headerGradient="from-primary-500 to-primary-600"
+    >
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Name Field */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <User className="h-4 w-4 ml-2 text-primary-500" />
               الاسم الكامل *
             </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="input-field"
-              placeholder="أدخل الاسم الكامل"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              رقم الهاتف *
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              className="input-field"
-              placeholder="05xxxxxxxx"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              تاريخ التوظيف *
-            </label>
-            <input
-              type="date"
-              value={formData.hire_date}
-              onChange={(e) => setFormData(prev => ({ ...prev, hire_date: e.target.value }))}
-              className="input-field"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              الراتب (ج.م)
-            </label>
-            <input
-              type="number"
-              value={formData.salary}
-              onChange={(e) => setFormData(prev => ({ ...prev, salary: Number(e.target.value) }))}
-              className="input-field"
-              placeholder="0"
-              min="0"
-              step="0.01"
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              المهارات
-            </label>
-            <div className="flex gap-2 mb-2">
+            <div className="relative">
               <input
                 type="text"
-                value={skillInput}
-                onChange={(e) => setSkillInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="input-field flex-1"
-                placeholder="أدخل مهارة جديدة"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onBlur={() => handleBlur('name')}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                  touched.name && formData.name ? 'border-green-500 focus:ring-green-500' : ''
+                }`}
+                placeholder="أدخل الاسم الكامل"
+                required
                 disabled={loading}
               />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.name && formData.name ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <User className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Phone Field */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <Phone className="h-4 w-4 ml-2 text-primary-500" />
+              رقم الهاتف *
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                onBlur={() => handleBlur('phone')}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                  touched.phone && formData.phone ? 'border-green-500 focus:ring-green-500' : ''
+                }`}
+                placeholder="05xxxxxxxx"
+                required
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.phone && formData.phone ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Phone className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Hire Date Field */}
+          <DateTimePicker
+            type="date"
+            value={formData.hire_date}
+            onChange={(value) => setFormData(prev => ({ ...prev, hire_date: value }))}
+            label="تاريخ التوظيف *"
+            placeholder="اختر تاريخ التوظيف"
+            required
+            disabled={loading}
+          />
+
+          {/* Salary Field */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <DollarSign className="h-4 w-4 ml-2 text-primary-500" />
+              الراتب (ج.م)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={formData.salary ?? ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, salary: e.target.value ? Number(e.target.value) : undefined }))}
+                onBlur={() => handleBlur('salary')}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                  touched.salary && formData.salary && formData.salary > 0 ? 'border-green-500 focus:ring-green-500' : ''
+                }`}
+                placeholder="0"
+                min="0"
+                step="0.01"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.salary && formData.salary && formData.salary > 0 ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <DollarSign className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Skills Field */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <Award className="h-4 w-4 ml-2 text-primary-500" />
+              المهارات
+            </label>
+            <div className="flex gap-2 mb-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10"
+                  placeholder="أدخل مهارة جديدة"
+                  disabled={loading}
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <Award className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={addSkill}
-                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center"
                 disabled={loading || !skillInput.trim()}
               >
+                <Plus className="h-4 w-4 ml-1" />
                 إضافة
               </button>
             </div>
@@ -224,63 +270,106 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
               {formData.skills.map((skill, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded"
+                  className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-primary-50 to-primary-100 text-primary-700 text-sm rounded-lg border border-primary-200 shadow-sm"
                 >
+                  <Award className="h-3 w-3 ml-1" />
                   {skill}
                   <button
                     type="button"
                     onClick={() => removeSkill(skill)}
-                    className="mr-1 text-blue-600 hover:text-blue-800"
+                    className="mr-2 text-primary-600 hover:text-primary-800 hover:bg-primary-200 rounded-full p-0.5 transition-all duration-200"
                     disabled={loading}
                   >
-                    ×
+                    <X className="h-3 w-3" />
                   </button>
                 </span>
               ))}
             </div>
+            {formData.skills.length === 0 && (
+              <p className="text-xs text-gray-500 italic">لم يتم إضافة مهارات بعد</p>
+            )}
           </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="can_drive"
-              checked={formData.can_drive}
-              onChange={(e) => setFormData(prev => ({ ...prev, can_drive: e.target.checked }))}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              disabled={loading}
-            />
-            <label htmlFor="can_drive" className="mr-2 block text-sm text-gray-900">
-              يمكنه القيادة
+          {/* Can Drive Toggle */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <Car className="h-4 w-4 ml-2 text-primary-500" />
+              القدرة على القيادة
             </label>
+            <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    id="can_drive"
+                    checked={formData.can_drive}
+                    onChange={(e) => setFormData(prev => ({ ...prev, can_drive: e.target.checked }))}
+                    className="sr-only"
+                    disabled={loading}
+                  />
+                  <label
+                    htmlFor="can_drive"
+                    className={`flex items-center cursor-pointer transition-all duration-200 ${
+                      formData.can_drive
+                        ? 'text-primary-600'
+                        : 'text-gray-500'
+                    }`}
+                  >
+                    <div
+                      className={`w-12 h-6 rounded-full transition-all duration-200 relative ${
+                        formData.can_drive
+                          ? 'bg-gradient-to-r from-primary-500 to-primary-600'
+                          : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200 ${
+                          formData.can_drive ? 'translate-x-6' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                    <span className="mr-3 font-medium">
+                      {formData.can_drive ? 'يمكنه القيادة' : 'لا يمكنه القيادة'}
+                    </span>
+                    {formData.can_drive && (
+                      <CheckCircle className="h-4 w-4 text-primary-600 mr-2" />
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex justify-end space-x-3 space-x-reverse pt-4">
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 space-x-reverse pt-6 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary"
+              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               disabled={loading}
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               disabled={loading}
             >
               {loading ? (
-                <LoadingSpinner size="small" />
+                <div className="flex items-center">
+                  <LoadingSpinner size="small" />
+                  <span className="mr-2">جاري الحفظ...</span>
+                </div>
               ) : (
-                <>
+                <div className="flex items-center">
                   <Save className="h-4 w-4 ml-2" />
-                  {mode === 'create' ? 'إضافة' : 'حفظ التغييرات'}
-                </>
+                  {mode === 'create' ? 'إضافة العامل' : 'حفظ التغييرات'}
+                </div>
               )}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </SmartModal>
   )
 }
 

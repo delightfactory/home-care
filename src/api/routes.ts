@@ -7,7 +7,6 @@ import {
   RouteWithOrders,
   RouteOrder,
   RouteOrderInsert,
-  RouteOrderUpdate,
   OrderWithDetails,
   PaginatedResponse,
   ApiResponse,

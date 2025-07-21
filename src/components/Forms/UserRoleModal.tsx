@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { X, User, Save } from 'lucide-react'
+import { Save, Shield } from 'lucide-react'
 import { RolesAPI, type Role, type UserWithRole } from '../../lib/api/roles'
+import SmartModal from '../UI/SmartModal'
 import toast from 'react-hot-toast'
 
 interface UserRoleModalProps {
@@ -77,152 +78,140 @@ const UserRoleModal: React.FC<UserRoleModalProps> = ({ user, roles, onClose, onS
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <User className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">
-              تغيير دور المستخدم
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="p-6">
-            {/* User Info */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">معلومات المستخدم</h3>
-              <div className="text-sm text-gray-600">
-                <div className="mb-1">
-                  <span className="font-medium">الاسم:</span> {user.full_name}
-                </div>
-                {user.phone && (
-                  <div className="mb-1">
-                    <span className="font-medium">الهاتف:</span> {user.phone}
-                  </div>
-                )}
-                <div>
-                  <span className="font-medium">الدور الحالي:</span>{' '}
-                  {user.role ? (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(user.role.name)}`}>
-                      {user.role.name_ar}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">بدون دور</span>
-                  )}
-                </div>
-              </div>
+    <SmartModal
+      isOpen={true}
+      onClose={onClose}
+      title="تغيير دور المستخدم"
+      subtitle="تحديد صلاحيات المستخدم"
+      icon={<Shield className="h-6 w-6 text-white" />}
+      size="md"
+      headerGradient="from-indigo-600 to-purple-600"
+    >
+      <form onSubmit={handleSubmit} className="p-6">
+        {/* User Info */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="font-medium text-gray-900 mb-2">معلومات المستخدم</h3>
+          <div className="text-sm text-gray-600">
+            <div className="mb-1">
+              <span className="font-medium">الاسم:</span> {user.full_name}
             </div>
-
-            {/* Role Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                اختيار الدور الجديد *
-              </label>
-              <div className="space-y-3">
-                {roles.filter(role => role.is_active).map((role) => (
-                  <div key={role.id} className="relative">
-                    <input
-                      type="radio"
-                      id={role.id}
-                      name="role"
-                      value={role.id}
-                      checked={selectedRoleId === role.id}
-                      onChange={(e) => setSelectedRoleId(e.target.value)}
-                      className="sr-only"
-                    />
-                    <label
-                      htmlFor={role.id}
-                      className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
-                        selectedRoleId === role.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(role.name)}`}>
-                              {role.name_ar}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {getPermissionCount(role.permissions)}
-                            </span>
-                          </div>
-                          {role.description && (
-                            <p className="text-sm text-gray-600">{role.description}</p>
-                          )}
-                        </div>
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          selectedRoleId === role.id
-                            ? 'border-blue-500 bg-blue-500'
-                            : 'border-gray-300'
-                        }`}>
-                          {selectedRoleId === role.id && (
-                            <div className="w-2 h-2 rounded-full bg-white"></div>
-                          )}
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Selected Role Details */}
-            {selectedRole && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">تفاصيل الدور المحدد</h4>
-                <div className="text-sm text-blue-800">
-                  <div className="mb-1">
-                    <span className="font-medium">الاسم:</span> {selectedRole.name_ar}
-                  </div>
-                  <div className="mb-1">
-                    <span className="font-medium">الصلاحيات:</span> {getPermissionCount(selectedRole.permissions)}
-                  </div>
-                  {selectedRole.description && (
-                    <div>
-                      <span className="font-medium">الوصف:</span> {selectedRole.description}
-                    </div>
-                  )}
-                </div>
+            {user.phone && (
+              <div className="mb-1">
+                <span className="font-medium">الهاتف:</span> {user.phone}
               </div>
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !selectedRoleId}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <div>
+              <span className="font-medium">الدور الحالي:</span>{' '}
+              {user.role ? (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(user.role.name)}`}>
+                  {user.role.name_ar}
+                </span>
               ) : (
-                <Save className="h-4 w-4" />
+                <span className="text-gray-400">بدون دور</span>
               )}
-              تحديث الدور
-            </button>
+            </div>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        {/* Role Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            اختيار الدور الجديد *
+          </label>
+          <div className="space-y-3">
+            {roles.filter(role => role.is_active).map((role) => (
+              <div key={role.id} className="relative">
+                <input
+                  type="radio"
+                  id={role.id}
+                  name="role"
+                  value={role.id}
+                  checked={selectedRoleId === role.id}
+                  onChange={(e) => setSelectedRoleId(e.target.value)}
+                  className="sr-only"
+                />
+                <label
+                  htmlFor={role.id}
+                  className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedRoleId === role.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(role.name)}`}>
+                          {role.name_ar}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {getPermissionCount(role.permissions)}
+                        </span>
+                      </div>
+                      {role.description && (
+                        <p className="text-sm text-gray-600">{role.description}</p>
+                      )}
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      selectedRoleId === role.id
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-gray-300'
+                    }`}>
+                      {selectedRoleId === role.id && (
+                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                      )}
+                    </div>
+                  </div>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Selected Role Details */}
+        {selectedRole && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">تفاصيل الدور المحدد</h4>
+            <div className="text-sm text-blue-800">
+              <div className="mb-1">
+                <span className="font-medium">الاسم:</span> {selectedRole.name_ar}
+              </div>
+              <div className="mb-1">
+                <span className="font-medium">الصلاحيات:</span> {getPermissionCount(selectedRole.permissions)}
+              </div>
+              {selectedRole.description && (
+                <div>
+                  <span className="font-medium">الوصف:</span> {selectedRole.description}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            إلغاء
+          </button>
+          <button
+            type="submit"
+            disabled={loading || !selectedRoleId}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            تحديث الدور
+          </button>
+        </div>
+      </form>
+    </SmartModal>
   )
 }
 

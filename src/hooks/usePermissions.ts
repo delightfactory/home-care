@@ -4,16 +4,16 @@ import { useAuth } from '../contexts/AuthContext'
 
 export const usePermissions = () => {
   const { user } = useAuth()
-  const [permissions, setPermissions] = useState<RolePermissions | null>(null)
-  const [userRole, setUserRole] = useState<string>('')
+  const [permissions, setPermissions] = useState<RolePermissions | undefined>(undefined)
+  const [userRole, setUserRole] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user) {
       loadPermissions()
     } else {
-      setPermissions(null)
-      setUserRole('')
+      setPermissions(undefined)
+      setUserRole(undefined)
       setLoading(false)
     }
   }, [user])
@@ -26,11 +26,11 @@ export const usePermissions = () => {
       ])
 
       if (permissionsResponse.success) {
-        setPermissions(permissionsResponse.data)
+        setPermissions(permissionsResponse.data || undefined)
       }
 
       if (roleResponse.success) {
-        setUserRole(roleResponse.data)
+        setUserRole(roleResponse.data || undefined)
       }
     } catch (error) {
       console.error('Error loading permissions:', error)
@@ -61,12 +61,12 @@ export const usePermissions = () => {
 
   // التحقق من دور معين
   const hasRole = (roleName: string): boolean => {
-    return userRole === roleName
+    return userRole ? userRole === roleName : false
   }
 
   // التحقق من أي من الأدوار المحددة
   const hasAnyRole = (roleNames: string[]): boolean => {
-    return roleNames.includes(userRole)
+    return userRole ? roleNames.includes(userRole) : false
   }
 
   // التحقق من حد المصروفات

@@ -39,9 +39,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:block lg:w-64 lg:overflow-y-auto lg:bg-white lg:border-l lg:border-gray-200">
-        <div className="flex h-16 shrink-0 items-center justify-center border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:block lg:w-64 lg:overflow-y-auto lg:bg-white lg:border-l lg:border-gray-200 lg:shadow-lg">
+        <div className="flex h-16 shrink-0 items-center justify-center border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
             نظام إدارة التنظيف
           </h1>
         </div>
@@ -56,14 +56,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       className={({ isActive }) =>
                         clsx(
                           isActive
-                            ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-700'
-                            : 'text-gray-700 hover:text-primary-700 hover:bg-gray-50',
-                          'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200'
+                            ? 'bg-gradient-to-r from-primary-50 to-primary-100 text-primary-700 border-l-4 border-primary-600 shadow-sm'
+                            : 'text-gray-700 hover:text-primary-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100',
+                          'group flex gap-x-3 rounded-lg p-3 text-sm leading-6 font-semibold transition-all duration-200 transform hover:scale-[1.02]'
                         )
                       }
                     >
                       <item.icon
-                        className="h-6 w-6 shrink-0"
+                        className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105"
                         aria-hidden="true"
                       />
                       {item.name}
@@ -84,12 +84,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         )}
       >
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
             نظام إدارة التنظيف
           </h1>
           <button
             type="button"
-            className="-m-2.5 rounded-md p-2.5 text-gray-700"
+            className="-m-2.5 rounded-lg p-2.5 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
             onClick={onClose}
           >
             <X className="h-6 w-6" aria-hidden="true" />
@@ -107,14 +107,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       className={({ isActive }) =>
                         clsx(
                           isActive
-                            ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-700'
-                            : 'text-gray-700 hover:text-primary-700 hover:bg-gray-50',
-                          'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200'
+                            ? 'bg-gradient-to-r from-primary-50 to-primary-100 text-primary-700 border-l-4 border-primary-600 shadow-sm'
+                            : 'text-gray-700 hover:text-primary-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100',
+                          'group flex gap-x-3 rounded-lg p-3 text-sm leading-6 font-semibold transition-all duration-200 transform hover:scale-[1.02]'
                         )
                       }
                     >
                       <item.icon
-                        className="h-6 w-6 shrink-0"
+                        className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105"
                         aria-hidden="true"
                       />
                       {item.name}

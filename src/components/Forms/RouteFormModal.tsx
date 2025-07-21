@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { X, Save, Calendar, Users } from 'lucide-react'
-import { RoutesAPI } from '../../api'
+import { Save, Users, FileText, CheckCircle, MapPin, X } from 'lucide-react'
+import { RoutesAPI } from '../../api/routes'
 import {
   RouteInsert,
   RouteUpdate,
@@ -8,6 +8,8 @@ import {
   TeamWithMembers,
 } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
+import SmartModal from '../UI/SmartModal'
+import DateTimePicker from '../UI/DateTimePicker'
 import toast from 'react-hot-toast'
 
 interface RouteFormModalProps {
@@ -36,6 +38,11 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
     notes: '',
   } as any)
   const [loading, setLoading] = useState(false)
+  const [touched, setTouched] = useState<{[key: string]: boolean}>({})
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+  }
 
   useEffect(() => {
     if (mode === 'edit' && existingRoute) {
@@ -94,95 +101,152 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            {mode === 'create' ? 'إنشاء خط سير' : 'تعديل خط سير'}
-          </h2>
-          <button
-            type="button"
-            className="text-gray-400 hover:text-gray-600"
-            onClick={onClose}
-            disabled={loading}
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <SmartModal
+      isOpen={open}
+      onClose={onClose}
+      title={mode === 'create' ? 'إنشاء خط سير جديد' : 'تعديل خط السير'}
+      subtitle={mode === 'create' ? 'أضف خط سير جديد للنظام' : 'تحديث بيانات خط السير'}
+      icon={<MapPin className="h-6 w-6 text-white" />}
+      size="md"
+      headerGradient="from-blue-600 to-purple-600"
+    >
+
+      {loading ? (
+        <div className="py-8 flex justify-center">
+          <LoadingSpinner size="medium" />
         </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Route Name */}
+              <div className="space-y-2">
+                <label className="flex items-center label text-gray-700 font-medium">
+                  <MapPin className="h-4 w-4 ml-2 text-primary-500" />
+                  اسم خط السير *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                      touched.name && formData.name ? 'border-green-500 focus:ring-green-500' : ''
+                    }`}
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onBlur={() => handleBlur('name')}
+                    placeholder="أدخل اسم خط السير"
+                    required
+                  />
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    {touched.name && formData.name ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+              </div>
 
-        {loading ? (
-          <div className="py-6 flex justify-center">
-            <LoadingSpinner size="medium" />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                اسم خط السير *
-              </label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.name || ''}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-
-            {/* Date */}
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <input
+              {/* Date */}
+              <DateTimePicker
                 type="date"
-                className="input-field"
                 value={formData.date as string}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, date: value })}
+                label="تاريخ خط السير"
+                placeholder="اختر تاريخ خط السير"
+                disabled={loading}
               />
-            </div>
 
-            {/* Team */}
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-gray-400" />
-              <select
-                className="select w-full"
-                value={formData.team_id || 'none'}
-                onChange={(e) =>
-                  setFormData({ ...formData, team_id: e.target.value === 'none' ? null : e.target.value })
-                }
-              >
-                <option value="none">بدون فريق</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Team */}
+              <div className="space-y-2">
+                <label className="flex items-center label text-gray-700 font-medium">
+                  <Users className="h-4 w-4 ml-2 text-primary-500" />
+                  الفريق المسؤول
+                </label>
+                <div className="relative">
+                  <select
+                    className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
+                      touched.team_id && formData.team_id ? 'border-green-500 focus:ring-green-500' : ''
+                    }`}
+                    value={formData.team_id || 'none'}
+                    onChange={(e) =>
+                      setFormData({ ...formData, team_id: e.target.value === 'none' ? null : e.target.value })
+                    }
+                    onBlur={() => handleBlur('team_id')}
+                  >
+                    <option value="none">بدون فريق</option>
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    {touched.team_id && formData.team_id ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Users className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+              </div>
 
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
-              <textarea
-                className="input-field h-24"
-                value={formData.notes || ''}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              />
-            </div>
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="flex items-center label text-gray-700 font-medium">
+                  <FileText className="h-4 w-4 ml-2 text-primary-500" />
+                  ملاحظات
+                </label>
+                <div className="relative">
+                  <textarea
+                    className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 h-24 ${
+                      touched.notes && formData.notes ? 'border-green-500 focus:ring-green-500' : ''
+                    }`}
+                    value={formData.notes || ''}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    onBlur={() => handleBlur('notes')}
+                    placeholder="أدخل ملاحظات إضافية (اختياري)"
+                  />
+                  <div className="absolute left-3 top-3">
+                    {touched.notes && formData.notes ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <FileText className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+                {formData.notes && (
+                  <p className="text-xs text-gray-500">
+                    {formData.notes.length} حرف
+                  </p>
+                )}
+              </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
-              <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>
-                إلغاء
-              </button>
-              <button type="submit" className="btn-primary flex items-center gap-1" disabled={loading}>
-                <Save className="h-4 w-4" /> حفظ
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+              {/* Actions */}
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="btn-secondary flex items-center transition-all duration-200"
+                  disabled={loading}
+                >
+                  <X className="h-4 w-4 ml-2" />
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !formData.name?.trim()}
+                  className="btn-primary flex items-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
+                  ) : (
+                    <Save className="h-4 w-4 ml-2" />
+                  )}
+                  {loading ? 'جاري الحفظ...' : (mode === 'create' ? 'إنشاء' : 'تحديث')}
+                </button>
+              </div>
+        </form>
+      )}
+    </SmartModal>
   )
 }
 
