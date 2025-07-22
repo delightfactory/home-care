@@ -269,9 +269,14 @@ export class OrdersAPI {
       // Exclude fields that do not belong to the `orders` table schema (e.g. services list)
       const { services: _services, ...orderUpdates } = updates as Record<string, any>
 
+      // Convert empty strings to null to satisfy DB constraints
+      const sanitizedUpdates = Object.fromEntries(
+        Object.entries(orderUpdates).map(([key, value]) => [key, value === '' ? null : value])
+      ) as Record<string, any>
+
       const { data, error } = await supabase
         .from('orders')
-        .update({ ...orderUpdates, updated_at: new Date().toISOString() })
+        .update({ ...sanitizedUpdates, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single()
@@ -333,6 +338,41 @@ export class OrdersAPI {
         success: false,
         error: handleSupabaseError(error)
       }
+    }
+  }
+
+  // Replace all order items (delete then insert new list) and update total_amount
+  static async replaceOrderItems(
+    orderId: string,
+    items: Omit<OrderItemInsert, 'order_id'>[]
+  ): Promise<ApiResponse<void>> {
+    try {
+      // Begin transaction via a Postgres function – Supabase doesn't support multi-statement tx client-side, so run sequentially.
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('order_id', orderId)
+      if (deleteError) throw deleteError
+
+      // Insert new items with order_id
+      const itemsWithOrder = items.map(item => ({ ...item, order_id: orderId }))
+      const { error: insertError } = await supabase
+        .from('order_items')
+        .insert(itemsWithOrder)
+      if (insertError) throw insertError
+
+      // Recalculate total amount
+      const totalAmount = items.reduce((sum, it) => sum + it.total_price, 0)
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ total_amount: totalAmount, updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+      if (updateError) throw updateError
+
+      return { success: true, message: 'تم تحديث عناصر الطلب بنجاح' }
+    } catch (error) {
+      return { success: false, error: handleSupabaseError(error) }
     }
   }
 

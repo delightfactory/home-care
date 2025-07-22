@@ -79,7 +79,32 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       })
     }
     setErrors({})
+
+  
   }, [order, mode, isOpen])
+
+  // Fetch detailed order items when editing and items not present
+  useEffect(() => {
+    const loadDetails = async () => {
+      if (!isOpen || mode !== 'edit' || !order) return
+      if ((order as OrderWithDetails).items && (order as OrderWithDetails).items!.length) return
+      try {
+        const detailed = await OrdersAPI.getOrderById(order.id)
+        if (detailed && detailed.items) {
+          setFormData(prev => ({
+            ...prev,
+            services: (detailed.items ?? []).map(it => ({
+              service_id: it.service_id ?? '',
+              quantity: it.quantity
+            }))
+          }))
+        }
+      } catch (err) {
+        console.error('Could not load order items:', err)
+      }
+    }
+    loadDetails()
+  }, [isOpen, mode, order])
 
   const fetchInitialData = async () => {
     try {
@@ -168,7 +193,23 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           throw new Error(response.error || 'Create order failed')
         }
       } else {
-        await OrdersAPI.updateOrder(order!.id, formData)
+        // Update order base fields first (exclude services)
+        const { services: svc, ...orderUpdates } = formData as any
+        const updateRes = await OrdersAPI.updateOrder(order!.id, orderUpdates)
+        if (!updateRes.success) throw new Error(updateRes.error || 'Update failed')
+
+        // Recalculate items with prices
+        const orderItems = formData.services.map(serviceItem => {
+          const service = services.find(s => s.id === serviceItem.service_id)
+          return {
+            service_id: serviceItem.service_id,
+            quantity: serviceItem.quantity,
+            unit_price: service?.price || 0,
+            total_price: (service?.price || 0) * serviceItem.quantity
+          }
+        })
+        const replaceRes = await OrdersAPI.replaceOrderItems(order!.id, orderItems)
+        if (!replaceRes.success) throw new Error(replaceRes.error || 'Failed to update الخدمات')
         toast.success('تم تحديث بيانات الطلب بنجاح')
       }
       

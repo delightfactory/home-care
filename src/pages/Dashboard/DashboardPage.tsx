@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { 
   Users, 
   ShoppingCart, 
@@ -16,7 +17,8 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import toast from 'react-hot-toast'
 
 const DashboardPage: React.FC = () => {
-    const today = useMemo(() => getToday(), [])
+  const navigate = useNavigate()
+  const today = useMemo(() => getToday(), [])
 
   // Dashboard stats via optimized hook
   const {
@@ -219,15 +221,24 @@ if (statsLoading) {
             </h3>
           </div>
           <div className="space-y-3">
-            <button className="btn-primary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg">
+            <button 
+              onClick={() => navigate('/orders?action=create')}
+              className="btn-primary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
+            >
               <ShoppingCart className="h-5 w-5 ml-2" />
               إضافة طلب جديد
             </button>
-            <button className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg">
+            <button 
+              onClick={() => navigate('/customers?action=create')}
+              className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
+            >
               <Users className="h-5 w-5 ml-2" />
               إضافة عميل جديد
             </button>
-            <button className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg">
+            <button 
+              onClick={() => navigate('/routes')}
+              className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
+            >
               <Calendar className="h-5 w-5 ml-2" />
               عرض جدول اليوم
             </button>

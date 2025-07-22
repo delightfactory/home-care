@@ -11,11 +11,11 @@ const Layout: React.FC = () => {
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
+      {/* Header */}
+      <Header onMenuClick={() => setSidebarOpen(true)} />
+      
       {/* Main Content */}
-      <div className="lg:pr-64">
-        {/* Header */}
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        
+      <div className="lg:pr-64 pt-16">
         {/* Page Content */}
         <main className="py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

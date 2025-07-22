@@ -1,0 +1,16 @@
+# Netlify configuration file
+# Docs: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+  # Use Node 20.x for the build image
+  [build.environment]
+    NODE_VERSION = "20"
+
+# SPA fallback: route everything through index.html so React Router works on refresh
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

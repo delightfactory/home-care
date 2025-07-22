@@ -316,7 +316,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
                     }`}
                   >
                     <div
-                      className={`w-12 h-6 rounded-full transition-all duration-200 relative ${
+                      className={`relative w-12 h-6 rounded-full transition-all duration-200 ${
                         formData.can_drive
                           ? 'bg-gradient-to-r from-primary-500 to-primary-600'
                           : 'bg-gray-300'
@@ -324,7 +324,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
                     >
                       <div
                         className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200 ${
-                          formData.can_drive ? 'translate-x-6' : 'translate-x-0.5'
+                          formData.can_drive ? 'right-0.5' : 'left-0.5'
                         }`}
                       />
                     </div>

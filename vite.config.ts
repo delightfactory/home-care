@@ -16,5 +16,40 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true
+  },
+  build: {
+    // PWA optimizations
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['@headlessui/react', '@heroicons/react', 'lucide-react'],
+          supabase: ['@supabase/supabase-js'],
+          utils: ['react-hot-toast', '@tanstack/react-query']
+        }
+      }
+    },
+    // Enable source maps for better debugging
+    sourcemap: true,
+    // Optimize chunk size
+    chunkSizeWarningLimit: 1000,
+    // Enable minification
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
+  },
+  // PWA specific configurations
+  publicDir: 'public',
+  base: './',
+  // Enable HTTPS for PWA features in development
+  preview: {
+    port: 3000,
+    host: true,
+    https: false // Set to true if you have SSL certificates
   }
 })

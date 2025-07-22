@@ -39,39 +39,37 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:block lg:w-64 lg:overflow-y-auto lg:bg-white lg:border-l lg:border-gray-200 lg:shadow-lg">
-        <div className="flex h-16 shrink-0 items-center justify-center border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
-            نظام إدارة التنظيف
+      <div className="hidden lg:fixed lg:inset-y-0 lg:right-0 lg:z-30 lg:block lg:w-64 lg:overflow-y-auto lg:bg-white/95 lg:backdrop-blur-md lg:border-l lg:border-gray-200/50 lg:shadow-xl">
+        <div className="flex h-16 shrink-0 items-center justify-center border-b border-gray-200/50 bg-gradient-to-r from-primary-50/80 to-primary-100/80 backdrop-blur-sm">
+          <h1 className="text-lg font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent transition-all duration-300 hover:scale-105">
+            نظام HOME CARE
           </h1>
         </div>
-        <nav className="mt-8">
-          <ul role="list" className="flex flex-1 flex-col gap-y-7 px-6">
-            <li>
-              <ul role="list" className="-mx-2 space-y-1">
-                {navigation.map((item) => (
-                  <li key={item.name}>
-                    <NavLink
-                      to={item.href}
-                      className={({ isActive }) =>
-                        clsx(
-                          isActive
-                            ? 'bg-gradient-to-r from-primary-50 to-primary-100 text-primary-700 border-l-4 border-primary-600 shadow-sm'
-                            : 'text-gray-700 hover:text-primary-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100',
-                          'group flex gap-x-3 rounded-lg p-3 text-sm leading-6 font-semibold transition-all duration-200 transform hover:scale-[1.02]'
-                        )
-                      }
-                    >
-                      <item.icon
-                        className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105"
-                        aria-hidden="true"
-                      />
-                      {item.name}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </li>
+        <nav className="mt-6 px-4">
+          <ul role="list" className="space-y-2">
+            {navigation.map((item, index) => (
+              <li key={item.name} style={{ animationDelay: `${index * 50}ms` }}>
+                <NavLink
+                  to={item.href}
+                  className={({ isActive }) =>
+                    clsx(
+                      'sidebar-link group flex items-center gap-x-3 rounded-xl p-3 text-sm font-semibold transition-all duration-300 transform hover:scale-[1.02] hover:translate-x-1 animate-fade-in',
+                      isActive
+                        ? 'active bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg border-r-4 border-primary-300'
+                        : 'text-gray-700 hover:text-primary-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-primary-100 hover:shadow-md'
+                    )
+                  }
+                >
+                  <div className="sidebar-icon-container p-2 rounded-lg transition-all duration-300 group-hover:scale-110 bg-gray-100 group-hover:bg-primary-100">
+                    <item.icon
+                      className="sidebar-icon h-5 w-5 transition-all duration-300 text-gray-600 group-hover:text-primary-600"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span className="transition-all duration-300">{item.name}</span>
+                </NavLink>
+              </li>
+            ))}
           </ul>
         </nav>
       </div>
@@ -85,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
-            نظام إدارة التنظيف
+            نظام HOME CARE
           </h1>
           <button
             type="button"
@@ -95,34 +93,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <X className="h-6 w-6" aria-hidden="true" />
           </button>
         </div>
-        <nav className="mt-8">
-          <ul role="list" className="flex flex-1 flex-col gap-y-7">
-            <li>
-              <ul role="list" className="-mx-2 space-y-1">
-                {navigation.map((item) => (
-                  <li key={item.name}>
-                    <NavLink
-                      to={item.href}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        clsx(
-                          isActive
-                            ? 'bg-gradient-to-r from-primary-50 to-primary-100 text-primary-700 border-l-4 border-primary-600 shadow-sm'
-                            : 'text-gray-700 hover:text-primary-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100',
-                          'group flex gap-x-3 rounded-lg p-3 text-sm leading-6 font-semibold transition-all duration-200 transform hover:scale-[1.02]'
-                        )
-                      }
-                    >
-                      <item.icon
-                        className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105"
-                        aria-hidden="true"
-                      />
-                      {item.name}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </li>
+        <nav className="mt-6">
+          <ul role="list" className="space-y-2">
+            {navigation.map((item, index) => (
+              <li key={item.name} style={{ animationDelay: `${index * 50}ms` }}>
+                <NavLink
+                  to={item.href}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    clsx(
+                      'sidebar-link group flex items-center gap-x-3 rounded-xl p-3 text-sm font-semibold transition-all duration-300 transform hover:scale-[1.02] animate-fade-in',
+                      isActive
+                        ? 'active bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg border-r-4 border-primary-300'
+                        : 'text-gray-700 hover:text-primary-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-primary-100 hover:shadow-md'
+                    )
+                  }
+                >
+                  <div className="sidebar-icon-container p-2 rounded-lg transition-all duration-300 group-hover:scale-110 bg-gray-100 group-hover:bg-primary-100">
+                    <item.icon
+                      className="sidebar-icon h-5 w-5 transition-all duration-300 text-gray-600 group-hover:text-primary-600"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span className="transition-all duration-300">{item.name}</span>
+                </NavLink>
+              </li>
+            ))}
           </ul>
         </nav>
       </div>

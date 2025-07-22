@@ -3,6 +3,7 @@ import { Save, Settings as SettingsIcon } from 'lucide-react'
 import { SettingsAPI } from '../../api'
 import { SystemSettings } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
+import PWASettings from '../../components/Settings/PWASettings'
 import toast from 'react-hot-toast'
 
 const SettingsPage: React.FC = () => {
@@ -119,6 +120,9 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <div className="space-y-6">
+        {/* PWA Settings */}
+        <PWASettings />
+        
         {Object.entries(settingsByCategory).map(([category, categorySettings]) => (
           <div key={category} className="card">
             <div className="card-header">

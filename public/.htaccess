@@ -1,0 +1,147 @@
+# PWA and Performance Optimizations
+
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/manifest+json
+</IfModule>
+
+# Browser Caching
+<IfModule mod_expires.c>
+    ExpiresActive on
+    
+    # Images
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # CSS and JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    
+    # PWA files
+    ExpiresByType application/manifest+json "access plus 1 week"
+    ExpiresByType text/cache-manifest "access plus 0 seconds"
+    
+    # Service Worker (should not be cached)
+    <Files "sw.js">
+        ExpiresDefault "access plus 0 seconds"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+    </Files>
+ExpiresDefault "access plus 2 days"
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    # HTTPS Security
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    
+    # Content Security Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' *.supabase.co; manifest-src 'self';"
+    
+    # Other security headers
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # PWA specific headers
+    <Files "manifest.json">
+        Header set Content-Type "application/manifest+json"
+        Header set Access-Control-Allow-Origin "*"
+    </Files>
+    
+    # Service Worker headers
+    <Files "sw.js">
+        Header set Content-Type "application/javascript"
+        Header set Service-Worker-Allowed "/"
+    </Files>
+</IfModule>
+
+# URL Rewriting for SPA
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Handle Angular and React Router
+    RewriteBase /
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+    
+    # Force HTTPS (uncomment if needed)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteRule . /index.html [L]
+</IfModule>
+
+# MIME Types
+<IfModule mod_mime.c>
+    # Web App Manifest
+    AddType application/manifest+json .webmanifest .json
+    
+    # Service Worker
+    AddType application/javascript .js
+    
+    # Web Fonts
+    AddType font/woff .woff
+    AddType font/woff2 .woff2
+    AddType application/font-woff .woff
+    AddType application/font-woff2 .woff2
+    
+    # Images
+    AddType image/webp .webp
+    AddType image/svg+xml .svg
+</IfModule>
+
+# Disable server signature
+ServerSignature Off
+
+# Prevent access to sensitive files
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "*.config.js">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Allow access to PWA files
+<Files "manifest.json">
+    Order allow,deny
+    Allow from all
+</Files>
+
+<Files "sw.js">
+    Order allow,deny
+    Allow from all
+</Files>
+
+<FilesMatch "\.(ico|png|jpg|jpeg|gif|svg|webp)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>

@@ -1,6 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Calendar, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react'
 
+// Helper functions to ensure local-timezone ISO strings (avoid previous-day bug)
+const toLocalDateISO = (date: Date) => {
+  const tzOffset = date.getTimezoneOffset() * 60000 // ms
+  return new Date(date.getTime() - tzOffset).toISOString().split('T')[0]
+}
+
+const toLocalDateTimeISO = (date: Date) => {
+  const tzOffset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - tzOffset).toISOString()
+}
+
 interface DateTimePickerProps {
   value?: string
   onChange: (value: string) => void
@@ -71,14 +82,14 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     if (!value) return ''
     
     if (type === 'date') {
-      return new Date(value).toLocaleDateString('ar-EG')
+      return new Date(value).toLocaleDateString('en-GB')
     }
     if (type === 'time') {
       return value
     }
     if (type === 'datetime') {
       const date = new Date(value)
-      return `${date.toLocaleDateString('ar-EG')} ${date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}`
+      return `${date.toLocaleDateString('en-GB')} ${date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
     }
     return value
   }
@@ -87,12 +98,12 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     setSelectedDate(date)
     
     if (type === 'date') {
-      onChange(date.toISOString().split('T')[0])
+      onChange(toLocalDateISO(date))
       setIsOpen(false)
     } else if (type === 'datetime') {
       const datetime = new Date(date)
       datetime.setHours(parseInt(selectedTime.hours), parseInt(selectedTime.minutes))
-      onChange(datetime.toISOString())
+      onChange(toLocalDateTimeISO(datetime))
     }
   }
 
@@ -105,7 +116,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     } else if (type === 'datetime' && selectedDate) {
       const datetime = new Date(selectedDate)
       datetime.setHours(parseInt(hours), parseInt(minutes))
-      onChange(datetime.toISOString())
+      onChange(toLocalDateTimeISO(datetime))
     }
   }
 

@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { OrderWithDetails } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import OrderFormModal from '../../components/Forms/OrderFormModal'
+import OrderDetailsModal from '../../components/Orders/OrderDetailsModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
 import { useOrders, useSystemHealth, useOrderCounts } from '../../hooks/useEnhancedAPI'
@@ -17,6 +18,8 @@ const OrdersPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | undefined>()
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [detailsOrderId, setDetailsOrderId] = useState<string | undefined>()
   const [deleteLoading, setDeleteLoading] = useState(false)
 
   const [refreshing, setRefreshing] = useState(false)
@@ -327,6 +330,10 @@ const OrdersPage: React.FC = () => {
                   <td className="table-cell">
                     <div className="flex space-x-2 space-x-reverse">
                       <button 
+                        onClick={() => {
+                          setDetailsOrderId(order.id)
+                          setShowDetailsModal(true)
+                        }}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                         title="عرض التفاصيل"
                       >
@@ -406,6 +413,16 @@ const OrdersPage: React.FC = () => {
         </div>
       <div ref={sentinelRef} />
       </div>
+
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setDetailsOrderId(undefined)
+        }}
+        orderId={detailsOrderId}
+      />
 
       {/* Order Form Modal */}
       <OrderFormModal

@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
@@ -7,6 +7,16 @@ import Layout from './components/Layout/Layout'
 
 import LoadingSpinner from './components/UI/LoadingSpinner'
 import { AdminGuard } from './hooks/usePermissions'
+import RoutePersistence from './components/Router/RoutePersistence'
+
+// PWA Components
+import { 
+  InstallPrompt, 
+  OfflineManager, 
+  UpdateNotification,
+  registerPWAEventListeners,
+  trackPWAPerformance
+} from './components/PWA'
 
 // Lazy-loaded pages for code-splitting
 const LoginPage = React.lazy(() => import('./pages/Auth/LoginPage'))
@@ -25,9 +35,10 @@ const RolesPage = React.lazy(() => import('./pages/Admin/RolesPage'))
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
 
-  if (loading) {
+  // لا نعرض شيئًا حتى ننتهي من التحقق من الجلسة أو جلب الملف الشخصي
+  if (loading || (session && !user)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="large" />
@@ -35,7 +46,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     )
   }
 
-  if (!user) {
+  // إذا لم تكن هناك جلسة مُصادَقة، وجّه المستخدم لصفحة الدخول
+  if (!session) {
     return <Navigate to="/login" replace />
   }
 
@@ -44,9 +56,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route Component (redirect if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
 
-  if (loading) {
+  // انتظر اكتمال التحقق حتى لا يحدث وميض
+  if (loading || (session && !user)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="large" />
@@ -54,7 +67,8 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     )
   }
 
-  if (user) {
+  // إذا كان المستخدم مُسجَّل الدخول بالفعل، وجّه مباشرة للوحة التحكم
+  if (session && user) {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -122,13 +136,27 @@ const AppRoutes: React.FC = () => {
 
 // Main App Component
 const App: React.FC = () => {
+  useEffect(() => {
+    // Initialize PWA features
+    registerPWAEventListeners();
+    trackPWAPerformance();
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
         <div className="App">
+          <RoutePersistence />
+          
+          {/* PWA Components */}
+          <OfflineManager />
+          <InstallPrompt />
+          <UpdateNotification />
+          
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
             <AppRoutes />
           </Suspense>
+          
           <Toaster
             position="top-center"
             toastOptions={{

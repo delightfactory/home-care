@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, Filter, DollarSign, TrendingUp, Clock, FileText, Activity } from 'lucide-react'
+import { ExpensesAPI } from '../../api/expenses'
 import { ExpenseWithCategory, ExpenseFilters } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -71,9 +72,11 @@ const ExpensesPage: React.FC = () => {
     
     setDeleteLoading(true)
     try {
-      // TODO: Implement delete expense API method
-      console.log('Delete expense:', selectedExpense.id)
-      toast.success('تم حذف المصروف بنجاح')
+      const result = await ExpensesAPI.deleteExpense(selectedExpense.id)
+      if (!result.success) {
+        throw new Error(result.error || 'فشل حذف المصروف')
+      }
+      toast.success(result.message || 'تم حذف المصروف بنجاح')
       setShowDeleteModal(false)
       setSelectedExpense(undefined)
       refresh()

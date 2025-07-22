@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: /sitemap.xml
+
+# PWA specific files
+Allow: /manifest.json
+Allow: /sw.js
+Allow: /icons/
+
+# Disallow sensitive areas
+Disallow: /api/
+Disallow: /.env
+Disallow: /config/
+
+# Allow common assets
+Allow: /assets/
+Allow: /static/
+Allow: /images/
+Allow: /css/
+Allow: /js/
+
+# Crawl delay (optional)
+Crawl-delay: 1

@@ -341,8 +341,10 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
                   onChange={handleChange}
                   className="sr-only"
                 />
-                <div className={`w-11 h-6 rounded-full transition-all duration-200 ${formData.is_active ? 'bg-primary-500' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-all duration-200 ${formData.is_active ? 'translate-x-5' : 'translate-x-0.5'} mt-0.5`}></div>
+                <div className={`relative w-11 h-6 rounded-full transition-all duration-200 ${formData.is_active ? 'bg-primary-500' : 'bg-gray-300'}`}>
+                  <div
+                      className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200 ${formData.is_active ? 'right-0.5' : 'left-0.5'}`}
+                    ></div>
                 </div>
               </div>
               <span className="ml-3 text-gray-700 font-medium group-hover:text-primary-600 transition-colors duration-200">

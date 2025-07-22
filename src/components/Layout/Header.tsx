@@ -14,7 +14,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 backdrop-blur-sm bg-white/95">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200/50 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Mobile menu button */}
@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <div className="flex items-center">
             <div className="flex-shrink-0 lg:hidden">
               <h1 className="text-xl font-bold text-gray-900">
-                نظام التنظيف
+                HOME CARE
               </h1>
             </div>
           </div>
