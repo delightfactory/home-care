@@ -12,6 +12,36 @@ import {
 } from '../types'
 
 export class ExpensesAPI {
+  // Aggregate counts by status
+  static async getCounts(): Promise<import('../types').ExpenseCounts> {
+    try {
+      const { count: total, error: totalError } = await supabase
+        .from('expenses')
+        .select('*', { count: 'exact', head: true });
+      if (totalError) throw totalError;
+
+      const statuses = ['pending', 'approved', 'rejected'] as const;
+      const counts: import('../types').ExpenseCounts = {
+        total: total || 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0
+      };
+
+      for (const status of statuses) {
+        const { count, error } = await supabase
+          .from('expenses')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', status);
+        if (error) throw error;
+        counts[status] = count || 0;
+      }
+      return counts;
+    } catch (error) {
+      throw new Error(handleSupabaseError(error));
+    }
+  }
+
   // Get expense categories
   static async getExpenseCategories(): Promise<ExpenseCategory[]> {
     try {
@@ -28,73 +58,124 @@ export class ExpensesAPI {
     }
   }
 
-  // Get expenses with filters and pagination
+  // Get expenses with filters and pagination - OPTIMIZED
   static async getExpenses(
     filters?: ExpenseFilters,
     page = 1,
-    limit = 20
+    limit = 20,
+    includeDetails = false
   ): Promise<PaginatedResponse<ExpenseWithDetails>> {
     try {
+      const offset = (page - 1) * limit;
+      
+      // Basic query using indexed columns
       let query = supabase
         .from('expenses')
-        .select(`
-          *,
-          category:expense_categories(*),
-          order:orders(order_number, customer:customers(name)),
-          route:routes(name),
-          team:teams(name),
-          created_by_user:users!expenses_created_by_fkey(full_name),
-          approved_by_user:users!expenses_approved_by_fkey(full_name)
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false }) // Uses idx_expenses_date_team
+        .range(offset, offset + limit - 1);
 
-      // Apply filters
+      // Apply filters using indexed columns
       if (filters?.status?.length) {
-        query = query.in('status', filters.status)
+        query = query.in('status', filters.status); // Uses idx_expenses_status
       }
 
       if (filters?.category_id) {
-        query = query.eq('category_id', filters.category_id)
-      }
-
-      if (filters?.date_from) {
-        query = query.gte('created_at', filters.date_from)
-      }
-
-      if (filters?.date_to) {
-        query = query.lte('created_at', filters.date_to)
+        query = query.eq('category_id', filters.category_id);
       }
 
       if (filters?.team_id) {
-        query = query.eq('team_id', filters.team_id)
+        query = query.eq('team_id', filters.team_id); // Uses idx_expenses_date_team
+      }
+
+      if (filters?.date_from) {
+        query = query.gte('created_at', filters.date_from);
+      }
+
+      if (filters?.date_to) {
+        query = query.lte('created_at', filters.date_to);
       }
 
       if (filters?.amount_min) {
-        query = query.gte('amount', filters.amount_min)
+        query = query.gte('amount', filters.amount_min);
       }
 
       if (filters?.amount_max) {
-        query = query.lte('amount', filters.amount_max)
+        query = query.lte('amount', filters.amount_max);
       }
 
-      // Apply pagination
-      const from = (page - 1) * limit
-      const to = from + limit - 1
-      query = query.range(from, to)
+      const { data: expenses, error, count } = await query;
 
-      const { data, error, count } = await query
+      if (error) throw error;
 
-      if (error) throw error
+      let expensesWithDetails = expenses || [];
+
+      // Load detailed data only when requested
+      if (includeDetails && expenses?.length) {
+        const categoryIds = [...new Set(expenses.map(e => e.category_id).filter(Boolean))];
+        const orderIds = [...new Set(expenses.map(e => e.order_id).filter(Boolean))];
+        const teamIds = [...new Set(expenses.map(e => e.team_id).filter(Boolean))];
+        const userIds = [...new Set([
+          ...expenses.map(e => e.created_by).filter(Boolean),
+          ...expenses.map(e => e.approved_by).filter(Boolean)
+        ])];
+
+        // Load related data in parallel
+        const [categoriesResult, ordersResult, teamsResult, usersResult] = await Promise.all([
+          categoryIds.length ? supabase
+            .from('expense_categories')
+            .select('id, name, name_ar')
+            .in('id', categoryIds) : Promise.resolve({ data: [], error: null }),
+          
+          orderIds.length ? supabase
+            .from('orders')
+            .select('id, order_number, customer:customers(name)')
+            .in('id', orderIds) : Promise.resolve({ data: [], error: null }),
+          
+          teamIds.length ? supabase
+            .from('teams')
+            .select('id, name')
+            .in('id', teamIds) : Promise.resolve({ data: [], error: null }),
+          
+          userIds.length ? supabase
+            .from('users')
+            .select('id, full_name')
+            .in('id', userIds) : Promise.resolve({ data: [], error: null })
+        ]);
+
+        // Create lookup maps
+        const categoriesMap = new Map();
+        categoriesResult.data?.forEach(cat => categoriesMap.set(cat.id, cat));
+
+        const ordersMap = new Map();
+        ordersResult.data?.forEach(order => ordersMap.set(order.id, order));
+
+        const teamsMap = new Map();
+        teamsResult.data?.forEach(team => teamsMap.set(team.id, team));
+
+        const usersMap = new Map();
+        usersResult.data?.forEach(user => usersMap.set(user.id, user));
+
+        // Combine data
+        expensesWithDetails = expenses.map(expense => ({
+          ...expense,
+          category: categoriesMap.get(expense.category_id) || null,
+          order: ordersMap.get(expense.order_id) || null,
+          team: teamsMap.get(expense.team_id) || null,
+          created_by_user: usersMap.get(expense.created_by) || null,
+          approved_by_user: usersMap.get(expense.approved_by) || null
+        }));
+      }
 
       return {
-        data: data || [],
+        data: expensesWithDetails,
         total: count || 0,
         page,
         limit,
         total_pages: Math.ceil((count || 0) / limit)
-      }
+      };
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 

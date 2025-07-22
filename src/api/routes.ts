@@ -10,10 +10,41 @@ import {
   OrderWithDetails,
   PaginatedResponse,
   ApiResponse,
-  RouteStatus 
+  RouteStatus,
+  RouteCounts 
 } from '../types'
 
 export class RoutesAPI {
+  // Aggregate counts by status
+  static async getCounts(): Promise<RouteCounts> {
+    try {
+      const { count: total, error: totalError } = await supabase
+        .from('routes')
+        .select('*', { count: 'exact', head: true })
+      if (totalError) throw totalError
+
+      const statuses = ['planned', 'in_progress', 'completed'] as const
+      const counts: RouteCounts = {
+        total: total || 0,
+        planned: 0,
+        in_progress: 0,
+        completed: 0
+      }
+
+      for (const status of statuses) {
+        const { count, error } = await supabase
+          .from('routes')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', status)
+        if (error) throw error
+        counts[status] = count || 0
+      }
+      return counts
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
   // Get routes with filters and pagination
   static async getRoutes(
     filters?: {

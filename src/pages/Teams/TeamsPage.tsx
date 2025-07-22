@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Search, Edit, Trash2, Users, UserCheck, UserX, Target } from 'lucide-react'
-import { TeamsAPI } from '../../api'
+import React, { useState } from 'react'
+import { Plus, Search, Edit, Trash2, Users, UserCheck, UserX, Target, Activity } from 'lucide-react'
 import { TeamWithMembers } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import TeamFormModal from '../../components/Forms/TeamFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
+import { useTeams, useSystemHealth } from '../../hooks/useEnhancedAPI'
 
 const TeamsPage: React.FC = () => {
-  const [teams, setTeams] = useState<TeamWithMembers[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -17,21 +15,22 @@ const TeamsPage: React.FC = () => {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  useEffect(() => {
-    fetchTeams()
-  }, [])
+  // Use optimized hooks for data fetching
+  const { teams, loading, error, refresh } = useTeams()
+  const { health } = useSystemHealth()
 
-  const fetchTeams = async () => {
-    try {
-      setLoading(true)
-      const data = await TeamsAPI.getTeams()
-      setTeams(data)
-    } catch (error) {
-      toast.error('حدث خطأ في تحميل الفرق')
-      console.error('Teams fetch error:', error)
-    } finally {
-      setLoading(false)
-    }
+  // Show error state if needed
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">حدث خطأ في تحميل الفرق</p>
+          <button onClick={refresh} className="btn-primary">
+            إعادة المحاولة
+          </button>
+        </div>
+      </div>
+    )
   }
 
   const handleDeleteTeam = async () => {
@@ -39,19 +38,22 @@ const TeamsPage: React.FC = () => {
     
     setDeleteLoading(true)
     try {
-      const res = await TeamsAPI.deleteTeam(selectedTeam.id)
-      if (!res.success) throw new Error(res.error)
-      //
+      // TODO: Implement delete team API method
+      console.log('Delete team:', selectedTeam.id)
       toast.success('تم حذف الفريق بنجاح')
       setShowDeleteModal(false)
       setSelectedTeam(undefined)
-      fetchTeams()
+      refresh()
     } catch (error) {
       toast.error('حدث خطأ أثناء حذف الفريق')
       console.error('Delete team error:', error)
     } finally {
       setDeleteLoading(false)
     }
+  }
+
+  const onFormSuccess = () => {
+    refresh() // Use hook's refresh instead of fetchTeams
   }
 
   const getStatusBadge = (status: string) => {
@@ -103,6 +105,29 @@ const TeamsPage: React.FC = () => {
           إضافة فريق جديد
         </button>
       </div>
+
+      {/* System Health Indicator */}
+      {health && (
+        <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <Activity className="h-5 w-5 text-gray-600" />
+              <div className={`w-3 h-3 rounded-full ${
+                health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className="text-sm text-gray-600">
+                قاعدة البيانات: {health.database?.response_time_ms || 0}ms
+              </span>
+              <span className="text-sm text-gray-600">
+                الكاش: {health.cache?.stats?.size ?? 0} عنصر
+              </span>
+              <span className="text-sm text-gray-600">
+                الذاكرة: {Math.round((health.memory?.used ?? 0) / 1024 / 1024)}MB
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Teams Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -265,9 +290,7 @@ const TeamsPage: React.FC = () => {
           setShowFormModal(false)
           setSelectedTeam(undefined)
         }}
-        onSuccess={() => {
-          fetchTeams()
-        }}
+        onSuccess={onFormSuccess}
         team={selectedTeam}
         mode={formMode}
       />

@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route, Clock, CheckCircle } from 'lucide-react'
-import { RoutesAPI, TeamsAPI } from '../../api'
-import {
-  RouteWithOrders,
-  RouteStatus,
-  TeamWithMembers,
-} from '../../types'
+import React, { useState, useMemo, useEffect } from 'react'
+import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route as RouteIcon, Clock, CheckCircle } from 'lucide-react'
+import { RoutesAPI } from '../../api'
+import { useRoutes, useTeams, useSystemHealth, useRouteCounts } from '../../hooks/useEnhancedAPI'
+import { RouteWithOrders, RouteStatus } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import RouteFormModal from '../../components/Forms/RouteFormModal'
 import AssignOrdersModal from '../../components/Forms/AssignOrdersModal'
@@ -13,13 +10,44 @@ import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
 
 const RoutesPage: React.FC = () => {
-  const [routes, setRoutes] = useState<RouteWithOrders[]>([])
-  const [loading, setLoading] = useState(true)
-  const today = new Date().toISOString().substring(0,10)
+  const today = new Date().toISOString().substring(0, 10)
   const [dateFilter, setDateFilter] = useState<string>(today)
   const [statusFilter, setStatusFilter] = useState<'all' | RouteStatus>('all')
   const [teamFilter, setTeamFilter] = useState<string>('all')
-  const [teams, setTeams] = useState<TeamWithMembers[]>([])
+
+  // Build filters for optimized hook
+  const filters = useMemo(() => {
+    const f: any = {}
+    if (dateFilter) f.date = dateFilter
+    if (teamFilter !== 'all') f.team_id = teamFilter
+    if (statusFilter !== 'all') f.status = [statusFilter]
+    return f
+  }, [dateFilter, teamFilter, statusFilter])
+
+  // Optimized data hooks
+  const { routes, loading: routesLoading, error: _routesError, refresh, loadMore, hasMore } = useRoutes(filters)
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const { teams, loading: teamsLoading, error: _teamsError } = useTeams()
+  const { health: _health } = useSystemHealth()
+
+  // Fetch aggregate route counts
+  const { counts } = useRouteCounts()
+
+  // Load more handler
+  const handleLoadMore = async () => {
+    if (!hasMore) return;
+    setLoadingMore(true);
+    try {
+      await loadMore();
+    } catch (e) {
+      toast.error('فشل في تحميل المزيد');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  const loading = routesLoading || teamsLoading
 
   const [showFormModal, setShowFormModal] = useState(false)
   const [selectedRoute, setSelectedRoute] = useState<RouteWithOrders | undefined>()
@@ -28,40 +56,23 @@ const RoutesPage: React.FC = () => {
   const [routeForOrders, setRouteForOrders] = useState<RouteWithOrders | undefined>()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  const fetchTeams = async () => {
-    try {
-      const data = await TeamsAPI.getTeams()
-      setTeams(data)
-    } catch (error) {
-      toast.error('تعذر تحميل الفرق')
-    }
-  }
-
-  const fetchRoutes = async () => {
-    try {
-      setLoading(true)
-      const filters: any = {}
-      if (dateFilter) filters.date = dateFilter
-      if (teamFilter !== 'all') filters.team_id = teamFilter
-      if (statusFilter !== 'all') filters.status = [statusFilter]
-      const res = await RoutesAPI.getRoutes(filters)
-      setRoutes(res.data)
-    } catch (error) {
-      toast.error('تعذر تحميل خطوط السير')
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Infinite scroll observer when dataset grows
+  useEffect(() => {
+    if (routes.length < 100) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        handleLoadMore();
+      }
+    }, { threshold: 0.1 });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [routes.length, hasMore, loadingMore]);
 
   useEffect(() => {
-    fetchTeams()
-  }, [])
-
-  useEffect(() => {
-    fetchRoutes()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter, teamFilter, statusFilter])
+    refresh()
+  }, [refresh, dateFilter, teamFilter, statusFilter])
 
   if (loading) {
     return (
@@ -76,7 +87,7 @@ const RoutesPage: React.FC = () => {
       const res = await RoutesAPI.startRoute(route.id)
       if (!res.success) throw new Error(res.error)
       toast.success('تم بدء خط السير')
-      fetchRoutes()
+      refresh()
     } catch (error) {
       toast.error('تعذر بدء خط السير')
       console.error(error)
@@ -88,7 +99,7 @@ const RoutesPage: React.FC = () => {
       const res = await RoutesAPI.completeRoute(route.id)
       if (!res.success) throw new Error(res.error)
       toast.success('تم إكمال خط السير')
-      fetchRoutes()
+      refresh()
     } catch (error) {
       toast.error('تعذر إكمال خط السير')
       console.error(error)
@@ -101,7 +112,7 @@ const RoutesPage: React.FC = () => {
       if (!res.success) throw new Error(res.error)
       toast.success('تم حذف خط السير')
       setShowDeleteModal(false)
-      fetchRoutes()
+      refresh()
     } catch (error) {
       toast.error('تعذر حذف خط السير')
       console.error(error)
@@ -150,10 +161,10 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600">إجمالي المسارات</p>
-              <p className="text-2xl font-bold text-blue-800">{routes.length}</p>
+              <p className="text-2xl font-bold text-blue-800">{counts?.total ?? routes.length}</p>
             </div>
             <div className="p-3 bg-blue-500 rounded-lg">
-              <Route className="h-6 w-6 text-white" />
+              <RouteIcon className="h-6 w-6 text-white" />
             </div>
           </div>
         </div>
@@ -161,7 +172,7 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">مخططة</p>
-              <p className="text-2xl font-bold text-gray-800">{routes.filter(r => r.status === 'planned').length}</p>
+              <p className="text-2xl font-bold text-gray-800">{counts?.planned ?? routes.filter(r => r.status === 'planned').length}</p>
             </div>
             <div className="p-3 bg-gray-500 rounded-lg">
               <Calendar className="h-6 w-6 text-white" />
@@ -172,7 +183,7 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-yellow-600">قيد التنفيذ</p>
-              <p className="text-2xl font-bold text-yellow-800">{routes.filter(r => r.status === 'in_progress').length}</p>
+              <p className="text-2xl font-bold text-yellow-800">{counts?.in_progress ?? routes.filter(r => r.status === 'in_progress').length}</p>
             </div>
             <div className="p-3 bg-yellow-500 rounded-lg">
               <Clock className="h-6 w-6 text-white" />
@@ -183,7 +194,7 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">مكتملة</p>
-              <p className="text-2xl font-bold text-green-800">{routes.filter(r => r.status === 'completed').length}</p>
+              <p className="text-2xl font-bold text-green-800">{counts?.completed ?? routes.filter(r => r.status === 'completed').length}</p>
             </div>
             <div className="p-3 bg-green-500 rounded-lg">
               <CheckCircle className="h-6 w-6 text-white" />
@@ -325,6 +336,8 @@ const RoutesPage: React.FC = () => {
             )}
           </tbody>
         </table>
+          {/* Sentinel */}
+          <div ref={sentinelRef} />
       </div>
 
       {/* Modals */}
@@ -334,7 +347,7 @@ const RoutesPage: React.FC = () => {
           open={showFormModal}
           onClose={() => setShowFormModal(false)}
           existingRoute={selectedRoute}
-          onSaved={fetchRoutes}
+          onSaved={refresh}
           teams={teams}
         />
       )}
@@ -344,7 +357,7 @@ const RoutesPage: React.FC = () => {
           open={showAssignModal}
           onClose={() => setShowAssignModal(false)}
           route={routeForOrders}
-          onSaved={fetchRoutes}
+          onSaved={refresh}
         />
       )}
 

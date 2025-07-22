@@ -1,4 +1,5 @@
 // Orders API Layer
+import type { OrderCounts } from '../types'
 import { supabase, handleSupabaseError, generateOrderNumber } from '../lib/supabase'
 import { 
   Order, 
@@ -13,112 +14,186 @@ import {
 } from '../types'
 
 export class OrdersAPI {
-  // Get orders with filters and pagination
+  // Get orders with filters and pagination - OPTIMIZED
   static async getOrders(
     filters?: OrderFilters,
     page = 1,
-    limit = 20
+    limit = 20,
+    includeDetails = false
   ): Promise<PaginatedResponse<OrderWithDetails>> {
     try {
+      const offset = (page - 1) * limit;
+      
+      // Use optimized view for basic listing
       let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          customer:customers(*),
-          team:teams(
-            *,
-            leader:workers!teams_leader_id_fkey(*)
-          ),
-          items:order_items(
-            *,
-            service:services(*)
-          )
-        `, { count: 'exact' })
+        .from('v_orders_summary')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-      // Apply filters
+      // Apply filters using indexed columns
       if (filters?.status?.length) {
-        query = query.in('status', filters.status)
+        query = query.in('status', filters.status);
       }
 
       if (filters?.payment_status?.length) {
-        query = query.in('payment_status', filters.payment_status)
+        query = query.in('payment_status', filters.payment_status);
       }
 
       if (filters?.date_from) {
-        query = query.gte('scheduled_date', filters.date_from)
+        query = query.gte('scheduled_date', filters.date_from);
       }
 
       if (filters?.date_to) {
-        query = query.lte('scheduled_date', filters.date_to)
+        query = query.lte('scheduled_date', filters.date_to);
       }
 
       if (filters?.customer_id) {
-        query = query.eq('customer_id', filters.customer_id)
+        query = query.eq('customer_id', filters.customer_id);
       }
 
       if (filters?.team_id) {
-        query = query.eq('team_id', filters.team_id)
+        query = query.eq('team_id', filters.team_id);
       }
 
       if (filters?.search) {
-        query = query.or(`order_number.ilike.%${filters.search}%`)
+        query = query.or(`order_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%`);
       }
 
-      // Apply pagination
-      const from = (page - 1) * limit
-      const to = from + limit - 1
-      query = query.range(from, to)
+      const { data: orders, error, count } = await query;
 
-      const { data, error, count } = await query
+      if (error) throw error;
 
-      if (error) throw error
+      let ordersWithDetails = orders || [];
+
+      // Load detailed data only when requested
+      if (includeDetails && orders?.length) {
+        const orderIds = orders.map(o => o.id);
+        
+        // Load order items separately for better performance
+        const { data: items } = await supabase
+          .from('order_items')
+          .select(`
+            *,
+            service:services(id, name, name_ar, price, unit)
+          `)
+          .in('order_id', orderIds);
+        
+        // Attach items to orders
+        ordersWithDetails = orders.map(order => ({
+          ...order,
+          items: items?.filter(item => item.order_id === order.id) || []
+        }));
+      }
 
       return {
-        data: data || [],
+        data: ordersWithDetails,
         total: count || 0,
         page,
         limit,
         total_pages: Math.ceil((count || 0) / limit)
+      };
+    } catch (error) {
+      throw handleSupabaseError(error);
+    }
+  }
+
+  // Get aggregated order counts by status (fast count queries)
+  static async getCounts(): Promise<OrderCounts> {
+    try {
+      const { count: total, error: totalError } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+      if (totalError) throw totalError
+
+      const statuses = ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'] as const
+      const counts: OrderCounts = {
+        total: total || 0,
+        pending: 0,
+        scheduled: 0,
+        in_progress: 0,
+        completed: 0,
+        cancelled: 0
       }
+
+      for (const status of statuses) {
+        const { count, error } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', status)
+        if (error) throw error
+        counts[status] = count || 0
+      }
+
+      return counts
     } catch (error) {
       throw new Error(handleSupabaseError(error))
     }
   }
 
-  // Get order by ID with full details
-  static async getOrderById(id: string): Promise<OrderWithDetails> {
+  // Get single order by ID with full details - OPTIMIZED
+  static async getOrderById(id: string): Promise<OrderWithDetails | undefined> {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customer:customers(*),
-          team:teams(
+      // First get basic order info from optimized view
+      const { data: orderData, error: orderError } = await supabase
+        .from('v_orders_summary')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (orderError) throw orderError;
+      if (!orderData) return undefined;
+
+      // Load detailed data in parallel for better performance
+      const [itemsResult, statusLogsResult, teamDetailsResult] = await Promise.all([
+        // Load order items
+        supabase
+          .from('order_items')
+          .select(`
+            *,
+            service:services(*)
+          `)
+          .eq('order_id', id),
+        
+        // Load status logs
+        supabase
+          .from('order_status_logs')
+          .select(`
+            *,
+            created_by_user:users(full_name)
+          `)
+          .eq('order_id', id)
+          .order('created_at', { ascending: false }),
+        
+        // Load team details if team exists
+        orderData.team_id ? supabase
+          .from('teams')
+          .select(`
             *,
             leader:workers!teams_leader_id_fkey(*),
             members:team_members(
               worker:workers(*)
             )
-          ),
-          items:order_items(
-            *,
-            service:services(*)
-          ),
-          status_logs:order_status_logs(
-            *,
-            created_by_user:users(full_name)
-          )
-        `)
-        .eq('id', id)
-        .single()
+          `)
+          .eq('id', orderData.team_id)
+          .maybeSingle() : Promise.resolve({ data: null, error: null })
+      ]);
 
-      if (error) throw error
-      if (!data) throw new Error('الطلب غير موجود')
+      if (itemsResult.error) throw itemsResult.error;
+      if (statusLogsResult.error) throw statusLogsResult.error;
+      if (teamDetailsResult.error) throw teamDetailsResult.error;
 
-      return data
+      // Combine all data
+      const orderWithDetails: OrderWithDetails = {
+        ...orderData,
+        items: itemsResult.data || [],
+        status_logs: statusLogsResult.data || [],
+        team: teamDetailsResult.data || null
+      };
+
+      return orderWithDetails;
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 
@@ -426,6 +501,45 @@ export class OrdersAPI {
       return {
         success: true,
         message: 'تم إنهاء الطلب بنجاح'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  // Delete order
+  static async deleteOrder(orderId: string): Promise<ApiResponse<void>> {
+    try {
+      // First delete related order items
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('order_id', orderId)
+
+      if (itemsError) throw itemsError
+
+      // Delete order status logs
+      const { error: logsError } = await supabase
+        .from('order_status_logs')
+        .delete()
+        .eq('order_id', orderId)
+
+      if (logsError) throw logsError
+
+      // Finally delete the order
+      const { error: orderError } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId)
+
+      if (orderError) throw orderError
+
+      return {
+        success: true,
+        message: 'تم حذف الطلب بنجاح'
       }
     } catch (error) {
       return {

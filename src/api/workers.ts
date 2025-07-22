@@ -14,48 +14,63 @@ import {
 } from '../types'
 
 export class WorkersAPI {
-  // Get all workers with optional filters
+  // Get all workers with optional filters - OPTIMIZED
   static async getWorkers(filters?: WorkerFilters): Promise<WorkerWithTeam[]> {
     try {
+      // Use indexed columns for better performance
       let query = supabase
         .from('workers')
         .select(`
-          *,
-          user:users(*),
-          team_members:team_members(
-            team:teams(*)
-          )
+          id, name, phone, hire_date, salary, skills, can_drive, 
+          status, rating, total_orders, created_at, updated_at, user_id
         `)
-        .order('name')
+        .order('created_at', { ascending: false }); // Use indexed column
 
-      // Apply filters
+      // Apply filters using indexed columns
       if (filters?.status?.length) {
-        query = query.in('status', filters.status)
-      }
-
-      if (filters?.team_id) {
-        query = query.eq('team_members.team_id', filters.team_id)
+        query = query.in('status', filters.status); // Uses idx_workers_status
       }
 
       if (filters?.can_drive !== undefined) {
-        query = query.eq('can_drive', filters.can_drive)
+        query = query.eq('can_drive', filters.can_drive);
       }
 
       if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`)
+        query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
       }
 
-      const { data, error } = await query
+      const { data: workers, error } = await query;
 
-      if (error) throw error
+      if (error) throw error;
 
-      // Transform data to include team info
-      return (data || []).map(worker => ({
+      if (!workers?.length) return [];
+
+      // Get team information separately for better performance
+      const workerIds = workers.map(w => w.id);
+      
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select(`
+          worker_id,
+          team:teams(id, name, leader_id, is_active)
+        `)
+        .in('worker_id', workerIds);
+
+      // Create team lookup map
+      const teamMap = new Map();
+      teamMembers?.forEach(tm => {
+        teamMap.set(tm.worker_id, tm.team);
+      });
+
+      // Combine data efficiently
+      const workersWithTeam = workers.map(worker => ({
         ...worker,
-        team: worker.team_members?.[0]?.team
-      }))
+        team: teamMap.get(worker.id) || null
+      }));
+
+      return workersWithTeam;
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 
@@ -245,30 +260,81 @@ export class WorkersAPI {
 }
 
 export class TeamsAPI {
-  // Get all teams with members
+  // Get all teams with members - OPTIMIZED
   static async getTeams(): Promise<TeamWithMembers[]> {
     try {
-      const { data, error } = await supabase
+      // Get basic team info using indexed columns
+      const { data: teams, error } = await supabase
         .from('teams')
-        .select(`
-          *,
-          leader:workers!teams_leader_id_fkey(*),
-          members:team_members(
-            worker:workers(*)
-          )
-        `)
-        .eq('is_active', true)
-        .order('name')
+        .select('*')
+        .eq('is_active', true) // Uses idx_teams_active
+        .order('created_at', { ascending: false });
 
-      if (error) throw error
+      if (error) throw error;
+      if (!teams?.length) return [];
 
-      return (data || []).map(team => ({
+      const teamIds = teams.map(t => t.id);
+
+      // Get team members and leaders in parallel
+      const [membersResult, leadersResult, ordersResult] = await Promise.all([
+        // Get team members
+        supabase
+          .from('team_members')
+          .select(`
+            team_id,
+            worker:workers(id, name, phone, status, rating)
+          `)
+          .in('team_id', teamIds),
+        
+        // Get team leaders
+        supabase
+          .from('workers')
+          .select('id, name, phone, status, rating')
+          .in('id', teams.filter(t => t.leader_id).map(t => t.leader_id!)),
+        
+        // Get active orders count
+        supabase
+          .from('orders')
+          .select('team_id')
+          .in('team_id', teamIds)
+          .in('status', ['pending', 'scheduled', 'in_progress'])
+      ]);
+
+      if (membersResult.error) throw membersResult.error;
+      if (leadersResult.error) throw leadersResult.error;
+      if (ordersResult.error) throw ordersResult.error;
+
+      // Create lookup maps for O(1) access
+      const membersMap = new Map<string, any[]>();
+      membersResult.data?.forEach(member => {
+        if (!membersMap.has(member.team_id)) {
+          membersMap.set(member.team_id, []);
+        }
+        membersMap.get(member.team_id)!.push(member);
+      });
+
+      const leadersMap = new Map();
+      leadersResult.data?.forEach(leader => {
+        leadersMap.set(leader.id, leader);
+      });
+
+      const ordersCountMap = new Map<string, number>();
+      ordersResult.data?.forEach(order => {
+        const current = ordersCountMap.get(order.team_id) || 0;
+        ordersCountMap.set(order.team_id, current + 1);
+      });
+
+      // Combine all data efficiently
+      return teams.map(team => ({
         ...team,
-        member_count: team.members?.length || 0,
-        status: team.is_active ? 'active' : 'inactive'
-      }))
+        leader: leadersMap.get(team.leader_id) || null,
+        members: membersMap.get(team.id) || [],
+        member_count: (membersMap.get(team.id) || []).length,
+        status: team.is_active ? 'active' : 'inactive',
+        active_orders: ordersCountMap.get(team.id) || 0
+      }));
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 

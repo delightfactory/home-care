@@ -26,22 +26,41 @@ export class ServicesAPI {
     }
   }
 
-  // Get all services with categories
+  // Get all services with categories - OPTIMIZED
   static async getServices(): Promise<ServiceWithCategory[]> {
     try {
-      const { data, error } = await supabase
+      // Get services using indexed columns
+      const { data: services, error } = await supabase
         .from('services')
-        .select(`
-          *,
-          category:service_categories(*)
-        `)
-        .eq('is_active', true)
-        .order('name_ar')
+        .select('*')
+        .eq('is_active', true) // Uses idx_services_active
+        .order('created_at', { ascending: false });
 
-      if (error) throw error
-      return data || []
+      if (error) throw error;
+      if (!services?.length) return [];
+
+      // Get categories separately for better performance
+      const categoryIds = [...new Set(services.map(s => s.category_id).filter(Boolean))];
+      
+      let categoriesMap = new Map();
+      if (categoryIds.length) {
+        const { data: categories } = await supabase
+          .from('service_categories')
+          .select('*')
+          .in('id', categoryIds);
+        
+        categories?.forEach(cat => {
+          categoriesMap.set(cat.id, cat);
+        });
+      }
+
+      // Combine data efficiently
+      return services.map(service => ({
+        ...service,
+        category: categoriesMap.get(service.category_id) || null
+      }));
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 

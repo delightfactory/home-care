@@ -282,6 +282,38 @@ export interface ExpenseForm {
 }
 
 // API Response types
+
+
+export interface OrderCounts {
+  total: number
+  pending: number
+  scheduled: number
+  in_progress: number
+  completed: number
+  cancelled: number
+}
+
+export interface CustomerCounts {
+  total: number
+  active: number
+  inactive: number
+}
+
+export interface RouteCounts {
+  total: number
+  planned: number
+  in_progress: number
+  completed: number
+}
+
+// Aggregate counts for expenses
+export interface ExpenseCounts {
+  total: number
+  pending: number
+  approved: number
+  rejected: number
+}
+
 export interface ApiResponse<T> {
   data?: T
   error?: string

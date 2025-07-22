@@ -1,53 +1,117 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Users, UserCheck, UserX, ShoppingCart } from 'lucide-react'
-import { CustomersAPI } from '../../api'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
+import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Users, UserCheck, UserX, ShoppingCart, RefreshCw } from 'lucide-react'
+import EnhancedAPI from '../../api/enhanced-api'
 import { CustomerWithOrders } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import CustomerFormModal from '../../components/Forms/CustomerFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
+import { useCustomers, useCustomerCounts } from '../../hooks/useEnhancedAPI'
 
 const CustomersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [customers, setCustomers] = useState<CustomerWithOrders[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithOrders | undefined>()
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    fetchCustomers()
-  }, [statusFilter])
+  // Enhanced API hooks for optimized performance
+  const filters = useMemo(() => {
+    const baseFilters: any = {}
+    if (statusFilter !== 'all') {
+      baseFilters.is_active = statusFilter === 'active'
+    }
+    if (searchTerm) {
+      baseFilters.search = searchTerm
+    }
+    return baseFilters
+  }, [statusFilter, searchTerm])
 
-  const fetchCustomers = async () => {
+  // Fetch paginated customers
+  const { 
+    data: customers, 
+    loading, 
+    error, 
+    pagination,
+    refresh,
+    loadMore,
+    hasMore
+  } = useCustomers(filters, 1, 20)
+
+  // Fetch aggregate counts for accurate KPIs
+  const { counts } = useCustomerCounts()
+
+  // System health monitoring (for future use)
+  // const { health } = useSystemHealth()
+
+  // Remove unused search hook for now
+  // const { 
+  //   customers: searchResults, 
+  //   loading: searchLoading 
+  // } = useCustomerSearch(searchTerm, 10)
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setRefreshing(true)
     try {
-      setLoading(true)
-      const filters = statusFilter === 'all' ? undefined : { is_active: statusFilter === 'active' }
-      const response = await CustomersAPI.getCustomers(filters)
-      setCustomers(response.data)
+      await refresh()
+      toast.success('تم تحديث البيانات')
     } catch (error) {
-      toast.error('حدث خطأ في تحميل العملاء')
-      console.error('Customers fetch error:', error)
+      toast.error('فشل في تحديث البيانات')
     } finally {
-      setLoading(false)
+      setRefreshing(false)
     }
   }
+
+  // Load more customers (paging)
+  const handleLoadMore = async () => {
+    if (!hasMore) return;
+    setLoadingMore(true);
+    try {
+      await loadMore();
+    } catch (error) {
+      toast.error('فشل في تحميل المزيد');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // Infinite scroll observer for datasets > 100 rows
+  useEffect(() => {
+    if (customers.length < 100) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        handleLoadMore();
+      }
+    }, { threshold: 0.1 });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [customers.length, hasMore, loadingMore]);
 
   const handleDeleteCustomer = async () => {
     if (!selectedCustomer) return
     
     setDeleteLoading(true)
     try {
-      await CustomersAPI.deleteCustomer(selectedCustomer.id)
-      toast.success('تم حذف العميل بنجاح')
-      setShowDeleteModal(false)
-      setSelectedCustomer(undefined)
-      fetchCustomers()
+      toast.loading('جاري حذف العميل...', { id: 'delete' })
+      const response = await EnhancedAPI.deleteCustomer(selectedCustomer.id)
+      if (response.success) {
+        toast.success('تم حذف العميل بنجاح', { id: 'delete' })
+        setShowDeleteModal(false)
+        setSelectedCustomer(undefined)
+        refresh()
+      } else {
+        throw new Error(response.error || 'فشل في حذف العميل')
+      }
     } catch (error) {
-      toast.error('حدث خطأ أثناء حذف العميل')
+      toast.error('حدث خطأ أثناء حذف العميل', { id: 'delete' })
       console.error('Delete customer error:', error)
     } finally {
       setDeleteLoading(false)
@@ -56,29 +120,41 @@ const CustomersPage: React.FC = () => {
 
   const handleToggleActive = async (customer: CustomerWithOrders) => {
     try {
-      await CustomersAPI.updateCustomer(customer.id, { is_active: !customer.is_active })
-      toast.success('تم تحديث حالة العميل')
-      fetchCustomers()
+      toast.loading('جاري تحديث حالة العميل...', { id: 'toggle' })
+      const response = await EnhancedAPI.updateCustomer(customer.id, { is_active: !customer.is_active })
+      if (response.success) {
+        toast.success('تم تحديث حالة العميل', { id: 'toggle' })
+        refresh()
+      } else {
+        throw new Error(response.error || 'فشل في تحديث الحالة')
+      }
     } catch (error) {
-      toast.error('حدث خطأ في تحديث الحالة')
+      toast.error('حدث خطأ في تحديث الحالة', { id: 'toggle' })
       console.error(error)
     }
   }
 
-  const filteredCustomers = customers
-    .filter(customer =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm)
-    )
-    .filter(c =>
-      statusFilter === 'all'
-        ? true
-        : statusFilter === 'active'
-          ? c.is_active
-          : !c.is_active
-    )
+  // Customers are already filtered by the API based on search term and status
+  const filteredCustomers = customers || []
 
-  if (loading) {
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <p className="text-red-600">حدث خطأ في تحميل العملاء: {error}</p>
+        <button 
+          onClick={handleRefresh}
+          className="btn-primary"
+          disabled={refreshing}
+        >
+          {refreshing ? 'جاري المحاولة...' : 'إعادة المحاولة'}
+        </button>
+      </div>
+    )
+  }
+
+  // Show loading state for initial load
+  if (loading && filteredCustomers.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل العملاء..." />
@@ -100,22 +176,36 @@ const CustomersPage: React.FC = () => {
             </p>
             <div className="flex items-center mt-3 space-x-4 space-x-reverse">
               <span className="text-sm text-gray-500">إجمالي العملاء:</span>
-              <span className="font-bold text-blue-700">{customers.length}</span>
+              <span className="font-bold text-blue-700">{pagination?.total || filteredCustomers.length}</span>
               <span className="text-sm text-gray-500">النشطين:</span>
-              <span className="font-bold text-green-600">{customers.filter(c => c.is_active).length}</span>
+              <span className="font-bold text-green-600">{filteredCustomers.filter(c => c.is_active).length}</span>
+              {pagination?.total && pagination.total > filteredCustomers.length && (
+                <span className="text-xs text-blue-500">عرض {filteredCustomers.length} من {pagination.total}</span>
+              )}
             </div>
           </div>
-          <button 
-            onClick={() => {
-              setSelectedCustomer(undefined)
-              setFormMode('create')
-              setShowFormModal(true)
-            }}
-            className="btn-primary hover:scale-105 transition-transform duration-200 shadow-lg"
-          >
-            <Plus className="h-5 w-5 ml-2" />
-            إضافة عميل جديد
-          </button>
+          <div className="flex space-x-3 space-x-reverse">
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+              title="تحديث البيانات"
+            >
+              <RefreshCw className={`h-5 w-5 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
+              تحديث
+            </button>
+            <button 
+              onClick={() => {
+                setSelectedCustomer(undefined)
+                setFormMode('create')
+                setShowFormModal(true)
+              }}
+              className="btn-primary hover:scale-105 transition-transform duration-200 shadow-lg"
+            >
+              <Plus className="h-5 w-5 ml-2" />
+              إضافة عميل جديد
+            </button>
+          </div>
         </div>
       </div>
 
@@ -131,7 +221,7 @@ const CustomersPage: React.FC = () => {
             <div className="mr-4 flex-1">
               <p className="text-sm font-semibold text-gray-700 mb-1">إجمالي العملاء</p>
               <p className="text-2xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
-                {customers.length}
+                {pagination?.total ?? customers.length}
               </p>
             </div>
           </div>
@@ -147,7 +237,7 @@ const CustomersPage: React.FC = () => {
             <div className="mr-4 flex-1">
               <p className="text-sm font-semibold text-gray-700 mb-1">العملاء النشطين</p>
               <p className="text-2xl font-bold text-gray-900 group-hover:text-green-700 transition-colors duration-300">
-                {customers.filter(c => c.is_active).length}
+                {counts?.active ?? '—'}
               </p>
             </div>
           </div>
@@ -163,7 +253,7 @@ const CustomersPage: React.FC = () => {
             <div className="mr-4 flex-1">
               <p className="text-sm font-semibold text-gray-700 mb-1">العملاء الموقوفين</p>
               <p className="text-2xl font-bold text-gray-900 group-hover:text-red-700 transition-colors duration-300">
-                {customers.filter(c => !c.is_active).length}
+                {counts?.inactive ?? '—'}
               </p>
             </div>
           </div>
@@ -207,9 +297,9 @@ const CustomersPage: React.FC = () => {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="input focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-            <option value="all">كل الحالات ({customers.length})</option>
-            <option value="active">نشط ({customers.filter(c => c.is_active).length})</option>
-            <option value="inactive">موقوف ({customers.filter(c => !c.is_active).length})</option>
+            <option value="all">كل الحالات ({pagination?.total ?? customers.length})</option>
+            <option value="active">نشط ({counts?.active ?? '—'})</option>
+            <option value="inactive">موقوف ({counts?.inactive ?? '—'})</option>
           </select>
         </div>
         {/* Results Info */}
@@ -294,10 +384,22 @@ const CustomersPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+          <div ref={sentinelRef} />
           
           {filteredCustomers.length === 0 && (
             <div className="text-center py-8">
               <p className="text-gray-500">لا توجد عملاء مطابقين للبحث</p>
+            </div>
+          )}
+          {hasMore && (
+            <div className="text-center py-4">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="btn-secondary hover:scale-105 transition-all duration-200"
+              >
+                {loadingMore ? 'جار التحميل...' : 'تحميل المزيد'}
+              </button>
             </div>
           )}
         </div>
@@ -311,7 +413,7 @@ const CustomersPage: React.FC = () => {
           setSelectedCustomer(undefined)
         }}
         onSuccess={() => {
-          fetchCustomers()
+          refresh()
         }}
         customer={selectedCustomer}
         mode={formMode}

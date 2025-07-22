@@ -6,62 +6,81 @@ import {
   CustomerUpdate, 
   CustomerWithOrders,
   CustomerFilters,
+  CustomerCounts,
   PaginatedResponse,
   ApiResponse 
 } from '../types'
 
 export class CustomersAPI {
-  // Get all customers with optional filters and pagination
+  // Get all customers with optional filters and pagination - OPTIMIZED
   static async getCustomers(
     filters?: CustomerFilters,
     page = 1,
     limit = 20
   ): Promise<PaginatedResponse<CustomerWithOrders>> {
     try {
+      const offset = (page - 1) * limit;
+      
       let query = supabase
         .from('customers')
-        .select(`
-          *,
-          orders:orders(count)
-        `, { count: 'exact' })
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-      // Apply filters
+      // Apply filters using indexed columns
       if (filters?.area?.length) {
-        query = query.in('area', filters.area)
-      }
-
-      if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`)
+        query = query.in('area', filters.area);
       }
 
       if (filters?.is_active !== undefined) {
-         query = query.eq('is_active', filters.is_active)
-       }
+        query = query.eq('is_active', filters.is_active);
+      }
 
-      // Apply pagination
-      const from = (page - 1) * limit
-      const to = from + limit - 1
-      query = query.range(from, to)
+      // Use text search index for better performance
+      if (filters?.search) {
+        query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+      }
 
-      const { data, error, count } = await query
+      const { data: customers, error, count } = await query;
 
-      if (error) throw error
+      if (error) throw error;
 
-      // Transform data to include order counts
-      const customers = data?.map(customer => ({
-        ...customer,
-        total_orders: customer.orders?.[0]?.count || 0
-      })) || []
+      // Get order counts separately for better performance
+      let customersWithOrders = customers || [];
+      
+      if (customers?.length) {
+        const customerIds = customers.map(c => c.id);
+        
+        // Get order counts in a single optimized query
+        const { data: orderCounts } = await supabase
+          .from('orders')
+          .select('customer_id')
+          .in('customer_id', customerIds)
+          .eq('status', 'completed'); // Only count completed orders
+        
+        // Create count map for O(1) lookup
+        const countMap = new Map<string, number>();
+        orderCounts?.forEach(order => {
+          const current = countMap.get(order.customer_id) || 0;
+          countMap.set(order.customer_id, current + 1);
+        });
+        
+        // Attach counts to customers
+        customersWithOrders = customers.map(customer => ({
+          ...customer,
+          total_orders: countMap.get(customer.id) || 0
+        }));
+      }
 
       return {
-        data: customers,
+        data: customersWithOrders,
         total: count || 0,
         page,
         limit,
         total_pages: Math.ceil((count || 0) / limit)
-      }
+      };
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 
@@ -220,6 +239,36 @@ export class CustomersAPI {
         average_rating: averageRating,
         last_order_date: orders[0]?.created_at
       }
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
+
+
+  // Get aggregated customers counts (total, active, inactive)
+  static async getCounts(): Promise<CustomerCounts> {
+    try {
+      // Total customers
+      const { count: totalCount, error: totalErr } = await supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+
+      if (totalErr) throw totalErr
+
+      // Active customers (indexed on is_active)
+      const { count: activeCount, error: activeErr } = await supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+
+      if (activeErr) throw activeErr
+
+      const total = totalCount || 0
+      const active = activeCount || 0
+      const inactive = total - active
+
+      return { total, active, inactive }
     } catch (error) {
       throw new Error(handleSupabaseError(error))
     }

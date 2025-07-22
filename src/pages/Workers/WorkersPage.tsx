@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Edit, Trash2, Search, Users, UserCheck, UserX, Clock } from 'lucide-react'
-import { WorkersAPI } from '../../api'
+import React, { useState } from 'react'
+import { Plus, Edit, Trash2, Search, Users, UserCheck, UserX, Clock, Activity } from 'lucide-react'
 import { WorkerWithTeam } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import toast from 'react-hot-toast'
 import WorkerFormModal from '../../components/Forms/WorkerFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
+import { useWorkers, useSystemHealth } from '../../hooks/useEnhancedAPI'
 
 const WorkersPage: React.FC = () => {
-  const [workers, setWorkers] = useState<WorkerWithTeam[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -17,21 +15,22 @@ const WorkersPage: React.FC = () => {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  useEffect(() => {
-    fetchWorkers()
-  }, [])
+  // Use optimized hooks for data fetching
+  const { workers, loading, error, refresh } = useWorkers()
+  const { health } = useSystemHealth()
 
-  const fetchWorkers = async () => {
-    try {
-      setLoading(true)
-      const data = await WorkersAPI.getWorkers()
-      setWorkers(data)
-    } catch (error) {
-      toast.error('حدث خطأ في تحميل العمال')
-      console.error('Workers fetch error:', error)
-    } finally {
-      setLoading(false)
-    }
+  // Show error state if needed
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">حدث خطأ في تحميل العمال</p>
+          <button onClick={refresh} className="btn-primary">
+            إعادة المحاولة
+          </button>
+        </div>
+      </div>
+    )
   }
 
   const handleDeleteWorker = async () => {
@@ -44,13 +43,17 @@ const WorkersPage: React.FC = () => {
       toast.success('تم حذف العامل بنجاح')
       setShowDeleteModal(false)
       setSelectedWorker(undefined)
-      fetchWorkers()
+      refresh()
     } catch (error) {
       toast.error('حدث خطأ أثناء حذف العامل')
       console.error('Delete worker error:', error)
     } finally {
       setDeleteLoading(false)
     }
+  }
+
+  const onFormSuccess = () => {
+    refresh() // Use hook's refresh instead of fetchWorkers
   }
 
   const getStatusBadge = (status: string) => {
@@ -106,6 +109,29 @@ const WorkersPage: React.FC = () => {
           إضافة عامل جديد
         </button>
       </div>
+
+      {/* System Health Indicator */}
+      {health && (
+        <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <Activity className="h-5 w-5 text-gray-600" />
+              <div className={`w-3 h-3 rounded-full ${
+                health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className="text-sm text-gray-600">
+                قاعدة البيانات: {health.database?.response_time_ms || 0}ms
+              </span>
+              <span className="text-sm text-gray-600">
+                الكاش: {health.cache?.stats?.size ?? 0} عنصر
+              </span>
+              <span className="text-sm text-gray-600">
+                الذاكرة: {Math.round((health.memory?.used ?? 0) / 1024 / 1024)}MB
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Workers Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -258,9 +284,7 @@ const WorkersPage: React.FC = () => {
           setShowFormModal(false)
           setSelectedWorker(undefined)
         }}
-        onSuccess={() => {
-          fetchWorkers()
-        }}
+        onSuccess={onFormSuccess}
         worker={selectedWorker}
         mode={formMode}
       />

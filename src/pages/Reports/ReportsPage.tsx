@@ -1,57 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { BarChart3, Calendar, Download, TrendingUp, Users, DollarSign, Target } from 'lucide-react'
-import { ReportsAPI } from '../../api'
-import { MonthlyReport, DailyDashboard, TeamSummary } from '../../types'
+import React, { useState } from 'react'
+import { BarChart3, Calendar, Download, TrendingUp, Users, DollarSign, Target, Activity } from 'lucide-react'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
-import toast from 'react-hot-toast'
+import { useDashboard, useSystemHealth } from '../../hooks/useEnhancedAPI'
 
 const ReportsPage: React.FC = () => {
-  const [dailyDashboard, setDailyDashboard] = useState<DailyDashboard | null>(null)
-  const [teamSummaries, setTeamSummaries] = useState<TeamSummary[]>([])
-  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const { dashboard, loading, error, refresh } = useDashboard(selectedDate)
+  const { health } = useSystemHealth()
 
-  useEffect(() => {
-    fetchReports()
-  }, [selectedDate])
-
-  const fetchReports = async () => {
-    try {
-      setLoading(true)
-      const startOfMonth = new Date(new Date(selectedDate).getFullYear(), new Date(selectedDate).getMonth(), 1).toISOString().split('T')[0]
-      const endOfMonth = new Date(new Date(selectedDate).getFullYear(), new Date(selectedDate).getMonth() + 1, 0).toISOString().split('T')[0]
-      
-      const [dashboardData, dailyData, teamData] = await Promise.all([
-        ReportsAPI.getDailyDashboard(selectedDate),
-        ReportsAPI.getDailyReports(startOfMonth, endOfMonth),
-        ReportsAPI.getTeamSummaries()
-      ])
-      setDailyDashboard(dashboardData)
-      setTeamSummaries(teamData)
-      // إنشاء تقرير شهرى مبسط اعتمادًا على بيانات اليوم
-      const mockMonthlyReport: MonthlyReport = {
-        id: 'mock-' + new Date().getTime(),
-        month: new Date(selectedDate).getMonth() + 1,
-        year: new Date(selectedDate).getFullYear(),
-        total_orders: dailyData.reduce((sum, report) => sum + report.total_orders, 0),
-        completed_orders: dailyData.reduce((sum, report) => sum + report.completed_orders, 0),
-        total_revenue: dailyData.reduce((sum, report) => sum + report.total_revenue, 0),
-        total_expenses: dailyData.reduce((sum, report) => sum + report.total_expenses, 0),
-        net_profit: dailyData.reduce((sum, report) => sum + report.net_profit, 0),
-        avg_orders_per_team: dailyData.length > 0 ? dailyData.reduce((sum, report) => sum + report.total_orders, 0) / dailyData.length : 0,
-        avg_rating: dailyData.length > 0 ? dailyData.reduce((sum, report) => sum + report.average_rating, 0) / dailyData.length : 0,
-        new_customers: 0, // This would need to be calculated separately
-        created_at: new Date().toISOString()
-      }
-      setMonthlyReports([mockMonthlyReport])
-    } catch (error) {
-      toast.error('حدث خطأ في تحميل التقارير')
-      console.error('Reports fetch error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Data is now handled by hooks - no manual fetching needed
 
   if (loading) {
     return (
@@ -61,13 +18,22 @@ const ReportsPage: React.FC = () => {
     )
   }
 
-  const todayDashboard = dailyDashboard
-
-  const currentMonth = new Date(selectedDate).getMonth() + 1
-  const currentYear = new Date(selectedDate).getFullYear()
-  const monthReport = monthlyReports.find(report => 
-    report.month === currentMonth && report.year === currentYear
-  )
+  const todayDashboard = dashboard?.daily
+  const teamSummaries = dashboard?.teams || []
+  
+  // Show error state if needed
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">حدث خطأ في تحميل التقارير</p>
+          <button onClick={refresh} className="btn-primary">
+            إعادة المحاولة
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -176,7 +142,7 @@ const ReportsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="table-body">
-                {teamSummaries.map(ts => (
+                {teamSummaries.map((ts: any) => (
                   <tr key={ts.team_id} className="table-row hover:bg-gray-50 transition-colors">
                     <td className="table-cell font-medium">{ts.team_name}</td>
                     <td className="table-cell">{ts.orders_completed}</td>
@@ -192,25 +158,48 @@ const ReportsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Monthly Report */}
+      {/* System Health Indicator */}
+      {health && (
+        <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <Activity className="h-5 w-5 text-gray-600" />
+              <div className={`w-3 h-3 rounded-full ${
+                health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className="text-sm text-gray-600">
+                قاعدة البيانات: {health.database?.response_time_ms || 0}ms
+              </span>
+              <span className="text-sm text-gray-600">
+                الكاش: {health.cache?.stats?.size ?? 0} عنصر
+              </span>
+              <span className="text-sm text-gray-600">
+                الذاكرة: {Math.round((health.memory?.used ?? 0) / 1024 / 1024)}MB
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Monthly Summary from Daily Data */}
       <div className="card-elevated">
         <div className="card-header">
           <div className="flex items-center">
             <BarChart3 className="h-6 w-6 text-green-600 ml-2" />
             <h3 className="card-title">
-              تقرير شهري - {new Date(currentYear, currentMonth - 1).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' })}
+              ملخص شهري - {new Date(selectedDate).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' })}
             </h3>
           </div>
         </div>
         
-        {monthReport ? (
+        {todayDashboard ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="card-compact bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:scale-105 transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm font-medium">إجمالي الطلبات</p>
-                    <p className="text-2xl font-bold">{monthReport.total_orders}</p>
+                    <p className="text-2xl font-bold">{todayDashboard.total_orders || 0}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-lg">
                     <Target className="h-6 w-6" />
@@ -221,7 +210,7 @@ const ReportsPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-green-100 text-sm font-medium">إجمالي الإيرادات</p>
-                    <p className="text-2xl font-bold">{monthReport.total_revenue} ج.م</p>
+                    <p className="text-2xl font-bold">{todayDashboard.total_revenue || 0} ج.م</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-lg">
                     <DollarSign className="h-6 w-6" />
@@ -232,61 +221,21 @@ const ReportsPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-red-100 text-sm font-medium">إجمالي المصروفات</p>
-                    <p className="text-2xl font-bold">{monthReport.total_expenses} ج.م</p>
+                    <p className="text-2xl font-bold">{todayDashboard.total_expenses || 0} ج.م</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-lg">
-                    <TrendingUp className="h-6 w-6 transform rotate-180" />
+                    <DollarSign className="h-6 w-6" />
                   </div>
                 </div>
               </div>
-              <div className={`card-compact ${monthReport.net_profit >= 0 ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' : 'bg-gradient-to-br from-orange-500 to-red-500'} text-white hover:scale-105 transition-all duration-200`}>
+              <div className="card-compact bg-gradient-to-br from-purple-500 to-purple-600 text-white hover:scale-105 transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className={`${monthReport.net_profit >= 0 ? 'text-emerald-100' : 'text-orange-100'} text-sm font-medium`}>صافي الربح</p>
-                    <p className="text-2xl font-bold">{monthReport.net_profit} ج.م</p>
+                    <p className="text-purple-100 text-sm font-medium">صافي الربح</p>
+                    <p className="text-2xl font-bold">{todayDashboard.net_profit || 0} ج.م</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-lg">
-                    <TrendingUp className={`h-6 w-6 ${monthReport.net_profit < 0 ? 'transform rotate-180' : ''}`} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="card-compact bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200">
-                <h4 className="font-semibold text-indigo-900 mb-3 flex items-center">
-                  <Users className="h-5 w-5 ml-2" />
-                  أداء الفرق
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                    <span className="text-indigo-700">متوسط الطلبات لكل فريق:</span>
-                    <span className="font-bold text-indigo-900">{Math.round(monthReport.avg_orders_per_team)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                    <span className="text-indigo-700">متوسط التقييم:</span>
-                    <span className="font-bold text-indigo-900">{monthReport.avg_rating.toFixed(1)}/5</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card-compact bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200">
-                <h4 className="font-semibold text-purple-900 mb-3 flex items-center">
-                  <BarChart3 className="h-5 w-5 ml-2" />
-                  إحصائيات إضافية
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                    <span className="text-purple-700">العملاء الجدد:</span>
-                    <span className="font-bold text-purple-900">{monthReport.new_customers}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                    <span className="text-purple-700">معدل إكمال الطلبات:</span>
-                    <span className="font-bold text-purple-900">
-                      {monthReport.total_orders > 0 
-                        ? Math.round((monthReport.completed_orders / monthReport.total_orders) * 100)
-                        : 0}%
-                    </span>
+                    <TrendingUp className="h-6 w-6" />
                   </div>
                 </div>
               </div>
@@ -294,7 +243,7 @@ const ReportsPage: React.FC = () => {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-gray-500">لا توجد بيانات لهذا الشهر</p>
+            <p className="text-gray-500">لا توجد بيانات للتاريخ المحدد</p>
           </div>
         )}
       </div>

@@ -10,36 +10,26 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
-import { ReportsAPI, getToday, supabase } from '../../api'
+import { getToday, supabase } from '../../api'
+import { useDashboard, useSystemHealth } from '../../hooks/useEnhancedAPI'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import toast from 'react-hot-toast'
 
 const DashboardPage: React.FC = () => {
     const today = useMemo(() => getToday(), [])
 
-  // Dashboard stats query (cached for 5 minutes)
+  // Dashboard stats via optimized hook
   const {
-    data: stats,
-    isLoading,
+    dashboard,
+    loading: statsLoading,
     error: statsError,
-  } = useQuery(['dashboard', today], async () => {
-    let dashboard = await ReportsAPI.getDailyDashboard(today)
-    if (!dashboard) {
-      const legacy = await ReportsAPI.getDashboardStats()
-      dashboard = {
-        report_date: today,
-        total_orders: legacy.today_orders,
-        completed_orders: legacy.today_orders - legacy.pending_orders,
-        cancelled_orders: 0,
-        total_revenue: legacy.total_revenue,
-        total_expenses: legacy.total_expenses,
-        net_profit: legacy.net_profit,
-        active_teams: legacy.active_teams,
-        average_rating: legacy.average_rating,
-      }
-    }
-    return dashboard
-  }, { staleTime: 1000 * 60 * 5 })
+    refresh: _refreshStats
+  } = useDashboard(today)
+
+  // Optional: system health (auto-refresh)
+  const { health: _health } = useSystemHealth()
+
+  const stats = dashboard?.daily
 
   // Active routes query (cached for 1 minute)
   const { data: activeRoutes = 0, error: routesError } = useQuery(['activeRoutes', today], async () => {
@@ -105,7 +95,7 @@ const DashboardPage: React.FC = () => {
 
   */
 
-if (isLoading) {
+if (statsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل لوحة التحكم..." />

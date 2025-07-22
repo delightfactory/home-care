@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { Plus, Edit, Eye, Search, Play, Check, XCircle } from 'lucide-react'
-import { OrdersAPI } from '../../api'
+import React, { useState, useMemo } from 'react'
+import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw } from 'lucide-react'
+import EnhancedAPI from '../../api/enhanced-api'
 import { OrderStatus } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import { OrderWithDetails } from '../../types'
@@ -8,34 +8,65 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import OrderFormModal from '../../components/Forms/OrderFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
-import { useQuery } from '@tanstack/react-query'
+import { useOrders, useSystemHealth, useOrderCounts } from '../../hooks/useEnhancedAPI'
 
 const OrdersPage: React.FC = () => {
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
-  const { data: ordersData = [], isLoading, refetch } = useQuery(
-    ['orders', searchTerm],
-    () => OrdersAPI.getOrders({ search: searchTerm }).then(res => res.data),
-    { keepPreviousData: true }
-  )
-  const orders = ordersData as OrderWithDetails[]
-  
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | undefined>()
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Enhanced API hooks for optimized performance
+  const filters = useMemo(() => ({
+    search: searchTerm || undefined
+  }), [searchTerm])
+
+  const { 
+    data: orders, 
+    loading: isLoading, 
+    error, 
+    pagination,
+    refresh,
+    loadMore,
+    hasMore 
+  } = useOrders(filters, 1, 20, false)
+  // Sentinel for infinite scroll
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+
+  // Orders are already filtered by the API based on search term
+  const filteredOrders = orders || []
+
+  // Fetch aggregate order counts
+  const { counts } = useOrderCounts()
+
+  // System health monitoring
+  const { health } = useSystemHealth()
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return
     
     setDeleteLoading(true)
-    // TODO: Implement delete order API method
-    console.log('Delete order:', selectedOrder.id)
-    toast.success('تم حذف الطلب بنجاح')
-    setShowDeleteModal(false)
-    setSelectedOrder(undefined)
-    refetch()
-    setDeleteLoading(false)
+    try {
+      toast.loading('جاري حذف الطلب...', { id: 'delete' })
+      const response = await EnhancedAPI.deleteOrder(selectedOrder.id)
+      if (response.success) {
+        toast.success('تم حذف الطلب بنجاح', { id: 'delete' })
+        setShowDeleteModal(false)
+        setSelectedOrder(undefined)
+        refresh()
+      } else {
+        throw new Error(response.error || 'فشل في حذف الطلب')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ في حذف الطلب', { id: 'delete' })
+      console.error('Delete order error:', error)
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -70,12 +101,12 @@ const OrdersPage: React.FC = () => {
     }
     try {
       toast.loading('جاري تحديث حالة الطلب...', { id: 'status' })
-      const response = await OrdersAPI.updateOrderStatus(order.id, status, notes, user?.id)
+      const response = await EnhancedAPI.updateOrderStatus(order.id, status, notes, user?.id)
       if (response.success) {
         toast.success('تم تحديث حالة الطلب', { id: 'status' })
-        refetch()
+        refresh()
       } else {
-        throw new Error(response.error)
+        throw new Error(response.error || 'فشل في تحديث الحالة')
       }
     } catch (error) {
       toast.error('حدث خطأ في تحديث الحالة', { id: 'status' })
@@ -83,12 +114,58 @@ const OrdersPage: React.FC = () => {
     }
   }
 
-  const filteredOrders = orders.filter(order =>
-    order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customer?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await refresh()
+      toast.success('تم تحديث البيانات')
+    } catch (error) {
+      toast.error('فشل في تحديث البيانات')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
-  if (isLoading) {
+  // Load more orders for infinite scrolling
+  const handleLoadMore = async () => {
+    if (hasMore && !isLoading) {
+      await loadMore()
+    }
+  }
+
+  // Infinite scroll for large datasets
+  React.useEffect(() => {
+    if (filteredOrders.length < 100) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !isLoading) {
+        handleLoadMore();
+      }
+    }, { threshold: 0.1 });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredOrders.length, hasMore, isLoading]);
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <p className="text-red-600">حدث خطأ في تحميل الطلبات: {error}</p>
+        <button 
+          onClick={handleRefresh}
+          className="btn-primary"
+          disabled={refreshing}
+        >
+          {refreshing ? 'جاري المحاولة...' : 'إعادة المحاولة'}
+        </button>
+      </div>
+    )
+  }
+
+  // Show loading state for initial load
+  if (isLoading && filteredOrders.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل الطلبات..." />
@@ -103,17 +180,28 @@ const OrdersPage: React.FC = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة الطلبات</h1>
           <p className="text-gray-600 mt-2">إدارة طلبات العملاء وتتبع حالتها</p>
         </div>
-        <button 
-          onClick={() => {
-            setSelectedOrder(undefined)
-            setFormMode('create')
-            setShowFormModal(true)
-          }}
-          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-        >
-          <Plus className="h-5 w-5 ml-2" />
-          طلب جديد
-        </button>
+        <div className="flex space-x-3 space-x-reverse">
+          <button 
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+            title="تحديث البيانات"
+          >
+            <RefreshCw className={`h-5 w-5 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
+            تحديث
+          </button>
+          <button 
+            onClick={() => {
+              setSelectedOrder(undefined)
+              setFormMode('create')
+              setShowFormModal(true)
+            }}
+            className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <Plus className="h-5 w-5 ml-2" />
+            طلب جديد
+          </button>
+        </div>
       </div>
 
       {/* Orders Statistics */}
@@ -122,7 +210,10 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600">إجمالي الطلبات</p>
-              <p className="text-2xl font-bold text-blue-800">{orders.length}</p>
+              <p className="text-2xl font-bold text-blue-800">{counts?.total ?? pagination?.total ?? filteredOrders.length}</p>
+              {pagination?.total && pagination.total > filteredOrders.length && (
+                <p className="text-xs text-blue-500">عرض {filteredOrders.length} من {pagination.total}</p>
+              )}
             </div>
             <div className="p-3 bg-blue-500 rounded-lg">
               <Plus className="h-6 w-6 text-white" />
@@ -133,7 +224,7 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-yellow-600">قيد الانتظار</p>
-              <p className="text-2xl font-bold text-yellow-800">{orders.filter(o => o.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-yellow-800">{counts?.pending ?? filteredOrders.filter(o => o.status === 'pending').length}</p>
             </div>
             <div className="p-3 bg-yellow-500 rounded-lg">
               <Play className="h-6 w-6 text-white" />
@@ -144,7 +235,7 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">مكتملة</p>
-              <p className="text-2xl font-bold text-green-800">{orders.filter(o => o.status === 'completed').length}</p>
+              <p className="text-2xl font-bold text-green-800">{counts?.completed ?? filteredOrders.filter(o => o.status === 'completed').length}</p>
             </div>
             <div className="p-3 bg-green-500 rounded-lg">
               <Check className="h-6 w-6 text-white" />
@@ -155,7 +246,7 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-red-600">ملغية</p>
-              <p className="text-2xl font-bold text-red-800">{orders.filter(o => o.status === 'cancelled').length}</p>
+              <p className="text-2xl font-bold text-red-800">{counts?.cancelled ?? filteredOrders.filter(o => o.status === 'cancelled').length}</p>
             </div>
             <div className="p-3 bg-red-500 rounded-lg">
               <XCircle className="h-6 w-6 text-white" />
@@ -163,6 +254,28 @@ const OrdersPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Performance Health Indicator */}
+      {health && (
+        <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <div className={`w-3 h-3 rounded-full ${
+                health.database.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className="text-sm text-gray-600">
+                قاعدة البيانات: {health.database.response_time_ms}ms
+              </span>
+              <span className="text-sm text-gray-600">
+                الكاش: {health.cache?.stats?.size ?? 0} عنصر
+              </span>
+              <span className="text-sm text-gray-600">
+                الذاكرة: {Math.round(health.memory?.used ?? 0 / 1024 / 1024)}MB
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card-compact">
         <div className="relative">
@@ -178,7 +291,7 @@ const OrdersPage: React.FC = () => {
         {searchTerm && (
           <div className="mt-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
             <p className="text-sm text-primary-700">
-              عرض {filteredOrders.length} من أصل {orders.length} طلب
+              عرض {filteredOrders.length} {pagination?.total ? `من أصل ${pagination.total}` : ''} طلب
             </p>
           </div>
         )}
@@ -264,12 +377,34 @@ const OrdersPage: React.FC = () => {
             </tbody>
           </table>
           
-          {filteredOrders.length === 0 && (
+          {filteredOrders.length === 0 && !isLoading && (
             <div className="text-center py-8">
-              <p className="text-gray-500">لا توجد طلبات مطابقة للبحث</p>
+              <p className="text-gray-500">
+                {searchTerm ? 'لا توجد طلبات مطابقة للبحث' : 'لا توجد طلبات'}
+              </p>
+            </div>
+          )}
+          
+          {/* Loading more indicator */}
+          {isLoading && filteredOrders.length > 0 && (
+            <div className="text-center py-4">
+              <LoadingSpinner size="small" text="جاري تحميل المزيد..." />
+            </div>
+          )}
+          
+          {/* Load more button */}
+          {hasMore && !isLoading && filteredOrders.length > 0 && (
+            <div className="text-center py-4">
+              <button 
+                onClick={handleLoadMore}
+                className="btn-secondary"
+              >
+                تحميل المزيد ({pagination?.total ? `${pagination.total - filteredOrders.length} متبقي` : ''})
+              </button>
             </div>
           )}
         </div>
+      <div ref={sentinelRef} />
       </div>
 
       {/* Order Form Modal */}
@@ -280,7 +415,7 @@ const OrdersPage: React.FC = () => {
           setSelectedOrder(undefined)
         }}
         onSuccess={() => {
-          refetch()
+          refresh()
         }}
         order={selectedOrder}
         mode={formMode}

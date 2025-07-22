@@ -17,33 +17,35 @@ export class ReportsAPI {
    * Optimized queries using SQL Views
    * ----------------------------------------------
    */
-  // Get aggregated dashboard record for a given date from v_daily_dashboard
+  // Get aggregated dashboard record for a given date - OPTIMIZED
   static async getDailyDashboard(date: string): Promise<DailyDashboard | null> {
     try {
+      // Use optimized view with indexed date column
       const { data, error } = await supabase
-        .from('v_daily_dashboard')
+        .from('v_daily_stats')
         .select('*')
         .eq('report_date', date)
-        .maybeSingle()
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error
-      return data as unknown as DailyDashboard | null
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as unknown as DailyDashboard | null;
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 
-  // Get team summaries (performance) from v_team_summary
+  // Get team summaries (performance) - OPTIMIZED
   static async getTeamSummaries(): Promise<TeamSummary[]> {
     try {
       const { data, error } = await supabase
-        .from('v_team_summary')
+        .from('v_team_performance')
         .select('*')
+        .order('completed_orders', { ascending: false });
 
-      if (error) throw error
-      return data as unknown as TeamSummary[]
+      if (error) throw error;
+      return data as unknown as TeamSummary[];
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw handleSupabaseError(error);
     }
   }
 
