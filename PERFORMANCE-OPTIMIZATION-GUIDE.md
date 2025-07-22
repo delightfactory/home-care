@@ -68,7 +68,7 @@
 const orders = await OrdersAPI.getOrders(filters, page, limit);
 ```
 
-#### بعد التحسين:
+#### بعد التحسين:2
 ```typescript
 // الطريقة المحسنة
 import { Orders } from './api/optimized-api';
