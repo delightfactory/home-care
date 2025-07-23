@@ -2,19 +2,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '../types/database.types'
 
-// Get environment variables with fallback
-const getEnvVar = (key: string): string => {
-  if (typeof window !== 'undefined') {
-    // Browser environment - use import.meta.env
-    return (import.meta as any).env?.[key] || ''
-  } else {
-    // Node environment - use process.env
-    return process?.env?.[key] || ''
-  }
-}
-
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL')
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY')
+// Get environment variables directly from import.meta.env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
