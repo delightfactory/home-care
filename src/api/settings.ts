@@ -95,7 +95,7 @@ export class SettingsAPI {
         },
         order_number_prefix: settings.order_number_prefix || 'ORD',
         company_info: settings.company_info || {
-          name: 'شركة التنظيف المنزلي',
+          name: 'شركة HOME CARE',
           phone: '',
           address: ''
         }

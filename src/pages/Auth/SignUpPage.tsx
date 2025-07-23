@@ -57,7 +57,7 @@ const SignUpPage: React.FC = () => {
             <UserPlus className="h-6 w-6 text-primary-600" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">إنشاء حساب جديد</h2>
-          <p className="mt-2 text-center text-sm text-gray-600">نظام إدارة شركة التنظيف المنزلي</p>
+          <p className="mt-2 text-center text-sm text-gray-600">شركةHOME CARE</p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">

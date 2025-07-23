@@ -6,6 +6,7 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import CustomerFormModal from '../../components/Forms/CustomerFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
+import { eventBus } from '../../utils/EventBus'
 import { useCustomers, useCustomerCounts } from '../../hooks/useEnhancedAPI'
 
 const CustomersPage: React.FC = () => {
@@ -42,6 +43,14 @@ const CustomersPage: React.FC = () => {
     loadMore,
     hasMore
   } = useCustomers(filters, 1, 20)
+
+  // Listen for global events to refresh data on external changes
+  useEffect(() => {
+    const unsubscribe = eventBus.on('customers:changed', () => {
+      refresh()
+    })
+    return unsubscribe
+  }, [refresh])
 
   // Fetch aggregate counts for accurate KPIs
   const { counts } = useCustomerCounts()

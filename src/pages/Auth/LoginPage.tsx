@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
             تسجيل الدخول
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            نظام إدارة شركة التنظيف المنزلي
+            شركةHOME CARE
           </p>
         </div>
         

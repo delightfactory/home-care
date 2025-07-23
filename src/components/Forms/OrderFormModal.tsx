@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Save, ShoppingCart, Plus, Trash2, User, Truck, FileText, CheckCircle, DollarSign, X, CreditCard } from 'lucide-react'
 import { OrdersAPI, CustomersAPI, ServicesAPI, TeamsAPI } from '../../api'
+import EnhancedAPI from '../../api/enhanced-api'
 import { useAuth } from '../../contexts/AuthContext'
 import { Order, OrderForm, Customer, ServiceWithCategory, OrderWithDetails, TeamWithMembers } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
@@ -186,7 +187,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           }
         })
         
-        const response = await OrdersAPI.createOrder(orderData, orderItems)
+        const response = await EnhancedAPI.createOrder(orderData, orderItems)
         if (response.success) {
           toast.success('تم إضافة الطلب بنجاح')
         } else {
@@ -195,7 +196,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       } else {
         // Update order base fields first (exclude services)
         const { services: svc, ...orderUpdates } = formData as any
-        const updateRes = await OrdersAPI.updateOrder(order!.id, orderUpdates)
+        const updateRes = await EnhancedAPI.updateOrder(order!.id, orderUpdates)
         if (!updateRes.success) throw new Error(updateRes.error || 'Update failed')
 
         // Recalculate items with prices
@@ -208,7 +209,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
             total_price: (service?.price || 0) * serviceItem.quantity
           }
         })
-        const replaceRes = await OrdersAPI.replaceOrderItems(order!.id, orderItems)
+        const replaceRes = await EnhancedAPI.replaceOrderItems(order!.id, orderItems)
         if (!replaceRes.success) throw new Error(replaceRes.error || 'Failed to update الخدمات')
         toast.success('تم تحديث بيانات الطلب بنجاح')
       }

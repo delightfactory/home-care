@@ -72,6 +72,12 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') {
     return;
   }
+
+  // Bypass cross-origin requests (e.g., Supabase REST calls)
+  // These requests should go straight to the network and are not cached.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
   
   // Handle navigation requests
   if (request.mode === 'navigate') {

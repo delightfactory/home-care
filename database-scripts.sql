@@ -291,7 +291,7 @@ INSERT INTO system_settings (key, value, description) VALUES
 ('transport_rates', '{"company_car": 0.5, "taxi": 2.0, "uber": 1.8, "public_transport": 0.3}', 'تكلفة المواصلات لكل كيلومتر'),
 ('working_hours', '{"start": "08:00", "end": "18:00"}', 'ساعات العمل'),
 ('order_number_prefix', '"ORD"', 'بادئة رقم الطلب'),
-('company_info', '{"name": "شركة التنظيف المنزلي", "phone": "", "address": ""}', 'معلومات الشركة');
+('company_info', '{"name": "شركة HOME CARE", "phone": "", "address": ""}', 'معلومات الشركة');
 
 
 -- تفعيل Row Level Security

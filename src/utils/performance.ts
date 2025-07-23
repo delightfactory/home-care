@@ -1,5 +1,5 @@
 // Performance Utilities for Large-Scale Data Handling
-// نظام إدارة شركة التنظيف المنزلي - أدوات تحسين الأداء
+// شركةHOME CARE - أدوات تحسين الأداء
 
 import { supabase } from '../lib/supabase';
 

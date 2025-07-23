@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { X, Save, User, MapPin, Phone, Home, FileText, CheckCircle } from 'lucide-react'
-import { CustomersAPI } from '../../api'
+import EnhancedAPI from '../../api/enhanced-api'
 import { Customer, CustomerForm } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
@@ -117,10 +117,13 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
       }
 
       if (mode === 'create') {
-        await CustomersAPI.createCustomer(payload)
+        const res = await EnhancedAPI.createCustomer(payload)
+        if (!res.success) throw new Error(res.error || 'فشل في إضافة العميل')
+        
         toast.success('تم إضافة العميل بنجاح')
       } else {
-        await CustomersAPI.updateCustomer(customer!.id, payload)
+        const res = await EnhancedAPI.updateCustomer(customer!.id, payload)
+        if (!res.success) throw new Error(res.error || 'فشل في تحديث بيانات العميل')
         toast.success('تم تحديث بيانات العميل بنجاح')
       }
       

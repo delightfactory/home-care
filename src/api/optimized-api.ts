@@ -1,5 +1,5 @@
 // Optimized API Layer with Performance Monitoring
-// نظام إدارة شركة التنظيف المنزلي - طبقة API محسنة للأداء
+// شركةHOME CARE - طبقة API محسنة للأداء
 
 import { 
   performanceMonitor, 

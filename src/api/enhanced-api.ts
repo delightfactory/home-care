@@ -11,6 +11,7 @@ import {
 
 // Import all optimized APIs
 import { OrdersAPI } from './orders';
+import { eventBus } from '../utils/EventBus';
 import { CustomersAPI } from './customers';
 import { ReportsAPI } from './reports';
 import { WorkersAPI, TeamsAPI } from './workers';
@@ -110,6 +111,7 @@ export class EnhancedAPI {
         // Clear related caches
         this.clearCache('enhanced:orders');
         this.clearCache('enhanced:dashboard');
+        eventBus.emit('orders:changed');
         
         return result;
       }
@@ -128,6 +130,7 @@ export class EnhancedAPI {
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
+        eventBus.emit('orders:changed');
         
         return result;
       }
@@ -146,6 +149,7 @@ export class EnhancedAPI {
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
+        eventBus.emit('orders:changed');
         
         return result;
       }
@@ -164,6 +168,7 @@ export class EnhancedAPI {
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
+        eventBus.emit('orders:changed');
         
         return result;
       }
@@ -189,7 +194,101 @@ export class EnhancedAPI {
     );
   }
 
-  // ===== EXPENSES COUNTS =====
+  // ===== EXPENSES MUTATIONS =====
+  static async createExpense(expenseData: any): Promise<ApiResponse<ExpenseWithDetails>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.create',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.createExpense(expenseData)
+        ) as ApiResponse<ExpenseWithDetails>;
+
+        // Clear related caches
+        this.clearCache('enhanced:expenses');
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async updateExpense(id: string, updates: any): Promise<ApiResponse<ExpenseWithDetails>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.update',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.updateExpense(id, updates)
+        );
+
+        // Clear related caches
+        this.clearCache('enhanced:expenses');
+        this.clearCache(`enhanced:expense:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result as ApiResponse<ExpenseWithDetails>;
+      }
+    );
+  }
+
+  static async deleteExpense(id: string): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.delete',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.deleteExpense(id)
+        );
+
+        // Clear related caches
+        this.clearCache('enhanced:expenses');
+        this.clearCache(`enhanced:expense:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async approveExpense(id: string, approvedBy: string): Promise<ApiResponse<void>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.approve',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.approveExpense(id, approvedBy)
+        );
+
+        // Clear cache & emit event
+        this.clearCache('enhanced:expenses');
+        this.clearCache(`enhanced:expense:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async rejectExpense(id: string, reason: string, rejectedBy: string): Promise<ApiResponse<void>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.reject',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.rejectExpense(id, reason, rejectedBy)
+        );
+
+        this.clearCache('enhanced:expenses');
+        this.clearCache(`enhanced:expense:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result;
+      }
+    );
+  }
+
+// ===== EXPENSES COUNTS =====
   static async getExpenseCounts(useCache = true): Promise<ExpenseCounts> {
     const cacheKey = 'enhanced:expenses:counts';
     if (useCache) {
@@ -335,6 +434,7 @@ export class EnhancedAPI {
         
         // Clear related caches
         this.clearCache('enhanced:customers');
+        eventBus.emit('customers:changed');
         
         return result;
       }
@@ -351,6 +451,7 @@ export class EnhancedAPI {
         
         // Clear related caches
         this.clearCache('enhanced:customers');
+        eventBus.emit('customers:changed');
         this.clearCache(`enhanced:customer:${id}`);
         
         return result;
@@ -368,6 +469,7 @@ export class EnhancedAPI {
         
         // Clear related caches
         this.clearCache('enhanced:customers');
+        eventBus.emit('customers:changed');
         this.clearCache(`enhanced:customer:${id}`);
         
         return result;
@@ -539,6 +641,26 @@ export class EnhancedAPI {
           CacheManager.set(cacheKey, result, 600000); // 10 minutes
         }
         
+        return result;
+      }
+    );
+  }
+
+  // ===== ORDER ITEMS =====
+  static async replaceOrderItems(id: string, items: any[]): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.orders.replaceItems',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          OrdersAPI.replaceOrderItems(id, items)
+        );
+
+        // Clear related caches
+        this.clearCache('enhanced:orders');
+        this.clearCache(`enhanced:order:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('orders:changed');
+
         return result;
       }
     );

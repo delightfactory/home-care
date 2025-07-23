@@ -4,6 +4,7 @@ import { OrdersAPI } from '../../api'
 import { RoutesAPI } from '../../api'
 import { TeamsAPI } from '../../api'
 import { ExpensesAPI } from '../../api'
+import EnhancedAPI from '../../api/enhanced-api'
 import { ExpenseWithCategory, ExpenseForm, ExpenseCategory } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
@@ -141,10 +142,13 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     setLoading(true)
     try {
       if (mode === 'create') {
-        await ExpensesAPI.createExpense({ ...formData, receipt_image_url: receiptImageUrl })
+          const res = await EnhancedAPI.createExpense({ ...formData, receipt_image_url: receiptImageUrl })
+          if (!res.success) throw new Error(res.error || 'Create expense failed')
+        // replaced with EnhancedAPI above
         toast.success('تم إضافة المصروف بنجاح')
       } else {
-        await ExpensesAPI.updateExpense(expense!.id, { ...formData, receipt_image_url: receiptImageUrl })
+        const res = await EnhancedAPI.updateExpense(expense!.id, { ...formData, receipt_image_url: receiptImageUrl })
+         if (!res.success) throw new Error(res.error || 'Update expense failed')
         toast.success('تم تحديث بيانات المصروف بنجاح')
       }
       

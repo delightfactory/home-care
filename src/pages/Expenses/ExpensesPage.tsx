@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, Filter, DollarSign, TrendingUp, Clock, FileText, Activity } from 'lucide-react'
-import { ExpensesAPI } from '../../api/expenses'
+import EnhancedAPI from '../../api/enhanced-api'
+import { eventBus } from '../../utils/EventBus'
 import { ExpenseWithCategory, ExpenseFilters } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -21,6 +22,13 @@ const ExpensesPage: React.FC = () => {
 
   // Use optimized hooks for data fetching
   const { data: expenses, loading, error, refresh, loadMore, hasMore } = useExpenses(filters)
+  // Listen for global expenses changes
+  React.useEffect(() => {
+    const unsub = eventBus.on('expenses:changed', () => {
+      refresh()
+    })
+    return unsub
+  }, [refresh])
   // Real-time aggregate counts
   const { counts } = useExpenseCounts()
   const [loadingMore, setLoadingMore] = useState(false)
@@ -43,10 +51,9 @@ const ExpensesPage: React.FC = () => {
 
   const handleApproveExpense = async (expenseId: string) => {
     try {
-      // TODO: Implement approve expense API method
-      console.log('Approve expense:', expenseId, 'by user:', user?.id)
+      const res = await EnhancedAPI.approveExpense(expenseId, user?.id || '')
+      if (!res.success) throw new Error(res.error || 'Approve failed')
       toast.success('تمت الموافقة على المصروف')
-      refresh()
     } catch (error) {
       toast.error('حدث خطأ أثناء الموافقة')
       console.error('Approve expense error:', error)
@@ -57,10 +64,9 @@ const ExpensesPage: React.FC = () => {
     const reason = window.prompt('أدخل سبب الرفض:')
     if (reason === null) return
     try {
-      // TODO: Implement reject expense API method
-      console.log('Reject expense:', expenseId, 'reason:', reason, 'by user:', user?.id)
+      const res = await EnhancedAPI.rejectExpense(expenseId, reason, user?.id || '')
+      if (!res.success) throw new Error(res.error || 'Reject failed')
       toast.success('تم رفض المصروف')
-      refresh()
     } catch (error) {
       toast.error('حدث خطأ أثناء الرفض')
       console.error('Reject expense error:', error)
@@ -72,7 +78,7 @@ const ExpensesPage: React.FC = () => {
     
     setDeleteLoading(true)
     try {
-      const result = await ExpensesAPI.deleteExpense(selectedExpense.id)
+      const result = await EnhancedAPI.deleteExpense(selectedExpense.id)
       if (!result.success) {
         throw new Error(result.error || 'فشل حذف المصروف')
       }
