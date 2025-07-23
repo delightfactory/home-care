@@ -12,7 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
-    "@supabase/supabase-js": "^2.39.0",
+    "@supabase/supabase-js": "^2.52.0",
     "@types/react-beautiful-dnd": "^13.1.8",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
