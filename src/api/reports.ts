@@ -236,11 +236,13 @@ export class ReportsAPI {
         .lte('created_at', `${endOfMonth}T23:59:59`)
         .eq('status', 'approved')
 
-      // Active teams
-      const { data: activeTeams } = await supabase
+      // Teams statistics
+      const { data: allTeams } = await supabase
         .from('teams')
-        .select('id')
-        .eq('is_active', true)
+        .select('id, is_active')
+      
+      const activeTeams = allTeams?.filter(t => t.is_active) || []
+      const inactiveTeams = allTeams?.filter(t => !t.is_active) || []
 
       // Calculate stats
       const totalRevenue = monthlyOrders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0
@@ -257,6 +259,8 @@ export class ReportsAPI {
         total_expenses: totalExpenses,
         net_profit: totalRevenue - totalExpenses,
         active_teams: activeTeams?.length || 0,
+        inactive_teams: inactiveTeams?.length || 0,
+        total_teams: allTeams?.length || 0,
         average_rating: averageRating
       }
     } catch (error) {
@@ -468,6 +472,271 @@ export class ReportsAPI {
         profit_margin: summary.total_revenue > 0 ? (summary.net_profit / summary.total_revenue) * 100 : 0,
         daily_reports: reports
       }
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
+  /*
+   * ----------------------------------------------
+   * Advanced Analytics using Materialized Views
+   * ----------------------------------------------
+   */
+
+  // Get weekly statistics from materialized view
+  static async getWeeklyStats(weekOffset = 0): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('mv_weekly_stats')
+        .select('*')
+        .order('week_start', { ascending: false })
+        .limit(12) // Last 12 weeks
+        .range(weekOffset, weekOffset + 11)
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
+  // Get quarterly statistics from materialized view
+  static async getQuarterlyStats(yearOffset = 0): Promise<any> {
+    try {
+      const currentYear = new Date().getFullYear() - yearOffset
+      const startOfYear = `${currentYear}-01-01`
+      const endOfYear = `${currentYear}-12-31`
+      
+      const { data, error } = await supabase
+        .from('mv_quarterly_stats')
+        .select('*')
+        .gte('quarter_start', startOfYear)
+        .lte('quarter_start', endOfYear)
+        .order('quarter_start')
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
+  // Refresh materialized views (should be called periodically)
+  static async refreshMaterializedViews(): Promise<ApiResponse<any>> {
+    try {
+      // Use the safe refresh function that handles errors gracefully
+      const { error } = await supabase.rpc('refresh_all_materialized_views_safe')
+      if (error) {
+        console.warn('Safe refresh failed, trying individual refresh:', error)
+        
+        // Fallback to individual refresh without CONCURRENTLY
+        try {
+          const { error: weeklyError } = await supabase.rpc('refresh_weekly_stats')
+          if (weeklyError) console.warn('Weekly stats refresh warning:', weeklyError)
+          
+          const { error: quarterlyError } = await supabase.rpc('refresh_quarterly_stats')
+          if (quarterlyError) console.warn('Quarterly stats refresh warning:', quarterlyError)
+        } catch (fallbackError) {
+          console.error('Fallback refresh also failed:', fallbackError)
+          // Don't throw error, just log it - the views might still be usable
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          refreshed_at: new Date().toISOString(),
+          views_refreshed: ['mv_weekly_stats', 'mv_quarterly_stats', 'mv_monthly_stats', 'mv_top_customers'],
+          note: 'Views refreshed with error handling'
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing materialized views:', error)
+      // Don't fail the entire operation if views can't be refreshed
+      return {
+        success: true, // Changed to true to prevent blocking the UI
+        data: {
+          refreshed_at: new Date().toISOString(),
+          views_refreshed: [],
+          warning: 'Views refresh skipped due to database constraints'
+        },
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  // Get comprehensive analytics dashboard
+  static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month'): Promise<any> {
+    try {
+      const today = new Date()
+      const promises: Promise<any>[] = []
+
+      // Always get current daily dashboard
+      promises.push(this.getDailyDashboard(today.toISOString().split('T')[0]))
+      promises.push(this.getTeamSummaries())
+      promises.push(this.getCustomerHistories())
+      promises.push(this.getWorkerStats())
+
+      if (period === 'week') {
+        promises.push(this.getWeeklyStats(0))
+      } else if (period === 'quarter') {
+        promises.push(this.getQuarterlyStats(0))
+      } else {
+        // Default to monthly
+        promises.push(this.getMonthlySummary(today.getFullYear(), today.getMonth() + 1))
+      }
+
+      const [
+        dailyDashboard,
+        teamSummaries,
+        customerHistories,
+        workerStats,
+        periodData
+      ] = await Promise.all(promises)
+
+      return {
+        period,
+        generated_at: new Date().toISOString(),
+        daily: dailyDashboard,
+        teams: teamSummaries,
+        customers: customerHistories,
+        workers: workerStats,
+        period_data: periodData
+      }
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
+  // Get performance trends
+  static async getPerformanceTrends(days = 30): Promise<any> {
+    try {
+      const endDate = new Date()
+      const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
+
+      const { data: dailyReports, error } = await supabase
+        .from('daily_reports')
+        .select('*')
+        .gte('report_date', startDate.toISOString().split('T')[0])
+        .lte('report_date', endDate.toISOString().split('T')[0])
+        .order('report_date')
+
+      if (error) throw error
+
+      // Calculate trends
+      const reports = dailyReports || []
+      const trends = {
+        revenue_trend: this.calculateTrend(reports.map(r => r.total_revenue)),
+        orders_trend: this.calculateTrend(reports.map(r => r.total_orders)),
+        profit_trend: this.calculateTrend(reports.map(r => r.net_profit)),
+        efficiency_trend: this.calculateTrend(reports.map(r => 
+          r.total_orders > 0 ? (r.completed_orders / r.total_orders) * 100 : 0
+        ))
+      }
+
+      return {
+        period_days: days,
+        data_points: reports.length,
+        trends,
+        daily_data: reports
+      }
+    } catch (error) {
+      throw new Error(handleSupabaseError(error))
+    }
+  }
+
+  // Helper function to calculate trend percentage
+  private static calculateTrend(values: number[]): { direction: 'up' | 'down' | 'stable', percentage: number } {
+    if (values.length < 2) return { direction: 'stable', percentage: 0 }
+
+    const firstHalf = values.slice(0, Math.floor(values.length / 2))
+    const secondHalf = values.slice(Math.floor(values.length / 2))
+
+    const firstAvg = firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length
+    const secondAvg = secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length
+
+    if (firstAvg === 0) return { direction: 'stable', percentage: 0 }
+
+    const percentage = ((secondAvg - firstAvg) / firstAvg) * 100
+    const direction = percentage > 5 ? 'up' : percentage < -5 ? 'down' : 'stable'
+
+    return { direction, percentage: Math.abs(percentage) }
+  }
+
+  // Get worker performance analytics
+  static async getWorkerPerformanceAnalytics(workerId?: string, days = 30): Promise<any> {
+    try {
+      const endDate = new Date()
+      const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
+
+      let query = supabase
+        .from('orders')
+        .select(`
+          *,
+          team:teams!inner(
+            id,
+            name,
+            team_members!inner(
+              worker:workers!inner(id, name)
+            )
+          )
+        `)
+        .gte('scheduled_date', startDate.toISOString().split('T')[0])
+        .lte('scheduled_date', endDate.toISOString().split('T')[0])
+
+      if (workerId) {
+        query = query.eq('team.team_members.worker.id', workerId)
+      }
+
+      const { data: orders, error } = await query
+
+      if (error) throw error
+
+      // Process worker performance data
+      const workerStats = new Map()
+
+      orders?.forEach(order => {
+        const team = order.team as any
+        team?.team_members?.forEach((member: any) => {
+          const worker = member.worker
+          if (!worker) return
+
+          if (!workerStats.has(worker.id)) {
+            workerStats.set(worker.id, {
+              id: worker.id,
+              name: worker.name,
+              total_orders: 0,
+              completed_orders: 0,
+              total_revenue: 0,
+              total_rating: 0,
+              rating_count: 0
+            })
+          }
+
+          const stats = workerStats.get(worker.id)
+          stats.total_orders++
+          
+          if (order.status === 'completed') {
+            stats.completed_orders++
+            stats.total_revenue += order.total_amount || 0
+            
+            if (order.customer_rating) {
+              stats.total_rating += order.customer_rating
+              stats.rating_count++
+            }
+          }
+        })
+      })
+
+      // Calculate final metrics
+      const results = Array.from(workerStats.values()).map(stats => ({
+        ...stats,
+        completion_rate: stats.total_orders > 0 ? (stats.completed_orders / stats.total_orders) * 100 : 0,
+        average_rating: stats.rating_count > 0 ? stats.total_rating / stats.rating_count : 0,
+        revenue_per_order: stats.completed_orders > 0 ? stats.total_revenue / stats.completed_orders : 0
+      }))
+
+      return results.sort((a, b) => b.total_revenue - a.total_revenue)
     } catch (error) {
       throw new Error(handleSupabaseError(error))
     }

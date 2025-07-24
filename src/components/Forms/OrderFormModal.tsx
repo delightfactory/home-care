@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { Save, ShoppingCart, Plus, Trash2, User, Truck, FileText, CheckCircle, DollarSign, X, CreditCard } from 'lucide-react'
-import { OrdersAPI, CustomersAPI, ServicesAPI, TeamsAPI } from '../../api'
+import { Save, ShoppingCart, Plus, Trash2, User, Truck, FileText, CheckCircle, DollarSign, CreditCard, UserPlus } from 'lucide-react'
+import { OrdersAPI, ServicesAPI, TeamsAPI } from '../../api'
 import EnhancedAPI from '../../api/enhanced-api'
 import { useAuth } from '../../contexts/AuthContext'
-import { Order, OrderForm, Customer, ServiceWithCategory, OrderWithDetails, TeamWithMembers } from '../../types'
+import { Order, OrderForm, ServiceWithCategory, OrderWithDetails, TeamWithMembers } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
 import DateTimePicker from '../UI/DateTimePicker'
+import CustomerSearchInput from '../UI/CustomerSearchInput'
+import CustomerFormModal from './CustomerFormModal'
 import toast from 'react-hot-toast'
 
 interface OrderFormModalProps {
@@ -35,13 +37,14 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     transport_method: 'company_car' as any,
     notes: ''
   })
-  const [customers, setCustomers] = useState<Customer[]>([])
+  // Customer search is now handled by CustomerSearchInput component
   const [services, setServices] = useState<ServiceWithCategory[]>([])
   const [teams, setTeams] = useState<TeamWithMembers[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [showCustomerModal, setShowCustomerModal] = useState(false)
  const { user } = useAuth()
 
   useEffect(() => {
@@ -110,13 +113,11 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const fetchInitialData = async () => {
     try {
       setLoadingData(true)
-      const [customersResponse, servicesData, teamsData] = await Promise.all([
-        CustomersAPI.getCustomers(),
+      const [servicesData, teamsData] = await Promise.all([
         ServicesAPI.getServices(),
         TeamsAPI.getTeams()
       ])
       
-      setCustomers(customersResponse.data)
       setServices(servicesData)
       setTeams(teamsData)
     } catch (error) {
@@ -276,6 +277,23 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     }, 0)
   }
 
+  const handleCustomerCreated = async (newCustomer?: any) => {
+    setShowCustomerModal(false)
+    
+    if (newCustomer) {
+      // Automatically set the new customer in the order form
+      setFormData(prev => ({ ...prev, customer_id: newCustomer.id }))
+      setTouched(prev => ({ ...prev, customer_id: true }))
+      
+      // Clear any customer selection errors
+      if (errors.customer_id) {
+        setErrors(prev => ({ ...prev, customer_id: '' }))
+      }
+      
+      toast.success(`تم إنشاء العميل "${newCustomer.name}" بنجاح وتم تحديده في الطلب!`)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -296,41 +314,36 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       ) : (
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* Customer Selection */}
-            <div className="space-y-2">
-              <label className="flex items-center label label-required text-gray-700 font-medium">
-                <User className="h-4 w-4 ml-2 text-primary-500" />
-                العميل
-              </label>
-              <div className="relative">
-                <select
-                  name="customer_id"
-                  value={formData.customer_id}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${errors.customer_id ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'} ${touched.customer_id && !errors.customer_id && formData.customer_id ? 'border-green-500 focus:ring-green-500' : ''}`}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="label label-required text-gray-700 font-medium">
+                  العميل
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerModal(true)}
+                  className="flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                   disabled={loading}
                 >
-                  <option value="">اختر العميل</option>
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} - {customer.phone}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                  {touched.customer_id && !errors.customer_id && formData.customer_id ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <User className="h-4 w-4 text-gray-400" />
-                  )}
-                </div>
+                  <UserPlus className="h-4 w-4 ml-1" />
+                  إضافة عميل جديد
+                </button>
               </div>
-              {errors.customer_id && (
-                <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
-                  <X className="h-3 w-3 ml-1" />
-                  {errors.customer_id}
-                </p>
-              )}
+              <CustomerSearchInput
+                value={formData.customer_id}
+                onChange={(customerId, _customer) => {
+                  setFormData(prev => ({ ...prev, customer_id: customerId }))
+                  setTouched(prev => ({ ...prev, customer_id: true }))
+                  // Clear error when customer is selected
+                  if (customerId && errors.customer_id) {
+                    setErrors(prev => ({ ...prev, customer_id: '' }))
+                  }
+                }}
+                onBlur={() => setTouched(prev => ({ ...prev, customer_id: true }))}
+                error={touched.customer_id ? errors.customer_id : undefined}
+                disabled={loading}
+                required
+              />
             </div>
 
             {/* Date and Time */}
@@ -604,6 +617,14 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
             </div>
         </form>
       )}
+      
+      {/* Customer Creation Modal */}
+      <CustomerFormModal
+        isOpen={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        onSuccess={handleCustomerCreated}
+        mode="create"
+      />
     </SmartModal>
   )
 }

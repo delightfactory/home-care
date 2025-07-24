@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Smartphone } from 'lucide-react';
-
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
+import usePWA from '../../hooks/usePWA';
 
 interface InstallPromptProps {
   onInstall?: () => void;
@@ -16,76 +8,35 @@ interface InstallPromptProps {
 }
 
 const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall, onDismiss }) => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const { state, actions } = usePWA();
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
-    const checkIfInstalled = () => {
-      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
-      const isIOSStandalone = (window.navigator as any).standalone === true;
-      const isInstalled = isStandaloneMode || isIOSStandalone;
-      
-      setIsStandalone(isStandaloneMode || isIOSStandalone);
-      setIsInstalled(isInstalled);
-    };
-
     // Check if iOS
     const checkIfIOS = () => {
       const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
       setIsIOS(isIOSDevice);
     };
 
-    checkIfInstalled();
     checkIfIOS();
 
-    // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    // Show prompt after a delay if can install and not already installed
+    if (state.canInstall && !state.isInstalled) {
+      const timer = setTimeout(() => {
+        setShowPrompt(true);
+      }, 3000);
       
-      // Show prompt after a delay if not already installed
-      if (!isInstalled) {
-        setTimeout(() => {
-          setShowPrompt(true);
-        }, 3000);
-      }
-    };
-
-    // Listen for app installed event
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setShowPrompt(false);
-      setDeferredPrompt(null);
-      onInstall?.();
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, [isInstalled, onInstall]);
+      return () => clearTimeout(timer);
+    }
+  }, [state.canInstall, state.isInstalled]);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-
     try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      } else {
-        console.log('User dismissed the install prompt');
+      const success = await actions.install();
+      if (success) {
+        onInstall?.();
       }
-      
-      setDeferredPrompt(null);
       setShowPrompt(false);
     } catch (error) {
       console.error('Error during installation:', error);
@@ -101,7 +52,7 @@ const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall, onDismiss }) =
   };
 
   // Don't show if already installed or dismissed this session
-  if (isInstalled || isStandalone || sessionStorage.getItem('installPromptDismissed')) {
+  if (state.isInstalled || sessionStorage.getItem('installPromptDismissed')) {
     return null;
   }
 
@@ -140,7 +91,7 @@ const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall, onDismiss }) =
   }
 
   // Standard installation prompt
-  if (showPrompt && deferredPrompt) {
+  if (showPrompt && state.canInstall) {
     return (
       <div className="fixed bottom-4 left-4 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
         <div className="flex items-center justify-between">

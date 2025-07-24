@@ -145,7 +145,7 @@ export class OrdersAPI {
       if (!orderData) return undefined;
 
       // Load detailed data in parallel for better performance
-      const [itemsResult, statusLogsResult, teamDetailsResult] = await Promise.all([
+      const [itemsResult, statusLogsResult, teamDetailsResult, customerResult] = await Promise.all([
         // Load order items
         supabase
           .from('order_items')
@@ -176,16 +176,25 @@ export class OrdersAPI {
             )
           `)
           .eq('id', orderData.team_id)
-          .maybeSingle() : Promise.resolve({ data: null, error: null })
+          .maybeSingle() : Promise.resolve({ data: null, error: null }),
+        
+        // Load customer details
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('id', orderData.customer_id)
+          .maybeSingle()
       ]);
 
       if (itemsResult.error) throw itemsResult.error;
       if (statusLogsResult.error) throw statusLogsResult.error;
       if (teamDetailsResult.error) throw teamDetailsResult.error;
+      if (customerResult.error) throw customerResult.error;
 
       // Combine all data
       const orderWithDetails: OrderWithDetails = {
         ...orderData,
+        customer: customerResult.data || null,
         items: itemsResult.data || [],
         status_logs: statusLogsResult.data || [],
         team: teamDetailsResult.data || null

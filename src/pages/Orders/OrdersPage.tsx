@@ -319,14 +319,14 @@ const OrdersPage: React.FC = () => {
               {filteredOrders.map((order) => (
                 <tr key={order.id} className="table-row">
                   <td className="table-cell font-medium">{order.order_number}</td>
-                  <td className="table-cell">{order.customer?.name}</td>
+                  <td className="table-cell">{order.customer_name || 'غير محدد'}</td>
                   <td className="table-cell">
                     {new Date(order.scheduled_date).toLocaleDateString('ar-AE')}
                   </td>
                   <td className="table-cell">{order.scheduled_time}</td>
                   <td className="table-cell">{getStatusBadge(order.status)}</td>
                   <td className="table-cell">{order.total_amount} ج.م</td>
-                  <td className="table-cell">{order.team?.name || 'غير محدد'}</td>
+                  <td className="table-cell">{order.team_name || 'غير محدد'}</td>
                   <td className="table-cell">
                     <div className="flex space-x-2 space-x-reverse">
                       <button 

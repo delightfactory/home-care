@@ -1,16 +1,18 @@
 import React, { useState } from 'react'
-import { Plus, Edit, Trash2, Search, Users, UserCheck, UserX, Clock, Activity } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Users, UserCheck, UserX, Clock, Activity, ArrowRightLeft } from 'lucide-react'
 import { WorkerWithTeam } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import toast from 'react-hot-toast'
 import WorkerFormModal from '../../components/Forms/WorkerFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
+import TransferWorkerModal from '../../components/Modals/TransferWorkerModal'
 import { useWorkers, useSystemHealth } from '../../hooks/useEnhancedAPI'
 
 const WorkersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedWorker, setSelectedWorker] = useState<WorkerWithTeam | undefined>()
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -252,6 +254,18 @@ const WorkersPage: React.FC = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </button>
+                      {worker.team && (
+                        <button 
+                          onClick={() => {
+                            setSelectedWorker(worker)
+                            setShowTransferModal(true)
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                          title="نقل إلى فريق آخر"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </button>
+                      )}
                       <button 
                         onClick={() => {
                           setSelectedWorker(worker)
@@ -287,6 +301,21 @@ const WorkersPage: React.FC = () => {
         onSuccess={onFormSuccess}
         worker={selectedWorker}
         mode={formMode}
+      />
+
+      {/* Transfer Worker Modal */}
+      <TransferWorkerModal
+        isOpen={showTransferModal}
+        onClose={() => {
+          setShowTransferModal(false)
+          setSelectedWorker(undefined)
+        }}
+        onSuccess={() => {
+          refresh()
+          setShowTransferModal(false)
+          setSelectedWorker(undefined)
+        }}
+        worker={selectedWorker || null}
       />
 
       {/* Delete Confirmation Modal */}

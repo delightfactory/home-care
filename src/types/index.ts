@@ -152,7 +152,10 @@ export interface TeamMemberWithWorker extends TeamMember {
 
 export interface OrderWithDetails extends Order {
   customer?: Customer
+  customer_name?: string
+  customer_phone?: string
   team?: TeamWithMembers
+  team_name?: string
   items?: OrderItemWithService[]
   status_logs?: OrderStatusLog[]
   route_info?: {
@@ -247,6 +250,7 @@ export interface WorkerForm {
   salary?: number
   skills: string[]
   can_drive: boolean
+  status?: string
 }
 
 export interface TeamForm {
@@ -254,6 +258,7 @@ export interface TeamForm {
   leader_id?: string
   description?: string
   member_ids: string[]
+  is_active?: boolean
 }
 
 export interface OrderForm {
@@ -338,6 +343,8 @@ export interface DashboardStats {
   total_expenses: number
   net_profit: number
   active_teams: number
+  inactive_teams: number
+  total_teams: number
   average_rating: number
 }
 

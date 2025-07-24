@@ -5,6 +5,7 @@ import { CustomerWithOrders } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import CustomerFormModal from '../../components/Forms/CustomerFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
+import CustomerDetailsModal from '../../components/Customers/CustomerDetailsModal'
 import toast from 'react-hot-toast'
 import { eventBus } from '../../utils/EventBus'
 import { useCustomers, useCustomerCounts } from '../../hooks/useEnhancedAPI'
@@ -20,6 +21,8 @@ const CustomersPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [detailsCustomerId, setDetailsCustomerId] = useState<string | undefined>()
 
   // Enhanced API hooks for optimized performance
   const filters = useMemo(() => {
@@ -174,34 +177,38 @@ const CustomersPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-6 border border-blue-200">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-indigo-900 bg-clip-text text-transparent">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-xl p-4 sm:p-6 border border-blue-200">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-700 to-indigo-900 bg-clip-text text-transparent">
               إدارة العملاء
             </h1>
-            <p className="text-gray-600 mt-2 text-lg">
+            <p className="text-gray-600 mt-2 text-base sm:text-lg">
               إدارة قاعدة بيانات العملاء وتاريخ الخدمات
             </p>
-            <div className="flex items-center mt-3 space-x-4 space-x-reverse">
-              <span className="text-sm text-gray-500">إجمالي العملاء:</span>
-              <span className="font-bold text-blue-700">{pagination?.total || filteredCustomers.length}</span>
-              <span className="text-sm text-gray-500">النشطين:</span>
-              <span className="font-bold text-green-600">{filteredCustomers.filter(c => c.is_active).length}</span>
+            <div className="flex flex-wrap items-center mt-3 gap-x-4 gap-y-2">
+              <div className="flex items-center">
+                <span className="text-sm text-gray-500">إجمالي العملاء:</span>
+                <span className="mr-1 font-bold text-blue-700">{pagination?.total || filteredCustomers.length}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-sm text-gray-500">النشطين:</span>
+                <span className="mr-1 font-bold text-green-600">{filteredCustomers.filter(c => c.is_active).length}</span>
+              </div>
               {pagination?.total && pagination.total > filteredCustomers.length && (
                 <span className="text-xs text-blue-500">عرض {filteredCustomers.length} من {pagination.total}</span>
               )}
             </div>
           </div>
-          <div className="flex space-x-3 space-x-reverse">
+          <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3 sm:space-x-reverse">
             <button 
               onClick={handleRefresh}
               disabled={refreshing}
-              className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl w-full sm:w-auto flex items-center justify-center"
               title="تحديث البيانات"
             >
-              <RefreshCw className={`h-5 w-5 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
-              تحديث
+              <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="text-sm sm:text-base">تحديث</span>
             </button>
             <button 
               onClick={() => {
@@ -209,17 +216,17 @@ const CustomersPage: React.FC = () => {
                 setFormMode('create')
                 setShowFormModal(true)
               }}
-              className="btn-primary hover:scale-105 transition-transform duration-200 shadow-lg"
+              className="btn-primary hover:scale-105 transition-transform duration-200 shadow-lg w-full sm:w-auto flex items-center justify-center"
             >
-              <Plus className="h-5 w-5 ml-2" />
-              إضافة عميل جديد
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5 ml-2" />
+              <span className="text-sm sm:text-base">إضافة عميل جديد</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Customer Statistics */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
         <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-0 shadow-lg hover:shadow-xl group hover:scale-105 transition-all duration-300">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -285,45 +292,97 @@ const CustomersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-6">
-        {/* Search */}
-        <div className="card-compact flex-1 min-w-[300px]">
-          <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              placeholder="البحث عن عميل بالاسم أو رقم الهاتف..."
-              className="input pr-10 w-full focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      {/* Enhanced Filters Section */}
+      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border border-blue-100 shadow-lg">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Search Section */}
+          <div className="flex-1">
+            <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+              <Search className="h-4 w-4 ml-2 text-blue-600" />
+              البحث والفلترة
+            </label>
+            <div className="relative group">
+              <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 group-focus-within:text-blue-500 transition-colors duration-200" />
+              <input
+                type="text"
+                placeholder="ابحث عن عميل بالاسم أو رقم الهاتف..."
+                className="w-full pr-12 pl-4 py-3 border-2 border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 text-gray-900 placeholder-gray-500 shadow-sm hover:shadow-md"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          {/* Status Filter Section */}
+          <div className="lg:w-64">
+            <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+              <Users className="h-4 w-4 ml-2 text-blue-600" />
+              حالة العميل
+            </label>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 text-gray-900 shadow-sm hover:shadow-md appearance-none cursor-pointer"
+              >
+                <option value="all">جميع الحالات ({pagination?.total ?? customers.length})</option>
+                <option value="active">العملاء النشطين ({counts?.active ?? '—'})</option>
+                <option value="inactive">العملاء الموقوفين ({counts?.inactive ?? '—'})</option>
+              </select>
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
-        {/* Status Filter */}
-        <div className="card-compact">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="input focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-            <option value="all">كل الحالات ({pagination?.total ?? customers.length})</option>
-            <option value="active">نشط ({counts?.active ?? '—'})</option>
-            <option value="inactive">موقوف ({counts?.inactive ?? '—'})</option>
-          </select>
-        </div>
-        {/* Results Info */}
-        <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100">
-          <div className="text-sm text-gray-600">
-            <span className="font-semibold">النتائج:</span>
-            <span className="mr-2 font-bold text-blue-600">{filteredCustomers.length}</span>
-            <span>عميل</span>
+        
+        {/* Results Summary */}
+        <div className="mt-6 pt-4 border-t border-blue-200">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center bg-white/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-sm">
+              <div className="w-3 h-3 bg-blue-500 rounded-full ml-2 animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">النتائج المعروضة:</span>
+              <span className="mr-2 font-bold text-blue-600 text-lg">{filteredCustomers.length}</span>
+              <span className="text-sm text-gray-600">عميل</span>
+            </div>
+            
+            {searchTerm && (
+              <div className="flex items-center bg-green-100 rounded-lg px-3 py-2 shadow-sm">
+                <span className="text-sm text-green-700">البحث عن: "{searchTerm}"</span>
+              </div>
+            )}
+            
+            {statusFilter !== 'all' && (
+              <div className="flex items-center bg-purple-100 rounded-lg px-3 py-2 shadow-sm">
+                <span className="text-sm text-purple-700">
+                  الفلترة: {statusFilter === 'active' ? 'العملاء النشطين' : 'العملاء الموقوفين'}
+                </span>
+              </div>
+            )}
+            
+            {(searchTerm || statusFilter !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setStatusFilter('all')
+                }}
+                className="flex items-center bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors duration-200 shadow-sm"
+              >
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                مسح الفلاتر
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Customers Table */}
       <div className="card-elevated">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <table className="table">
             <thead className="table-header">
               <tr>
@@ -339,7 +398,11 @@ const CustomersPage: React.FC = () => {
             <tbody className="table-body">
               {filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="table-row">
-                  <td className="table-cell font-medium">{customer.name}</td>
+                  <td className="table-cell font-medium">
+                      <button onClick={() => { setDetailsCustomerId(customer.id); setShowDetailsModal(true) }} className="text-blue-600 hover:underline">
+                        {customer.name}
+                      </button>
+                    </td>
                   <td className="table-cell">{customer.phone}</td>
                   <td className="table-cell">{customer.area || 'غير محدد'}</td>
                   <td className="table-cell">{customer.total_orders || 0}</td>
@@ -438,6 +501,16 @@ const CustomersPage: React.FC = () => {
         onConfirm={handleDeleteCustomer}
         message={`هل أنت متأكد من رغبتك في حذف العميل "${selectedCustomer?.name}"؟ سيتم حذف جميع البيانات المرتبطة به.`}
         loading={deleteLoading}
+      />
+
+      {/* Customer Details Modal */}
+      <CustomerDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setDetailsCustomerId(undefined)
+        }}
+        customerId={detailsCustomerId}
       />
     </div>
   )

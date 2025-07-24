@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, Users, Search, XCircle, User, FileText, CheckCircle, Crown } from 'lucide-react'
+import { X, Save, Users, Search, XCircle, User, FileText, CheckCircle, Crown, Power } from 'lucide-react'
 import { TeamsAPI, WorkersAPI } from '../../api'
 import { TeamWithMembers, TeamForm, WorkerWithTeam, TeamInsert, TeamUpdate } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
@@ -26,7 +26,8 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
     name: '',
     leader_id: '',
     description: '',
-    member_ids: []
+    member_ids: [],
+    is_active: true
   })
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
@@ -54,7 +55,8 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
           name: fresh?.name || team.name,
           leader_id: fresh?.leader_id || team.leader_id || '',
           description: fresh?.description || team.description || '',
-          member_ids: ids
+          member_ids: ids,
+          is_active: fresh?.is_active ?? team.is_active ?? true
         })
       } else {
         setOriginalMemberIds([])
@@ -62,7 +64,8 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
           name: '',
           leader_id: '',
           description: '',
-          member_ids: []
+          member_ids: [],
+          is_active: true
         })
       }
     }
@@ -72,8 +75,34 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
   const fetchWorkers = async () => {
     try {
       setLoadingData(true)
-      const data = await WorkersAPI.getWorkers()
-      setWorkers(data)
+      
+      if (mode === 'create') {
+        // في حالة الإنشاء، جلب العمال المتاحين فقط
+        const data = await WorkersAPI.getAvailableWorkers()
+        setWorkers(data)
+      } else {
+        // في حالة التعديل، جلب العمال المتاحين + الأعضاء الحاليين
+        const [availableWorkers, allWorkers] = await Promise.all([
+          WorkersAPI.getAvailableWorkers(),
+          WorkersAPI.getWorkers()
+        ])
+        
+        // الحصول على معرفات الأعضاء الحاليين
+        const currentMemberIds = team?.members?.map(m => String(m.worker_id)) || []
+        
+        // دمج العمال المتاحين مع الأعضاء الحاليين (تجنب التكرار)
+        const currentMembers = allWorkers.filter(w => currentMemberIds.includes(String(w.id)))
+        const uniqueWorkers = [...availableWorkers]
+        
+        // إضافة الأعضاء الحاليين إذا لم يكونوا موجودين في القائمة
+        currentMembers.forEach(member => {
+          if (!uniqueWorkers.find(w => w.id === member.id)) {
+            uniqueWorkers.push(member)
+          }
+        })
+        
+        setWorkers(uniqueWorkers)
+      }
     } catch (error) {
       toast.error('حدث خطأ في تحميل العمال')
       console.error('Workers fetch error:', error)
@@ -200,7 +229,21 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
               <div className="relative">
                 <select
                   value={formData.leader_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, leader_id: e.target.value }))}
+                  onChange={(e) => {
+                    const leaderId = e.target.value
+                    setFormData(prev => {
+                      const newData = { ...prev, leader_id: leaderId }
+                      
+                      // إضافة القائد تلقائياً كعضو في الفريق إذا لم يكن موجوداً
+                      if (leaderId && !prev.member_ids.includes(leaderId)) {
+                        newData.member_ids = [...prev.member_ids, leaderId]
+                      }
+                      // إذا تم إلغاء تحديد القائد، لا نقوم بإزالته من الأعضاء تلقائياً
+                      // يمكن للمستخدم إزالته يدوياً إذا أراد
+                      
+                      return newData
+                    })
+                  }}
                   onBlur={() => handleBlur('leader_id')}
                   className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${
                     touched.leader_id && formData.leader_id ? 'border-green-500 focus:ring-green-500' : ''
@@ -208,12 +251,17 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                   disabled={loading}
                 >
                   <option value="">اختر قائد الفريق</option>
-                  {workers.map((worker) => (
+                  {workers
+                    .filter(worker => worker.status === 'active')
+                    .map((worker) => (
                     <option key={worker.id} value={worker.id}>
                       {worker.name}
                     </option>
                   ))}
                 </select>
+                <p className="text-sm text-gray-600 mt-1">
+                  ملاحظة: سيتم إضافة قائد الفريق تلقائياً كعضو في الفريق
+                </p>
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                   {touched.leader_id && formData.leader_id ? (
                     <CheckCircle className="h-4 w-4 text-green-500" />
@@ -258,14 +306,64 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
 
 
 
+            {/* Team Status Toggle */}
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <Power className="h-4 w-4 ml-2 text-primary-500" />
+                حالة الفريق
+              </label>
+              <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      id="team_status"
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                      className="sr-only"
+                      disabled={loading}
+                    />
+                    <label
+                      htmlFor="team_status"
+                      className={`flex items-center cursor-pointer transition-all duration-200 ${
+                        formData.is_active
+                          ? 'text-green-600'
+                          : 'text-red-500'
+                      }`}
+                    >
+                      <div
+                        className={`relative w-12 h-6 rounded-full transition-all duration-200 ${
+                          formData.is_active
+                            ? 'bg-gradient-to-r from-green-500 to-green-600'
+                            : 'bg-gradient-to-r from-red-500 to-red-600'
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200 ${
+                            formData.is_active ? 'right-0.5' : 'left-0.5'
+                          }`}
+                        />
+                      </div>
+                      <span className="mr-3 font-medium">
+                        {formData.is_active ? 'نشط' : 'غير نشط'}
+                      </span>
+                      {formData.is_active && (
+                        <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                      )}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Info Note */}
-            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center">
-                <CheckCircle className="h-5 w-5 text-primary-600 ml-2" />
+                <CheckCircle className="h-5 w-5 text-blue-600 ml-2" />
                 <div>
-                  <p className="text-sm font-medium text-primary-800">ملاحظة</p>
-                  <p className="text-sm text-primary-600 mt-1">
-                    سيتم تفعيل الفريق تلقائياً عند الإنشاء
+                  <p className="text-sm font-medium text-blue-800">ملاحظة</p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    يمكنك تغيير حالة تفعيل الفريق في أي وقت
                   </p>
                 </div>
               </div>
@@ -276,6 +374,20 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                 <Users className="h-4 w-4 ml-2 text-primary-500" />
                 أعضاء الفريق
               </label>
+              {mode === 'create' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-700">
+                    <span className="font-medium">ملاحظة:</span> يتم عرض العمال المتاحين فقط (غير المسجلين في فرق أخرى)
+                  </p>
+                </div>
+              )}
+              {mode === 'edit' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">
+                    <span className="font-medium">ملاحظة:</span> يتم عرض العمال المتاحين والأعضاء الحاليين في الفريق
+                  </p>
+                </div>
+              )}
               <div className="relative">
                 <input
                   type="text"

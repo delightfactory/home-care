@@ -1,16 +1,19 @@
 import React, { useState } from 'react'
-import { Plus, Search, Edit, Trash2, Users, UserCheck, UserX, Target, Activity } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Users, UserCheck, UserX, Target, Activity, Eye } from 'lucide-react'
 import { TeamWithMembers } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import TeamFormModal from '../../components/Forms/TeamFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
+import TeamDetailsModal from '../../components/Modals/TeamDetailsModal'
 import toast from 'react-hot-toast'
 import { useTeams, useSystemHealth } from '../../hooks/useEnhancedAPI'
 
 const TeamsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | undefined>()
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -74,9 +77,11 @@ const TeamsPage: React.FC = () => {
     )
   }
 
-  const filteredTeams = teams.filter(team =>
-    team.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredTeams = teams.filter(team => {
+    const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || team.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   if (loading) {
     return (
@@ -178,20 +183,34 @@ const TeamsPage: React.FC = () => {
       </div>
 
       <div className="card-compact">
-        <div className="relative">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="البحث عن فريق بالاسم..."
-            className="input pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <input
+              type="text"
+              placeholder="البحث عن فريق بالاسم..."
+              className="input pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex-shrink-0">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+              className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+            >
+              <option value="all">جميع الفرق</option>
+              <option value="active">الفرق النشطة</option>
+              <option value="inactive">الفرق غير النشطة</option>
+            </select>
+          </div>
         </div>
-        {searchTerm && (
+        {(searchTerm || statusFilter !== 'all') && (
           <div className="mt-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
             <p className="text-sm text-primary-700">
               عرض {filteredTeams.length} من أصل {teams.length} فريق
+              {statusFilter !== 'all' && ` (${statusFilter === 'active' ? 'النشطة' : 'غير النشطة'})`}
             </p>
           </div>
         )}
@@ -254,6 +273,16 @@ const TeamsPage: React.FC = () => {
               <button 
                 onClick={() => {
                   setSelectedTeam(team)
+                  setShowDetailsModal(true)
+                }}
+                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                title="عرض التفاصيل"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+              <button 
+                onClick={() => {
+                  setSelectedTeam(team)
                   setFormMode('edit')
                   setShowFormModal(true)
                 }}
@@ -294,6 +323,17 @@ const TeamsPage: React.FC = () => {
         team={selectedTeam}
         mode={formMode}
       />
+
+      {/* Team Details Modal */}
+      <TeamDetailsModal
+         isOpen={showDetailsModal}
+         onClose={() => {
+           setShowDetailsModal(false)
+           setSelectedTeam(undefined)
+         }}
+         team={selectedTeam || null}
+         onRefresh={refresh}
+       />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

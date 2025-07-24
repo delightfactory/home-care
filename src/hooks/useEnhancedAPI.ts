@@ -48,9 +48,17 @@ function usePaginatedData<T>(
       const result = await fetchFunction(page, limit);
       
       if (append) {
-        setData(prev => [...prev, ...result.data]);
+        setData(prev => {
+          // Avoid duplicating items when appending more pages (based on `id` property)
+          const existingIds = new Set(prev.map((item: any) => (item as any)?.id))
+          const deduped = result.data.filter((item: any) => {
+            const id = (item as any)?.id
+            return id === undefined || !existingIds.has(id)
+          })
+          return [...prev, ...deduped]
+        })
       } else {
-        setData(result.data);
+        setData(result.data)
       }
       
       setPagination({
@@ -68,7 +76,7 @@ function usePaginatedData<T>(
 
   useEffect(() => {
     fetchData(initialPage, initialLimit);
-  }, [fetchData, initialPage, initialLimit, ...dependencies]);
+  }, [fetchData, initialPage, initialLimit, JSON.stringify(dependencies)]);
 
   const loadMore = useCallback(() => {
     if (pagination.page < pagination.total_pages && !loading) {
@@ -103,16 +111,18 @@ export function useOrders(
   limit = 20,
   includeDetails = false
 ) {
+  const filtersString = JSON.stringify(filters);
+  
   const fetchFunction = useCallback(
     (p: number, l: number) => EnhancedAPI.getOrders(filters, p, l, includeDetails),
-    [filters, includeDetails]
+    [filtersString, includeDetails]
   );
 
   return usePaginatedData<OrderWithDetails>(
     fetchFunction,
     page,
     limit,
-    [filters, includeDetails]
+    [filtersString, includeDetails]
   );
 }
 
@@ -150,16 +160,18 @@ export function useCustomers(
   page = 1,
   limit = 20
 ) {
+  const filtersString = JSON.stringify(filters);
+  
   const fetchFunction = useCallback(
     (p: number, l: number) => EnhancedAPI.getCustomers(filters, p, l),
-    [filters]
+    [filtersString]
   );
 
   return usePaginatedData<CustomerWithOrders>(
     fetchFunction,
     page,
     limit,
-    [filters]
+    [filtersString]
   );
 }
 
@@ -203,6 +215,8 @@ export function useWorkers(filters?: WorkerFilters) {
   const [workers, setWorkers] = useState<WorkerWithTeam[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const filtersString = JSON.stringify(filters);
 
   const fetchWorkers = useCallback(async () => {
     setLoading(true);
@@ -216,7 +230,7 @@ export function useWorkers(filters?: WorkerFilters) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filtersString]);
 
   useEffect(() => {
     fetchWorkers();
@@ -262,9 +276,11 @@ export function useRoutes(
   page = 1,
   limit = 20
 ) {
+  const filtersString = JSON.stringify(filters);
+  
   const fetchFunction = useCallback(
     (p: number, l: number) => EnhancedAPI.getRoutes(filters, p, l),
-    [filters]
+    [filtersString]
   );
 
   // Re-use generic paginated hook but keep same outer API (routes instead of data) for backward compatibility
@@ -277,7 +293,7 @@ export function useRoutes(
     refresh,
     goToPage,
     hasMore
-  } = usePaginatedData<RouteWithOrders>(fetchFunction, page, limit, [filters]);
+  } = usePaginatedData<RouteWithOrders>(fetchFunction, page, limit, [filtersString]);
 
   return {
     routes: data,
@@ -298,16 +314,18 @@ export function useExpenses(
   limit = 20,
   includeDetails = false
 ) {
+  const filtersString = JSON.stringify(filters);
+  
   const fetchFunction = useCallback(
     (p: number, l: number) => EnhancedAPI.getExpenses(filters, p, l, includeDetails),
-    [filters, includeDetails]
+    [filtersString, includeDetails]
   );
 
   return usePaginatedData<ExpenseWithDetails>(
     fetchFunction,
     page,
     limit,
-    [filters, includeDetails]
+    [filtersString, includeDetails]
   );
 }
 
@@ -363,6 +381,141 @@ export function useDashboard(date: string) {
   }, [fetchDashboard]);
 
   return { dashboard, loading, error, refresh: fetchDashboard };
+}
+
+// Advanced Analytics Dashboard hook
+export function useAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month') {
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await EnhancedAPI.getAnalyticsDashboard(period);
+      setAnalytics(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل التحليلات');
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  return { analytics, loading, error, refresh: fetchAnalytics };
+}
+
+// Weekly Statistics hook
+export function useWeeklyStats(weekOffset = 0) {
+  const [weeklyStats, setWeeklyStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchWeeklyStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await EnhancedAPI.getWeeklyStats(weekOffset);
+      setWeeklyStats(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل الإحصائيات الأسبوعية');
+    } finally {
+      setLoading(false);
+    }
+  }, [weekOffset]);
+
+  useEffect(() => {
+    fetchWeeklyStats();
+  }, [fetchWeeklyStats]);
+
+  return { weeklyStats, loading, error, refresh: fetchWeeklyStats };
+}
+
+// Quarterly Statistics hook
+export function useQuarterlyStats(yearOffset = 0) {
+  const [quarterlyStats, setQuarterlyStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchQuarterlyStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await EnhancedAPI.getQuarterlyStats(yearOffset);
+      setQuarterlyStats(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل الإحصائيات الربع سنوية');
+    } finally {
+      setLoading(false);
+    }
+  }, [yearOffset]);
+
+  useEffect(() => {
+    fetchQuarterlyStats();
+  }, [fetchQuarterlyStats]);
+
+  return { quarterlyStats, loading, error, refresh: fetchQuarterlyStats };
+}
+
+// Performance Trends hook
+export function usePerformanceTrends(days = 30) {
+  const [trends, setTrends] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTrends = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await EnhancedAPI.getPerformanceTrends(days);
+      setTrends(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل اتجاهات الأداء');
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    fetchTrends();
+  }, [fetchTrends]);
+
+  return { trends, loading, error, refresh: fetchTrends };
+}
+
+// Worker Performance Analytics hook
+export function useWorkerPerformanceAnalytics(workerId?: string, days = 30) {
+  const [workerAnalytics, setWorkerAnalytics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchWorkerAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await EnhancedAPI.getWorkerPerformanceAnalytics(workerId, days);
+      setWorkerAnalytics(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل تحليلات أداء العمال');
+    } finally {
+      setLoading(false);
+    }
+  }, [workerId, days]);
+
+  useEffect(() => {
+    fetchWorkerAnalytics();
+  }, [fetchWorkerAnalytics]);
+
+  return { workerAnalytics, loading, error, refresh: fetchWorkerAnalytics };
 }
 
 // System health hook

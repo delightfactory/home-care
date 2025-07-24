@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 interface CustomerFormModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (customer?: Customer) => void
   customer?: Customer
   mode: 'create' | 'edit'
 }
@@ -121,13 +121,30 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         if (!res.success) throw new Error(res.error || 'فشل في إضافة العميل')
         
         toast.success('تم إضافة العميل بنجاح')
+        
+        // Return the created customer data
+        const newCustomer: Customer = {
+          id: res.data?.id || '',
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          area: formData.area || '',
+          location_coordinates: formData.latitude !== undefined && formData.longitude !== undefined ? `(${formData.longitude},${formData.latitude})` : null,
+          is_active: formData.is_active ?? true,
+          notes: formData.notes || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        onSuccess(newCustomer)
       } else {
         const res = await EnhancedAPI.updateCustomer(customer!.id, payload)
         if (!res.success) throw new Error(res.error || 'فشل في تحديث بيانات العميل')
         toast.success('تم تحديث بيانات العميل بنجاح')
+        
+        onSuccess(customer)
       }
       
-      onSuccess()
       onClose()
     } catch (error) {
       toast.error('حدث خطأ أثناء حفظ البيانات')

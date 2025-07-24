@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Save, User, Phone, DollarSign, Award, Car, CheckCircle, Plus } from 'lucide-react'
+import { X, Save, User, Phone, DollarSign, Award, Car, CheckCircle, Plus, Power } from 'lucide-react'
 import { WorkersAPI } from '../../api'
 import { Worker, WorkerForm } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
@@ -28,7 +28,8 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
     hire_date: '',
     salary: undefined,
     skills: [],
-    can_drive: false
+    can_drive: false,
+    status: 'active'
   })
   const [loading, setLoading] = useState(false)
   const [skillInput, setSkillInput] = useState('')
@@ -42,7 +43,8 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
         hire_date: worker.hire_date,
         salary: worker.salary || undefined,
         skills: worker.skills || [],
-        can_drive: worker.can_drive || false
+        can_drive: worker.can_drive || false,
+        status: worker.status || 'active'
       })
     } else {
       setFormData({
@@ -51,7 +53,8 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
         hire_date: '',
         salary: undefined,
         skills: [],
-        can_drive: false
+        can_drive: false,
+        status: 'active'
       })
     }
   }, [worker, mode, isOpen])
@@ -333,6 +336,56 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
                     </span>
                     {formData.can_drive && (
                       <CheckCircle className="h-4 w-4 text-primary-600 mr-2" />
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Toggle */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <Power className="h-4 w-4 ml-2 text-primary-500" />
+              حالة العامل
+            </label>
+            <div className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    id="worker_status"
+                    checked={formData.status === 'active'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.checked ? 'active' : 'inactive' }))}
+                    className="sr-only"
+                    disabled={loading}
+                  />
+                  <label
+                    htmlFor="worker_status"
+                    className={`flex items-center cursor-pointer transition-all duration-200 ${
+                      formData.status === 'active'
+                        ? 'text-green-600'
+                        : 'text-red-500'
+                    }`}
+                  >
+                    <div
+                      className={`relative w-12 h-6 rounded-full transition-all duration-200 ${
+                        formData.status === 'active'
+                          ? 'bg-gradient-to-r from-green-500 to-green-600'
+                          : 'bg-gradient-to-r from-red-500 to-red-600'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-200 ${
+                          formData.status === 'active' ? 'right-0.5' : 'left-0.5'
+                        }`}
+                      />
+                    </div>
+                    <span className="mr-3 font-medium">
+                      {formData.status === 'active' ? 'نشط' : 'غير نشط'}
+                    </span>
+                    {formData.status === 'active' && (
+                      <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
                     )}
                   </label>
                 </div>

@@ -267,7 +267,6 @@ export class TeamsAPI {
       const { data: teams, error } = await supabase
         .from('teams')
         .select('*')
-        .eq('is_active', true) // Uses idx_teams_active
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -505,6 +504,55 @@ export class TeamsAPI {
       return {
         success: true,
         message: 'تم إزالة العضو من الفريق بنجاح'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  // Transfer worker from one team to another
+  static async transferWorker(
+    workerId: string,
+    fromTeamId: string | null,
+    toTeamId: string
+  ): Promise<ApiResponse<void>> {
+    try {
+      // التحقق من أن العامل ليس قائد الفريق الحالي
+      if (fromTeamId) {
+        const { data: currentTeam, error: teamError } = await supabase
+          .from('teams')
+          .select('leader_id')
+          .eq('id', fromTeamId)
+          .single()
+
+        if (teamError) throw teamError
+
+        if (currentTeam.leader_id === workerId) {
+          return {
+            success: false,
+            error: 'لا يمكن نقل قائد الفريق. يجب تعيين قائد جديد أولاً'
+          }
+        }
+
+        // إزالة العامل من الفريق الحالي
+        const removeResult = await this.removeTeamMember(fromTeamId, workerId)
+        if (!removeResult.success) {
+          return removeResult
+        }
+      }
+
+      // إضافة العامل للفريق الجديد
+      const addResult = await this.addTeamMember(toTeamId, workerId)
+      if (!addResult.success) {
+        return addResult
+      }
+
+      return {
+        success: true,
+        message: 'تم نقل العامل بنجاح'
       }
     } catch (error) {
       return {

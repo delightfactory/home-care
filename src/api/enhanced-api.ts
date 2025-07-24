@@ -14,6 +14,7 @@ import { OrdersAPI } from './orders';
 import { eventBus } from '../utils/EventBus';
 import { CustomersAPI } from './customers';
 import { ReportsAPI } from './reports';
+import { ViewOptimizer } from './view-optimizer';
 import { WorkersAPI, TeamsAPI } from './workers';
 import { ExpensesAPI } from './expenses';
 import { ServicesAPI } from './services';
@@ -626,6 +627,21 @@ export class EnhancedAPI {
     return performanceMonitor.monitorQuery(
       'enhanced.reports.getDashboard',
       async () => {
+        // Try optimized views first, fallback to original API
+        try {
+          const optimizedResult = await ViewOptimizer.getDashboardData(date);
+          if (optimizedResult.success && optimizedResult.data) {
+            const result = optimizedResult.data;
+            if (useCache) {
+              CacheManager.set(cacheKey, result, 600000); // 10 minutes
+            }
+            return result;
+          }
+        } catch (error) {
+          console.warn('Optimized dashboard data failed, using fallback:', error);
+        }
+
+        // Fallback to original API
         const [dailyStats, teamSummaries] = await Promise.all([
           ReportsAPI.getDailyDashboard(date),
           ReportsAPI.getTeamSummaries()
@@ -640,6 +656,170 @@ export class EnhancedAPI {
         if (useCache) {
           CacheManager.set(cacheKey, result, 600000); // 10 minutes
         }
+        
+        return result;
+      }
+    );
+  }
+
+  // Get comprehensive analytics dashboard
+  static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', useCache = true) {
+    const cacheKey = `enhanced:analytics:${period}`;
+    
+    if (useCache) {
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.getAnalytics',
+      async () => {
+        const result = await ReportsAPI.getAnalyticsDashboard(period);
+        
+        if (useCache) {
+          CacheManager.set(cacheKey, result, 900000); // 15 minutes
+        }
+        
+        return result;
+      }
+    );
+  }
+
+  // Get weekly statistics with optimized views
+  static async getWeeklyStats(weekOffset = 0, useCache = true) {
+    const cacheKey = `enhanced:weekly:${weekOffset}`;
+    
+    if (useCache) {
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.getWeekly',
+      async () => {
+        // Try optimized view first
+        try {
+          const optimizedResult = await ViewOptimizer.getWeeklyStats(12);
+          if (optimizedResult.success && optimizedResult.data) {
+            // Apply offset to optimized data
+            const result = optimizedResult.data.slice(weekOffset, weekOffset + 12);
+            if (useCache) {
+              CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+            }
+            return result;
+          }
+        } catch (error) {
+          console.warn('Optimized weekly stats failed, using fallback:', error);
+        }
+
+        // Fallback to original API
+        const result = await ReportsAPI.getWeeklyStats(weekOffset);
+        
+        if (useCache) {
+          CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+        }
+        
+        return result;
+      }
+    );
+  }
+
+  // Get quarterly statistics with optimized views
+  static async getQuarterlyStats(yearOffset = 0, useCache = true) {
+    const cacheKey = `enhanced:quarterly:${yearOffset}`;
+    
+    if (useCache) {
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.getQuarterly',
+      async () => {
+        // Try optimized view first
+        try {
+          const optimizedResult = await ViewOptimizer.getQuarterlyStats(8);
+          if (optimizedResult.success && optimizedResult.data) {
+            // Apply year offset to optimized data
+            const result = optimizedResult.data.slice(yearOffset * 4, (yearOffset + 1) * 4);
+            if (useCache) {
+              CacheManager.set(cacheKey, result, 3600000); // 1 hour
+            }
+            return result;
+          }
+        } catch (error) {
+          console.warn('Optimized quarterly stats failed, using fallback:', error);
+        }
+
+        // Fallback to original API
+        const result = await ReportsAPI.getQuarterlyStats(yearOffset);
+        
+        if (useCache) {
+          CacheManager.set(cacheKey, result, 3600000); // 1 hour
+        }
+        
+        return result;
+      }
+    );
+  }
+
+  // Get performance trends
+  static async getPerformanceTrends(days = 30, useCache = true) {
+    const cacheKey = `enhanced:trends:${days}`;
+    
+    if (useCache) {
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.getTrends',
+      async () => {
+        const result = await ReportsAPI.getPerformanceTrends(days);
+        
+        if (useCache) {
+          CacheManager.set(cacheKey, result, 1200000); // 20 minutes
+        }
+        
+        return result;
+      }
+    );
+  }
+
+  // Get worker performance analytics
+  static async getWorkerPerformanceAnalytics(workerId?: string, days = 30, useCache = true) {
+    const cacheKey = `enhanced:worker-analytics:${workerId || 'all'}:${days}`;
+    
+    if (useCache) {
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.getWorkerAnalytics',
+      async () => {
+        const result = await ReportsAPI.getWorkerPerformanceAnalytics(workerId, days);
+        
+        if (useCache) {
+          CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+        }
+        
+        return result;
+      }
+    );
+  }
+
+  // Refresh materialized views
+  static async refreshMaterializedViews() {
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.refreshViews',
+      async () => {
+        const result = await ReportsAPI.refreshMaterializedViews();
+        
+        // Clear related caches after refresh
+        this.clearCache('enhanced:weekly');
+        this.clearCache('enhanced:quarterly');
+        this.clearCache('enhanced:analytics');
         
         return result;
       }
