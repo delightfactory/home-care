@@ -190,14 +190,15 @@ export class CustomersAPI {
     }
   }
 
-  // Search customers by phone or name
+  // Search customers by phone or name (includes both active and inactive)
   static async searchCustomers(query: string): Promise<Customer[]> {
     try {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('is_active', true)
         .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
+        .order('is_active', { ascending: false }) // Show active customers first
+        .order('name', { ascending: true })
         .limit(10)
 
       if (error) throw error

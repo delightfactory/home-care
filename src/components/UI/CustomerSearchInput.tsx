@@ -282,15 +282,44 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
       
       {/* Selected Customer Info */}
       {selectedCustomer && (
-        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className={`mt-2 p-3 rounded-lg ${
+          selectedCustomer.is_active 
+            ? 'bg-green-50 border border-green-200' 
+            : 'bg-red-50 border border-red-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 space-x-reverse">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-green-600" />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                selectedCustomer.is_active 
+                  ? 'bg-green-100' 
+                  : 'bg-red-100'
+              }`}>
+                <User className={`h-4 w-4 ${
+                  selectedCustomer.is_active 
+                    ? 'text-green-600' 
+                    : 'text-red-600'
+                }`} />
               </div>
               <div>
-                <p className="font-medium text-green-800">{selectedCustomer.name}</p>
-                <div className="flex items-center space-x-4 space-x-reverse text-sm text-green-600">
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <p className={`font-medium ${
+                    selectedCustomer.is_active 
+                      ? 'text-green-800' 
+                      : 'text-red-800'
+                  }`}>{selectedCustomer.name}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    selectedCustomer.is_active 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {selectedCustomer.is_active ? 'نشط' : 'موقوف'}
+                  </span>
+                </div>
+                <div className={`flex items-center space-x-4 space-x-reverse text-sm ${
+                  selectedCustomer.is_active 
+                    ? 'text-green-600' 
+                    : 'text-red-600'
+                }`}>
                   <div className="flex items-center">
                     <Phone className="h-3 w-3 ml-1" />
                     {selectedCustomer.phone}
@@ -304,7 +333,11 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
                 </div>
               </div>
             </div>
-            <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+            <div className={`text-xs px-2 py-1 rounded-full ${
+              selectedCustomer.is_active 
+                ? 'text-green-600 bg-green-100' 
+                : 'text-red-600 bg-red-100'
+            }`}>
               {selectedCustomer.total_orders || 0} طلب
             </div>
           </div>
@@ -390,11 +423,28 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 space-x-reverse">
-                    <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary-600" />
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      customer.is_active 
+                        ? 'bg-green-100' 
+                        : 'bg-red-100'
+                    }`}>
+                      <User className={`h-4 w-4 ${
+                        customer.is_active 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`} />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{customer.name}</p>
+                      <div className="flex items-center space-x-2 space-x-reverse">
+                        <p className="font-medium text-gray-900">{customer.name}</p>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                          customer.is_active 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {customer.is_active ? 'نشط' : 'موقوف'}
+                        </span>
+                      </div>
                       <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-500">
                         <div className="flex items-center">
                           <Phone className="h-3 w-3 ml-1" />
@@ -409,7 +459,11 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
                       </div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                  <div className={`text-xs px-2 py-1 rounded-full ${
+                    customer.is_active 
+                      ? 'text-green-600 bg-green-100' 
+                      : 'text-red-600 bg-red-100'
+                  }`}>
                     {customer.total_orders || 0} طلب
                   </div>
                 </div>
