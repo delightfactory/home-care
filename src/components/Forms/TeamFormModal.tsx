@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Save, Users, Search, XCircle, User, FileText, CheckCircle, Crown, Power } from 'lucide-react'
 import { TeamsAPI, WorkersAPI } from '../../api'
+import EnhancedAPI from '../../api/enhanced-api'
 import { TeamWithMembers, TeamForm, WorkerWithTeam, TeamInsert, TeamUpdate } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
@@ -49,11 +50,17 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
         // احصل على بيانات الفريق بالتفصيل لضمان وجود الأعضاء
         const fresh = await TeamsAPI.getTeamById(team.id)
         const members = fresh?.members || team.members || []
-        const ids = members.map((m: any)=>String(m.worker_id))
+        // تأكد من استخراج worker_id بشكل صحيح
+        const ids = members.map((m: any) => {
+          // إذا كان m.worker_id موجود، استخدمه، وإلا استخدم m.worker.id
+          const workerId = m.worker_id || m.worker?.id
+          return String(workerId)
+        }).filter(id => id && id !== 'undefined')
+        
         setOriginalMemberIds(ids)
         setFormData({
           name: fresh?.name || team.name,
-          leader_id: fresh?.leader_id || team.leader_id || '',
+          leader_id: String(fresh?.leader_id || team.leader_id || ''),
           description: fresh?.description || team.description || '',
           member_ids: ids,
           is_active: fresh?.is_active ?? team.is_active ?? true
@@ -88,7 +95,10 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
         ])
         
         // الحصول على معرفات الأعضاء الحاليين
-        const currentMemberIds = team?.members?.map(m => String(m.worker_id)) || []
+        const currentMemberIds = team?.members?.map(m => {
+          const workerId = m.worker_id || m.worker?.id
+          return String(workerId)
+        }).filter(id => id && id !== 'undefined') || []
         
         // دمج العمال المتاحين مع الأعضاء الحاليين (تجنب التكرار)
         const currentMembers = allWorkers.filter(w => currentMemberIds.includes(String(w.id)))
@@ -141,17 +151,17 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
       const member_ids = rawMemberIds.filter(id=>id && id.trim() !== '')
 
       if (mode === 'create') {
-        await TeamsAPI.createTeam(teamData as TeamInsert, member_ids)
+        await EnhancedAPI.createTeam(teamData as TeamInsert, member_ids)
         toast.success('تم إضافة الفريق بنجاح')
       } else {
-        await TeamsAPI.updateTeam(team!.id, teamData as TeamUpdate)
+        await EnhancedAPI.updateTeam(team!.id, teamData as TeamUpdate)
         // تحديث الأعضاء
         const toAdd = member_ids.filter(id=>!originalMemberIds.includes(id))
         const toRemove = originalMemberIds.filter(id=>!member_ids.includes(id))
         // عمليات متوازية
         await Promise.all([
-          ...toAdd.map(id=>TeamsAPI.addTeamMember(team!.id, id)),
-          ...toRemove.filter(Boolean).map(id=>TeamsAPI.removeTeamMember(team!.id, id))
+          ...toAdd.map(id=>EnhancedAPI.addTeamMember(team!.id, id)),
+          ...toRemove.filter(Boolean).map(id=>EnhancedAPI.removeTeamMember(team!.id, id))
         ])
         toast.success('تم تحديث بيانات الفريق وأعضائه بنجاح')
       }
@@ -235,8 +245,8 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                       const newData = { ...prev, leader_id: leaderId }
                       
                       // إضافة القائد تلقائياً كعضو في الفريق إذا لم يكن موجوداً
-                      if (leaderId && !prev.member_ids.includes(leaderId)) {
-                        newData.member_ids = [...prev.member_ids, leaderId]
+                      if (leaderId && !prev.member_ids.includes(String(leaderId))) {
+                        newData.member_ids = [...prev.member_ids, String(leaderId)]
                       }
                       // إذا تم إلغاء تحديد القائد، لا نقوم بإزالته من الأعضاء تلقائياً
                       // يمكن للمستخدم إزالته يدوياً إذا أراد
@@ -254,7 +264,7 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                   {workers
                     .filter(worker => worker.status === 'active')
                     .map((worker) => (
-                    <option key={worker.id} value={worker.id}>
+                    <option key={worker.id} value={String(worker.id)}>
                       {worker.name}
                     </option>
                   ))}
@@ -417,7 +427,10 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                             checked={selected}
                             onChange={()=>{
                               setFormData(prev=>{
-                                const ids = selected ? prev.member_ids.filter(id=>id!==String(worker.id)) : [...prev.member_ids, String(worker.id)]
+                                const workerId = String(worker.id)
+                                const ids = selected 
+                                  ? prev.member_ids.filter(id=>String(id)!==workerId) 
+                                  : [...prev.member_ids, workerId]
                                 return {...prev, member_ids: ids}
                               })
                             }}
@@ -445,7 +458,7 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {formData.member_ids.map(id=>{
-                      const worker = workers.find(w=>w.id===id)
+                      const worker = workers.find(w=>String(w.id)===String(id))
                       if(!worker) return null
                       return (
                         <span key={id} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 border border-primary-200 shadow-sm">
@@ -454,7 +467,7 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
                           <button
                             type="button"
                             className="mr-2 hover:text-primary-600 transition-colors duration-200"
-                            onClick={()=> setFormData(prev=>({...prev, member_ids: prev.member_ids.filter(i=>i!==String(id))}))}
+                            onClick={()=> setFormData(prev=>({...prev, member_ids: prev.member_ids.filter(i=>String(i)!==String(id))}))}
                           >
                             <XCircle className="h-4 w-4" />
                           </button>

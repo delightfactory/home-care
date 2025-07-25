@@ -41,6 +41,7 @@ import {
   ExpenseCounts,
   RouteOrder
 } from '../types';
+import { TeamInsert, TeamUpdate } from '../types';
 
 // Enhanced API wrapper with comprehensive optimization
 export class EnhancedAPI {
@@ -610,6 +611,88 @@ export class EnhancedAPI {
           CacheManager.set(cacheKey, result, 300000); // 5 minutes
         }
         
+        return result;
+      }
+    );
+  }
+
+    // ===== TEAMS MUTATIONS =====
+  static async createTeam(teamData: TeamInsert, memberIds: string[] = []): Promise<ApiResponse<TeamWithMembers>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.teams.create',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          TeamsAPI.createTeam(teamData, memberIds)
+        ) as ApiResponse<TeamWithMembers>;
+
+        // Invalidate cache and emit event
+        this.clearCache('enhanced:teams');
+        eventBus.emit('teams:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async updateTeam(id: string, teamData: TeamUpdate): Promise<ApiResponse<TeamWithMembers>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.teams.update',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          TeamsAPI.updateTeam(id, teamData)
+        ) as ApiResponse<TeamWithMembers>;
+
+        this.clearCache('enhanced:teams');
+        eventBus.emit('teams:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async deleteTeam(id: string): Promise<ApiResponse<void>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.teams.delete',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          TeamsAPI.deleteTeam(id)
+        ) as ApiResponse<void>;
+
+        this.clearCache('enhanced:teams');
+        eventBus.emit('teams:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async addTeamMember(teamId: string, workerId: string): Promise<ApiResponse<void>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.teams.addMember',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          TeamsAPI.addTeamMember(teamId, workerId)
+        ) as ApiResponse<void>;
+
+        this.clearCache('enhanced:teams');
+        eventBus.emit('teams:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async removeTeamMember(teamId: string, workerId: string): Promise<ApiResponse<void>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.teams.removeMember',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          TeamsAPI.removeTeamMember(teamId, workerId)
+        ) as ApiResponse<void>;
+
+        this.clearCache('enhanced:teams');
+        eventBus.emit('teams:changed');
+
         return result;
       }
     );

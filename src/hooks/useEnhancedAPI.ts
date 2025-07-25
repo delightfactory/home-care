@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import EnhancedAPI from '../api/enhanced-api';
+import { eventBus } from '../utils/EventBus';
 import { 
   PaginatedResponse, 
   OrderWithDetails, 
@@ -261,6 +262,14 @@ export function useTeams() {
 
   useEffect(() => {
     fetchTeams();
+  }, [fetchTeams]);
+
+  // Listen to teams:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('teams:changed', () => {
+      fetchTeams();
+    });
+    return off;
   }, [fetchTeams]);
 
   return { teams, loading, error, refresh: fetchTeams };

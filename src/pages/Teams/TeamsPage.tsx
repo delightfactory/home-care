@@ -7,6 +7,7 @@ import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import TeamDetailsModal from '../../components/Modals/TeamDetailsModal'
 import toast from 'react-hot-toast'
 import { useTeams, useSystemHealth } from '../../hooks/useEnhancedAPI'
+import EnhancedAPI from '../../api/enhanced-api'
 
 const TeamsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -41,8 +42,10 @@ const TeamsPage: React.FC = () => {
     
     setDeleteLoading(true)
     try {
-      // TODO: Implement delete team API method
-      console.log('Delete team:', selectedTeam.id)
+      const result = await EnhancedAPI.deleteTeam(selectedTeam.id)
+      if (!result.success) {
+        throw new Error(result.error || 'فشل الحذف')
+      }
       toast.success('تم حذف الفريق بنجاح')
       setShowDeleteModal(false)
       setSelectedTeam(undefined)
