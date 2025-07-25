@@ -187,8 +187,10 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   }
 
   const isDateDisabled = (date: Date) => {
-    if (minDate && date < new Date(minDate)) return true
-    if (maxDate && date > new Date(maxDate)) return true
+    // Compare using local-date ISO strings to avoid timezone shift issues
+    const dateISO = toLocalDateISO(date)
+    if (minDate && dateISO < minDate) return true
+    if (maxDate && dateISO > maxDate) return true
     return false
   }
 
@@ -435,7 +437,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   )
 
   const renderDesktopDropdown = () => (
-    <div className="absolute z-50 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl min-w-[400px] overflow-hidden animate-fade-in">
+    <div className="absolute left-0 top-full z-50 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl min-w-[400px] overflow-hidden animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100">
         <h4 className="font-semibold text-gray-900">
@@ -472,7 +474,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   )
 
   return (
-    <div className="space-y-2" ref={containerRef}>
+    <div className="space-y-2 relative" ref={containerRef}>
       {label && (
         <label className={`flex items-center label text-gray-700 font-medium ${
           required ? 'label-required' : ''
