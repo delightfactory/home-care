@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
-import { X, ArrowUp, ArrowDown, Plus, Minus, Save } from 'lucide-react'
+import React, { useEffect, useState, useMemo } from 'react'
+import { X, ArrowUp, ArrowDown, Plus, Minus, Save, ClipboardList } from 'lucide-react'
 import { RoutesAPI } from '../../api'
 import { OrderWithDetails, RouteWithOrders } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
+import SmartModal from '../UI/SmartModal'
 import toast from 'react-hot-toast'
 
 interface AssignOrdersModalProps {
@@ -17,6 +18,29 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const [assignedOrders, setAssignedOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Helper: calculate total expected execution duration (in minutes) for an order
+  const getOrderDuration = (order: OrderWithDetails): number => {
+    if (!order.items) return 0
+    return order.items.reduce((sum, item) => {
+      const perUnit = item.service?.estimated_duration || 0
+      const qty = (item as any)?.quantity ?? 1
+      return sum + perUnit * qty
+    }, 0)
+  }
+
+  // Format minutes to human-readable Arabic string e.g. "2 س 30 د" or "45 د"
+  const formatDuration = (minutes: number): string => {
+    if (!minutes) return '-'
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return h > 0 ? `${h} س ${m} د` : `${m} د`
+  }
+
+  // Total duration across assigned orders
+  const totalDuration = useMemo(() => assignedOrders.reduce((sum, o) => sum + getOrderDuration(o), 0), [assignedOrders])
+  const hours = Math.floor(totalDuration / 60)
+  const minutes = totalDuration % 60
 
   // Original ids for diff
   const originalAssignedIds = route.route_orders?.map((ro) => ro.order_id) || []
@@ -104,10 +128,18 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     }
   }
 
-  if (!open) return null
+  
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <SmartModal
+      isOpen={open}
+      onClose={onClose}
+      title={`إدارة طلبات خط السير: ${route.name}`}
+      subtitle={`التاريخ: ${route.date}`}
+      icon={<ClipboardList className="h-6 w-6 text-white" />}
+      size="xl"
+      headerGradient="from-blue-600 via-purple-600 to-indigo-700"
+    >
       <div className="bg-white w-full max-w-4xl rounded-lg p-6 overflow-y-auto max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -135,7 +167,8 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
                     <div>
                       <p className="font-medium">{o.customer?.name || o.id}</p>
-                      <p className="text-xs text-gray-500">{o.scheduled_time}</p>
+                      <p className="text-xs text-gray-500">{o.scheduled_time} {o.customer?.area ? `- ${o.customer.area}` : ''}</p>
+                      <p className="text-xs text-gray-500">مدة: {formatDuration(getOrderDuration(o))} • خدمات: {o.items?.length || 0}</p>
                     </div>
                     <button
                       className="btn-primary btn-sm"
@@ -159,7 +192,8 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
                     <div>
                       <p className="font-medium">#{idx + 1} - {o.customer?.name || o.id}</p>
-                      <p className="text-xs text-gray-500">{o.scheduled_time}</p>
+                      <p className="text-xs text-gray-500">{o.scheduled_time} {o.customer?.area ? `- ${o.customer.area}` : ''}</p>
+                      <p className="text-xs text-gray-500">مدة: {formatDuration(getOrderDuration(o))} • خدمات: {o.items?.length || 0}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -189,10 +223,23 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                   <p className="text-center text-gray-500 mt-4">لا توجد طلبات مضافة</p>
                 )}
               </div>
+              {(hours > 0 || minutes > 0) && (
+                <div className="mt-2 flex gap-2 text-xs font-semibold">
+                  {hours > 0 && (
+                    <span className="inline-block px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">{hours} س</span>
+                  )}
+                  {minutes > 0 && (
+                    <span className="inline-block px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">{minutes} د</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
 
+
+
+        
         {/* Actions */}
         <div className="flex justify-end gap-2 mt-6">
           <button className="btn-secondary" onClick={onClose} disabled={saving}>
@@ -207,7 +254,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           </button>
         </div>
       </div>
-    </div>
+    </SmartModal>
   )
 }
 
