@@ -12,6 +12,7 @@ import {
   useSystemHealth,
   useAnalyticsDashboard,
   useWeeklyStats,
+  useWeeklyStatsRange,
   useQuarterlyStats,
   usePerformanceTrends,
   useWorkerPerformanceAnalytics,
@@ -28,11 +29,20 @@ import SystemHealthDetails from '../../components/Reports/SystemHealthDetails'
 import RealTimeAlerts from '../../components/Reports/RealTimeAlerts'
 import toast from 'react-hot-toast'
 
-const ReportsPage: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [dateFilterType, setDateFilterType] = useState<'single' | 'range'>('single')
+import { ReportFiltersProvider, useReportFilters } from '../../context/ReportFiltersContext'
+
+const ReportsPageContent: React.FC = () => {
+  // Global report filters from context
+  const {
+    selectedDate,
+    setSelectedDate,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    filterType: dateFilterType,
+    setFilterType: setDateFilterType
+  } = useReportFilters()
   const [activeSection, setActiveSection] = useState<'overview' | 'analytics' | 'interactive'>('overview')
   const [refreshing, setRefreshing] = useState(false)
   const [monthlyData, setMonthlyData] = useState<any>(null)
@@ -42,7 +52,11 @@ const ReportsPage: React.FC = () => {
   const { dashboard, loading: dashboardLoading, error: dashboardError, refresh: refreshDashboard } = useDashboard(selectedDate)
   const { health, refresh: refreshSystemHealth } = useSystemHealth()
   const { analytics, loading: analyticsLoading, refresh: refreshAnalytics } = useAnalyticsDashboard()
-  const { weeklyStats, loading: weeklyLoading } = useWeeklyStats()
+    const { weeklyStats, loading: weeklyLoading } = useWeeklyStats()
+  const { weeklyStats: weeklyStatsRange } = useWeeklyStatsRange(
+    dateFilterType === 'range' ? startDate : undefined,
+    dateFilterType === 'range' ? endDate : undefined
+  )
   const { quarterlyStats, loading: quarterlyLoading } = useQuarterlyStats()
   const { trends: performanceTrends, loading: performanceLoading } = usePerformanceTrends()
   const { workerAnalytics, loading: workerLoading } = useWorkerPerformanceAnalytics()
@@ -63,9 +77,9 @@ const ReportsPage: React.FC = () => {
     }
 
     const calculateCurrentWeekRevenue = () => {
-      if (weeklyStats && Array.isArray(weeklyStats) && weeklyStats.length > 0) {
-        // Get the most recent week's revenue
-        const currentWeek = weeklyStats[0]
+      const source = dateFilterType === 'range' ? weeklyStatsRange : weeklyStats
+      if (source && Array.isArray(source) && source.length > 0) {
+        const currentWeek = source[0]
         setCurrentWeekRevenue(currentWeek?.total_revenue || 0)
       } else {
         setCurrentWeekRevenue(0)
@@ -74,7 +88,7 @@ const ReportsPage: React.FC = () => {
 
     calculateMonthlyData()
     calculateCurrentWeekRevenue()
-  }, [weeklyStats])
+  }, [weeklyStats, weeklyStatsRange, dateFilterType])
 
   // Handle date filter changes
   useEffect(() => {
@@ -331,11 +345,12 @@ const ReportsPage: React.FC = () => {
   const sections = [
     { id: 'overview', label: 'نظرة عامة', icon: BarChart3 },
     { id: 'analytics', label: 'التحليلات المتقدمة', icon: BarChart3 },
-    { id: 'interactive', label: 'التقارير التفاعلية', icon: FileText }
-  ]
+    { id: 'interactive', label: 'التقارير التفاعلية', icon: FileText },
+  ];
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
+    
+      <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Enhanced Header */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
         {/* Header Title - Responsive */}
@@ -537,8 +552,16 @@ const ReportsPage: React.FC = () => {
           />
         </div>
       )}
-    </div>
+      </div>
+    
   )
 }
+
+// Wrapper to provide the filters context around the content
+const ReportsPage: React.FC = () => (
+  <ReportFiltersProvider>
+    <ReportsPageContent />
+  </ReportFiltersProvider>
+)
 
 export default ReportsPage

@@ -422,13 +422,45 @@ export function useWeeklyStats(weekOffset = 0) {
     
     try {
       const result = await EnhancedAPI.getWeeklyStats(weekOffset);
-      setWeeklyStats(result);
+      setWeeklyStats(result as any[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل الإحصائيات الأسبوعية');
     } finally {
       setLoading(false);
     }
   }, [weekOffset]);
+
+  useEffect(() => {
+    fetchWeeklyStats();
+  }, [fetchWeeklyStats]);
+
+  return { weeklyStats, loading, error, refresh: fetchWeeklyStats };
+}
+
+// Weekly Statistics Range hook
+export function useWeeklyStatsRange(startDate?: string, endDate?: string) {
+  const [weeklyStats, setWeeklyStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const depsKey = `${startDate ?? ''}:${endDate ?? ''}`;
+
+  const fetchWeeklyStats = useCallback(async () => {
+    if (!startDate || !endDate) {
+      setWeeklyStats([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await EnhancedAPI.getWeeklyStatsRange(startDate, endDate);
+      setWeeklyStats(result as any[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل الإحصائيات للفترة');
+    } finally {
+      setLoading(false);
+    }
+  }, [depsKey]);
 
   useEffect(() => {
     fetchWeeklyStats();

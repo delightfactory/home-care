@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { X, ArrowUp, ArrowDown, Plus, Minus, Save, ClipboardList } from 'lucide-react'
+import EnhancedAPI from '../../api/enhanced-api'
 import { RoutesAPI } from '../../api'
 import { OrderWithDetails, RouteWithOrders } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
@@ -59,7 +60,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           .map((ro) => ro.order!)
 
         // Filter out assigned from available list
-        const remaining = available.filter((o) => !assigned.find((a) => a.id === o.id))
+        const remaining = available.filter((o: OrderWithDetails) => !assigned.find((a) => a.id === o.id))
 
         setAssignedOrders(assigned)
         setAvailableOrders(remaining)
@@ -103,19 +104,19 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
       const toAdd = assignedIds.filter((id) => !originalAssignedIds.includes(id))
 
       // Perform removals
-      await Promise.all(toRemove.map((id) => RoutesAPI.removeOrderFromRoute(route.id, id)))
+      await Promise.all(toRemove.map((id) => EnhancedAPI.removeOrderFromRoute(route.id, id)))
 
       // Perform additions
       await Promise.all(
         toAdd.map((id) => {
           const seq = assignedIds.indexOf(id) + 1
-          return RoutesAPI.addOrderToRoute(route.id, id, seq)
+          return EnhancedAPI.addOrderToRoute(route.id, id, seq)
         })
       )
 
       // Reorder sequence for remaining orders
       const sequences = assignedIds.map((id, idx) => ({ order_id: id, sequence_order: idx + 1 }))
-      await RoutesAPI.reorderRouteOrders(route.id, sequences)
+      await EnhancedAPI.reorderRouteOrders(route.id, sequences)
 
       toast.success('تم حفظ الطلبات')
       onSaved()

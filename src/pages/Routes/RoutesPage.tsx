@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route as RouteIcon, Clock, CheckCircle } from 'lucide-react'
-import { RoutesAPI } from '../../api'
+import EnhancedAPI from '../../api/enhanced-api'
+import { eventBus } from '../../utils/EventBus'
 import { useRoutes, useTeams, useSystemHealth, useRouteCounts } from '../../hooks/useEnhancedAPI'
 import { RouteWithOrders, RouteStatus } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -47,6 +48,14 @@ const RoutesPage: React.FC = () => {
     }
   }
 
+  // Subscribe to routes:changed for reactive refresh
+  useEffect(() => {
+    const unsub = eventBus.on('routes:changed', () => {
+      refresh()
+    })
+    return unsub
+  }, [refresh])
+
   const loading = routesLoading || teamsLoading
 
   const [showFormModal, setShowFormModal] = useState(false)
@@ -84,35 +93,36 @@ const RoutesPage: React.FC = () => {
 
   const handleStartRoute = async (route: RouteWithOrders) => {
     try {
-      const res = await RoutesAPI.startRoute(route.id)
+      const res = await EnhancedAPI.startRoute(route.id)
       if (!res.success) throw new Error(res.error)
       toast.success('تم بدء خط السير')
-      refresh()
     } catch (error) {
       toast.error('تعذر بدء خط السير')
       console.error(error)
     }
+
+
   }
 
   const handleCompleteRoute = async (route: RouteWithOrders) => {
     try {
-      const res = await RoutesAPI.completeRoute(route.id)
+      const res = await EnhancedAPI.completeRoute(route.id)
       if (!res.success) throw new Error(res.error)
       toast.success('تم إكمال خط السير')
-      refresh()
     } catch (error) {
       toast.error('تعذر إكمال خط السير')
       console.error(error)
     }
+
+
   }
 
   const handleDeleteRoute = async (route: RouteWithOrders) => {
     try {
-      const res = await RoutesAPI.deleteRoute(route.id)
+      const res = await EnhancedAPI.deleteRoute(route.id)
       if (!res.success) throw new Error(res.error)
       toast.success('تم حذف خط السير')
       setShowDeleteModal(false)
-      refresh()
     } catch (error) {
       toast.error('تعذر حذف خط السير')
       console.error(error)

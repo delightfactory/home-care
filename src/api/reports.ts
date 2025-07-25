@@ -483,6 +483,23 @@ export class ReportsAPI {
    * ----------------------------------------------
    */
 
+  // Get weekly statistics within a custom date range via RPC
+static async getWeeklyStatsRange(startDate: string, endDate: string): Promise<any[]> {
+  try {
+    if (!startDate || !endDate) throw new Error('startDate and endDate are required')
+
+    const { data, error } = await supabase.rpc('rpc_weekly_stats_range', {
+      p_start_date: startDate,
+      p_end_date: endDate
+    })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    throw new Error(handleSupabaseError(error))
+  }
+}
+
   // Get weekly statistics from materialized view
   static async getWeeklyStats(weekOffset = 0): Promise<any> {
     try {

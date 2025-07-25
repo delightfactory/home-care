@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Save, Users, FileText, CheckCircle, MapPin, X } from 'lucide-react'
-import { RoutesAPI } from '../../api/routes'
+import EnhancedAPI from '../../api/enhanced-api'
 import {
   RouteInsert,
   RouteUpdate,
@@ -80,11 +80,11 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
     setLoading(true)
     try {
       if (mode === 'create') {
-        const res = await RoutesAPI.createRoute(payload as RouteInsert)
+        const res = await EnhancedAPI.createRoute(payload as RouteInsert)
         if (!res.success) throw new Error(res.error)
         toast.success('تم إنشاء خط السير')
       } else if (existingRoute) {
-        const res = await RoutesAPI.updateRoute(existingRoute.id, payload as RouteUpdate)
+        const res = await EnhancedAPI.updateRoute(existingRoute.id, payload as RouteUpdate)
         if (!res.success) throw new Error(res.error)
         toast.success('تم تحديث خط السير')
       }

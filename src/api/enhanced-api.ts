@@ -38,7 +38,8 @@ import {
   CustomerCounts,
   OrderCounts,
   RouteCounts,
-  ExpenseCounts
+  ExpenseCounts,
+  RouteOrder
 } from '../types';
 
 // Enhanced API wrapper with comprehensive optimization
@@ -176,7 +177,94 @@ export class EnhancedAPI {
     );
   }
 
-  // ===== ROUTES COUNTS =====
+  // ===== ROUTES MUTATIONS =====
+  static async createRoute(routeData: any): Promise<ApiResponse<RouteWithOrders>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.create',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.createRoute(routeData)
+        ) as ApiResponse<RouteWithOrders>;
+
+        // Clear caches
+        this.clearCache('enhanced:routes');
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async updateRoute(id: string, updates: any): Promise<ApiResponse<RouteWithOrders>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.update',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.updateRoute(id, updates)
+        );
+
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+
+        return result as ApiResponse<RouteWithOrders>;
+      }
+    );
+  }
+
+  static async deleteRoute(id: string): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.delete',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.deleteRoute(id)
+        );
+
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async startRoute(id: string): Promise<ApiResponse<RouteWithOrders>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.start',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.startRoute(id)
+        );
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+        return result as ApiResponse<RouteWithOrders>;
+      }
+    );
+  }
+
+  static async completeRoute(id: string): Promise<ApiResponse<RouteWithOrders>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.complete',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.completeRoute(id)
+        );
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+        return result as ApiResponse<RouteWithOrders>;
+      }
+    );
+  }
+
+// ===== ROUTES COUNTS =====
   static async getRouteCounts(useCache = true): Promise<RouteCounts> {
     const cacheKey = 'enhanced:routes:counts';
     if (useCache) {
@@ -686,6 +774,26 @@ export class EnhancedAPI {
   }
 
   // Get weekly statistics with optimized views
+  static async getWeeklyStatsRange(startDate: string, endDate: string, useCache = true) {
+    const cacheKey = `enhanced:weekly:range:${startDate}:${endDate}`;
+
+    if (useCache) {
+      const cached = CacheManager.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    return performanceMonitor.monitorQuery(
+      'enhanced.reports.getWeeklyRange',
+      async () => {
+        const result = await ReportsAPI.getWeeklyStatsRange(startDate, endDate);
+        if (useCache) {
+          CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+        }
+        return result;
+      }
+    );
+  }
+
   static async getWeeklyStats(weekOffset = 0, useCache = true) {
     const cacheKey = `enhanced:weekly:${weekOffset}`;
     
@@ -1000,6 +1108,71 @@ export class EnhancedAPI {
 
   static getPerformanceStats(days = 7) {
     return performanceMonitor.getPerformanceStats(days);
+  }
+
+  // ===== ROUTES ORDER MANAGEMENT =====
+  static async addOrderToRoute(
+    routeId: string,
+    orderId: string,
+    sequenceOrder: number,
+    estimatedArrivalTime?: string,
+    estimatedCompletionTime?: string
+  ): Promise<ApiResponse<RouteOrder>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.addOrder',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.addOrderToRoute(routeId, orderId, sequenceOrder, estimatedArrivalTime, estimatedCompletionTime)
+        ) as ApiResponse<RouteOrder>;
+
+        // Invalidate related caches
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${routeId}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async removeOrderFromRoute(routeId: string, orderId: string): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.removeOrder',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.removeOrderFromRoute(routeId, orderId)
+        );
+
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${routeId}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+
+        return result as ApiResponse<any>;
+      }
+    );
+  }
+
+  static async reorderRouteOrders(
+    routeId: string,
+    orderSequences: { order_id: string; sequence_order: number }[]
+  ): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.routes.reorderOrders',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          RoutesAPI.reorderRouteOrders(routeId, orderSequences)
+        );
+
+        this.clearCache('enhanced:routes');
+        this.clearCache(`enhanced:route:${routeId}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('routes:changed');
+
+        return result as ApiResponse<any>;
+      }
+    );
   }
 }
 
