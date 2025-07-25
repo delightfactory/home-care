@@ -117,6 +117,24 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
     return methodMap[method] || method
   }
 
+  // Helper: calculate total expected execution duration (in minutes)
+  const getOrderDuration = (order: OrderWithDetails): number => {
+    if (!order.items) return 0
+    return order.items.reduce((sum, item: any) => {
+      const perUnit = item.service?.estimated_duration || 0
+      const qty = (item as any)?.quantity ?? 1
+      return sum + perUnit * qty
+    }, 0)
+  }
+
+  // Format minutes to human-readable Arabic string e.g. "2 س 30 د" or "45 د"
+  const formatDuration = (minutes: number): string => {
+    if (!minutes) return '-'
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return h > 0 ? `${h} س ${m} د` : `${m} د`
+  }
+
   return (
     <SmartModal isOpen={isOpen} onClose={onClose} title="تفاصيل الطلب" size="xl">
       {loading || !order ? (
@@ -209,6 +227,11 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                 <div>
                   <span className="font-semibold text-gray-700">الوقت المجدول:</span>
                   <span className="mr-2">{formatTime(order.scheduled_time)}</span>
+                </div>
+                {/* Execution Duration */}
+                <div>
+                  <span className="font-semibold text-gray-700">مدة التنفيذ المتوقعة:</span>
+                  <span className="mr-2">{formatDuration(getOrderDuration(order))}</span>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-700">حالة الطلب:</span>

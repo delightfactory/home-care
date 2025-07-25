@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw } from 'lucide-react'
+import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
 import { OrderStatus } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
@@ -21,6 +22,9 @@ const OrdersPage: React.FC = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [detailsOrderId, setDetailsOrderId] = useState<string | undefined>()
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelLoading, setCancelLoading] = useState(false)
 
   const [refreshing, setRefreshing] = useState(false)
 
@@ -37,12 +41,30 @@ const OrdersPage: React.FC = () => {
     refresh,
     loadMore,
     hasMore 
-  } = useOrders(filters, 1, 20, false)
+  } = useOrders(filters, 1, 20, true)
   // Sentinel for infinite scroll
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
   // Orders are already filtered by the API based on search term
   const filteredOrders = orders || []
+
+  // Helper: calculate total expected execution duration (in minutes) for an order
+  const getOrderDuration = (order: OrderWithDetails): number => {
+    if (!order.items) return 0
+    return order.items.reduce((sum, item) => {
+      const perUnit = item.service?.estimated_duration || 0
+      const qty = (item as any)?.quantity ?? 1
+      return sum + perUnit * qty
+    }, 0)
+  }
+
+  // Format minutes to human-readable Arabic string e.g. "2 س 30 د" or "45 د"
+  const formatDuration = (minutes: number): string => {
+    if (!minutes) return '-'
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return h > 0 ? `${h} س ${m} د` : `${m} د`
+  }
 
   // Fetch aggregate order counts
   const { counts } = useOrderCounts()
@@ -98,10 +120,13 @@ const OrdersPage: React.FC = () => {
   }
 
   const handleStatusChange = async (order: OrderWithDetails, status: OrderStatus) => {
-    let notes: string | undefined
     if (status === OrderStatus.CANCELLED) {
-      notes = window.prompt('أدخل سبب الإلغاء:') || undefined
+      setSelectedOrder(order)
+      setShowCancelModal(true)
+      return
     }
+    let notes: string | undefined
+    
     try {
       toast.loading('جاري تحديث حالة الطلب...', { id: 'status' })
       const response = await EnhancedAPI.updateOrderStatus(order.id, status, notes, user?.id)
@@ -309,6 +334,7 @@ const OrdersPage: React.FC = () => {
                 <th className="table-header-cell">العميل</th>
                 <th className="table-header-cell">التاريخ</th>
                 <th className="table-header-cell">الوقت</th>
+                <th className="table-header-cell">مدة التنفيذ</th>
                 <th className="table-header-cell">الحالة</th>
                 <th className="table-header-cell">المبلغ</th>
                 <th className="table-header-cell">الفريق</th>
@@ -324,6 +350,7 @@ const OrdersPage: React.FC = () => {
                     {new Date(order.scheduled_date).toLocaleDateString('ar-AE')}
                   </td>
                   <td className="table-cell">{order.scheduled_time}</td>
+                   <td className="table-cell">{formatDuration(getOrderDuration(order))}</td>
                   <td className="table-cell">{getStatusBadge(order.status)}</td>
                   <td className="table-cell">{order.total_amount} ج.م</td>
                   <td className="table-cell">{order.team_name || 'غير محدد'}</td>
@@ -437,6 +464,74 @@ const OrdersPage: React.FC = () => {
         order={selectedOrder}
         mode={formMode}
       />
+
+      {/* Cancel Order Modal */}
+      <SmartModal
+        isOpen={showCancelModal}
+        size="sm"
+        headerGradient="from-red-500 via-red-600 to-red-700"
+        contentClassName="p-6"
+        className="ring-1 ring-red-100"
+        onClose={() => {
+          setShowCancelModal(false)
+          setCancelReason('')
+          setSelectedOrder(undefined)
+        }}
+        title="تأكيد إلغاء الطلب"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">يرجى كتابة سبب الإلغاء قبل المتابعة:</p>
+          <textarea
+            className="textarea w-full textarea-bordered"
+            rows={3}
+            placeholder="سبب الإلغاء"
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+          />
+          <div className="flex justify-end gap-4 mt-6">
+            <button
+              onClick={async () => {
+                if (!selectedOrder) return
+                if (!cancelReason.trim()) return
+                setCancelLoading(true)
+                try {
+                  toast.loading('جاري إلغاء الطلب...', { id: 'cancel' })
+                  const response = await EnhancedAPI.updateOrderStatus(
+                    selectedOrder.id,
+                    OrderStatus.CANCELLED,
+                    cancelReason.trim(),
+                    user?.id
+                  )
+                  if (response.success) {
+                    toast.success('تم إلغاء الطلب', { id: 'cancel' })
+                    setShowCancelModal(false)
+                    setCancelReason('')
+                    refresh()
+                  } else {
+                    throw new Error(response.error || 'فشل في إلغاء الطلب')
+                  }
+                } catch (error) {
+                  toast.error('حدث خطأ أثناء الإلغاء', { id: 'cancel' })
+                  console.error('Cancel order error:', error)
+                } finally {
+                  setCancelLoading(false)
+                }
+              }}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={cancelLoading || !cancelReason.trim()}
+            >
+              {cancelLoading ? 'جاري الإلغاء...' : 'تأكيد الإلغاء'}
+            </button>
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="btn btn-ghost"
+              disabled={cancelLoading}
+            >
+              تراجع
+            </button>
+          </div>
+        </div>
+      </SmartModal>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

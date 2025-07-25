@@ -75,7 +75,7 @@ export class OrdersAPI {
           .from('order_items')
           .select(`
             *,
-            service:services(id, name, name_ar, price, unit)
+            service:services(id, name, name_ar, price, unit, estimated_duration)
           `)
           .in('order_id', orderIds);
         
