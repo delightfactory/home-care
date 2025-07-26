@@ -52,6 +52,7 @@ const TeamDetailsModal: React.FC<TeamDetailsModalProps> = ({
         icon={<Users className="h-6 w-6 text-white" />}
         size="xl"
         headerGradient="from-blue-600 via-indigo-600 to-purple-700"
+        closeOnOutsideClick={!showTransferModal}
       >
         <div className="p-6 space-y-6">
           {/* معلومات الفريق */}
