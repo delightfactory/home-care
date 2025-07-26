@@ -143,7 +143,21 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     
     if (type === 'time') {
       onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
-      if (!isMobile) setIsOpen(false)
+      // Don't auto-close when changing time via increment buttons
+      // Only close when user clicks a preset time or confirms
+    } else if (type === 'datetime' && selectedDate) {
+      const datetime = new Date(selectedDate)
+      datetime.setHours(hours, minutes)
+      onChange(toLocalDateTimeISO(datetime))
+    }
+  }
+
+  const handlePresetTimeSelect = (hours: number, minutes: number) => {
+    setSelectedTime({ hours, minutes })
+    
+    if (type === 'time') {
+      onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
+      if (!isMobile) setIsOpen(false) // Close on preset selection for desktop
     } else if (type === 'datetime' && selectedDate) {
       const datetime = new Date(selectedDate)
       datetime.setHours(hours, minutes)
@@ -374,7 +388,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               <button
                 key={preset.label}
                 type="button"
-                onClick={() => handleTimeChange(preset.hours, preset.minutes)}
+                onClick={() => handlePresetTimeSelect(preset.hours, preset.minutes)}
                 className={`
                   py-2 px-3 text-sm rounded-xl transition-all duration-200 font-medium
                   ${selectedTime.hours === preset.hours && selectedTime.minutes === preset.minutes
@@ -458,8 +472,8 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
         {(type === 'time' || type === 'datetime') && renderEnhancedTimePicker()}
       </div>
       
-      {/* Footer for datetime */}
-      {type === 'datetime' && (
+      {/* Footer for datetime and time */}
+      {(type === 'datetime' || type === 'time') && (
         <div className="p-4 border-t border-gray-200 bg-gray-50">
           <button
             type="button"
