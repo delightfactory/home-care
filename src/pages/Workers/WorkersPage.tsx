@@ -27,7 +27,7 @@ const WorkersPage: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-red-600 mb-4">حدث خطأ في تحميل العمال</p>
-          <button onClick={refresh} className="btn-primary">
+          <button onClick={() => refresh()} className="btn-primary">
             إعادة المحاولة
           </button>
         </div>

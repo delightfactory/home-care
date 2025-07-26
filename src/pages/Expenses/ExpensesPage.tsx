@@ -41,7 +41,7 @@ const ExpensesPage: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-red-600 mb-4">حدث خطأ في تحميل المصروفات</p>
-          <button onClick={refresh} className="btn-primary">
+          <button onClick={() => refresh()} className="btn-primary">
             إعادة المحاولة
           </button>
         </div>
@@ -299,7 +299,7 @@ const ExpensesPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <button onClick={refresh} className="btn-secondary hover:scale-105 transition-all duration-200">تصفية</button>
+            <button onClick={() => refresh()} className="btn-secondary hover:scale-105 transition-all duration-200">تصفية</button>
           </div>
         </div>
         <div className="relative">
