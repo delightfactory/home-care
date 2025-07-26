@@ -1,5 +1,6 @@
 // Reports and Analytics API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
+import { toLocalDateISO } from '../api'
 import { 
   DailyReport,
   DashboardStats,
@@ -197,7 +198,7 @@ export class ReportsAPI {
   // Get dashboard statistics
   static async getDashboardStats(): Promise<DashboardStats> {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = toLocalDateISO(new Date())
 
       // Today's orders
       const { data: todayOrders } = await supabase
@@ -219,8 +220,8 @@ export class ReportsAPI {
         .eq('status', 'in_progress')
 
       // This month's revenue and expenses
-      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
-      const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
+      const startOfMonth = toLocalDateISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+      const endOfMonth = toLocalDateISO(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))
 
       const { data: monthlyOrders } = await supabase
         .from('orders')

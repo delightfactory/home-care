@@ -1,6 +1,7 @@
 // Orders API Layer
 import type { OrderCounts } from '../types'
 import { supabase, handleSupabaseError, generateOrderNumber } from '../lib/supabase'
+import { getToday } from '../api'
 import { 
   Order, 
   OrderInsert, 
@@ -428,7 +429,7 @@ export class OrdersAPI {
   // Get today's orders
   static async getTodayOrders(): Promise<OrderWithDetails[]> {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getToday()
 
       const { data, error } = await supabase
         .from('orders')
