@@ -448,3 +448,89 @@ FROM (
   ORDER  BY ro.order_id, ro.created_at DESC
 ) sub
 WHERE  o.id = sub.order_id;
+
+
+
+
+
+
+/*============================================================
+=  Trigger: إعادة تعيين قائد الفريق عند حذفه/نقله        =
+============================================================*/
+
+-- 1) الدالّة
+CREATE OR REPLACE FUNCTION trg_reset_leader_when_removed()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER        -- لتمكين التنفيذ تحت صلاحيات المنشئ عند تفعيل RLS
+AS $$
+BEGIN
+  /* عند الحذف */
+  IF TG_OP = 'DELETE' THEN
+    UPDATE teams
+    SET    leader_id = NULL,
+           updated_at = NOW()
+    WHERE  id = OLD.team_id
+      AND  leader_id = OLD.worker_id;
+
+  /* عند النقل إلى فريق آخر (تغيّر team_id) */
+  ELSIF TG_OP = 'UPDATE'
+     AND NEW.team_id IS DISTINCT FROM OLD.team_id THEN
+    UPDATE teams
+    SET    leader_id = NULL,
+           updated_at = NOW()
+    WHERE  id = OLD.team_id          -- الفريق الأصلى
+      AND  leader_id = OLD.worker_id;
+  END IF;
+
+  RETURN NULL;   -- AFTER trigger لا يحتاج إرجاع سجل
+END;
+$$;
+
+-- 2) التريجر
+DROP TRIGGER IF EXISTS team_members_reset_leader ON team_members;
+
+CREATE TRIGGER team_members_reset_leader
+AFTER DELETE OR UPDATE OF team_id ON team_members
+FOR EACH ROW
+EXECUTE PROCEDURE trg_reset_leader_when_removed();
+
+-- 3) (اختياري) منح صلاحية التنفيذ لدور authenticated
+GRANT EXECUTE ON FUNCTION trg_reset_leader_when_removed() TO authenticated;
+
+
+
+
+
+/* ==============================================
+   ميزة تأكيد الطلب مع العميل
+   يضيف حقلاً للحالة + بيانات التوثيق
+   ============================================== */
+
+-- 1) إنشاء نوع ENUM للحالة (pending / confirmed / declined)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'confirmation_status_enum'
+  ) THEN
+    CREATE TYPE confirmation_status_enum AS ENUM ('pending', 'confirmed', 'declined');
+  END IF;
+END
+$$;
+
+-- 2) تعديل جدول الطلبات
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS confirmation_status confirmation_status_enum NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS confirmed_at      TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS confirmed_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS confirmation_notes TEXT;
+
+-- 3) فهرس اختياري للأداء على حقل الحالة
+CREATE INDEX IF NOT EXISTS idx_orders_confirmation_status
+  ON orders (confirmation_status);
+
+-- 4) تعليق توضيحي (اختياري)
+COMMENT ON COLUMN orders.confirmation_status  IS 'حالة تأكيد الطلب مع العميل (معلّقة/مؤكَّدة/مرفوضة)';
+COMMENT ON COLUMN orders.confirmed_at         IS 'تاريخ ووقت تأكيد أو رفض العميل';
+COMMENT ON COLUMN orders.confirmed_by         IS 'معرّف المستخدم الذي قام بعملية التأكيد/الرفض';
+COMMENT ON COLUMN orders.confirmation_notes   IS 'ملاحظات موظف الكول سنتر أثناء التأكيد أو الرفض';

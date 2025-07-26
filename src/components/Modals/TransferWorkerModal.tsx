@@ -183,7 +183,7 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
                   className="input w-full pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  disabled={isLeader}
+                  disabled={false}
                 >
                   <option value="">اختر الفريق الجديد</option>
                   {teams.map(team => (
@@ -201,14 +201,14 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-700 flex items-center">
                   <Crown className="h-4 w-4 ml-2 text-yellow-600" />
-                  💡 نصيحة: استخدم زر "تعيين قائد جديد" أعلاه لتمكين النقل
+                  ⚠️ هذا العامل هو قائد الفريق الحالي. بعد نقله سيبقى الفريق بدون قائد ويمكنك تعيين قائد جديد لاحقًا.
                 </p>
               </div>
             )}
           </div>
 
           {/* معاينة النقل */}
-          {selectedTeamId && !isLeader && (
+          {selectedTeamId && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
               <h4 className="text-sm font-semibold text-blue-900 mb-4 flex items-center">
                 <ArrowRightLeft className="h-4 w-4 ml-2" />
@@ -253,7 +253,7 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
           </button>
           <button
             onClick={handleTransfer}
-            disabled={loading || !selectedTeamId || isLeader}
+            disabled={loading || !selectedTeamId}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {loading ? (

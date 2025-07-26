@@ -193,7 +193,7 @@ const TeamDetailsModal: React.FC<TeamDetailsModalProps> = ({
                           </div>
                         </div>
                       </div>
-                      {member.worker && member.worker.id !== team.leader_id && (
+                      {member.worker && (
                         <button
                           onClick={() => handleTransferWorker(member)}
                           className="p-3 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 flex-shrink-0 border border-blue-200 hover:border-blue-300"

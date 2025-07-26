@@ -376,10 +376,19 @@ export class TeamsAPI {
     memberIds: string[] = []
   ): Promise<ApiResponse<TeamWithMembers>> {
     try {
+      // تأمين قيمة leader_id بحيث تكون NULL إذا كانت سلسلة فارغة
+      const sanitizedData = {
+        ...teamData,
+        leader_id:
+          (teamData as any).leader_id === '' || (teamData as any).leader_id === undefined
+            ? null
+            : (teamData as any).leader_id
+      }
+
       // Create team
       const { data: team, error: teamError } = await supabase
         .from('teams')
-        .insert(teamData)
+        .insert(sanitizedData)
         .select()
         .single()
 
@@ -423,9 +432,19 @@ export class TeamsAPI {
     updates: TeamUpdate
   ): Promise<ApiResponse<Team>> {
     try {
+      // تأمين leader_id فى التحديثات أيضًا
+      const sanitizedUpdates = {
+        ...updates,
+        leader_id:
+          (updates as any).leader_id === '' || (updates as any).leader_id === undefined
+            ? null
+            : (updates as any).leader_id,
+        updated_at: new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('teams')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(sanitizedUpdates)
         .eq('id', id)
         .select()
         .single()
@@ -524,23 +543,8 @@ export class TeamsAPI {
     toTeamId: string
   ): Promise<ApiResponse<void>> {
     try {
-      // التحقق من أن العامل ليس قائد الفريق الحالي
+      // إزالة العامل من الفريق الحالي (قد يكون قائدًا، وسيقوم التريجر بضبط leader_id = NULL تلقائيًا)
       if (fromTeamId) {
-        const { data: currentTeam, error: teamError } = await supabase
-          .from('teams')
-          .select('leader_id')
-          .eq('id', fromTeamId)
-          .single()
-
-        if (teamError) throw teamError
-
-        if (currentTeam.leader_id === workerId) {
-          return {
-            success: false,
-            error: 'لا يمكن نقل قائد الفريق. يجب تعيين قائد جديد أولاً'
-          }
-        }
-
         // إزالة العامل من الفريق الحالي
         const removeResult = await this.removeTeamMember(fromTeamId, workerId)
         if (!removeResult.success) {
