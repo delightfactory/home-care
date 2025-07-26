@@ -321,3 +321,130 @@ CREATE POLICY "Users can view orders based on role" ON orders
 
 
     
+/*============================================================
+= 1) فهارس مساعدة للأداء (تنشأ إذا لم تكن موجودة)       =
+============================================================*/
+CREATE INDEX IF NOT EXISTS idx_route_orders_order_id ON route_orders(order_id);
+CREATE INDEX IF NOT EXISTS idx_route_orders_route_id ON route_orders(route_id);
+CREATE INDEX IF NOT EXISTS idx_routes_team_id        ON routes(team_id);
+
+/*============================================================
+= 2) دالة تحديث team_id لطلب واحد (Security Definer)      =
+============================================================*/
+CREATE OR REPLACE FUNCTION update_order_team(p_order_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER                -- تتجاوز سياسات RLS
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_team_id UUID;
+BEGIN
+  /* الحصول على أحدث فريق مرتبط بالطلب (إن وُجد) */
+  SELECT r.team_id
+  INTO   v_team_id
+  FROM   route_orders ro
+  JOIN   routes r ON r.id = ro.route_id
+  WHERE  ro.order_id = p_order_id
+  ORDER  BY ro.created_at DESC       -- يفترض وجود created_at
+  LIMIT  1;
+
+  /* إذا لم يوجد خط سير، v_team_id ستكون NULL */
+  UPDATE orders
+  SET    team_id = v_team_id
+  WHERE  id = p_order_id;
+END;
+$$;
+
+-- منح حق الاستدعاء لدور authenticated فقط
+GRANT EXECUTE ON FUNCTION update_order_team(UUID) TO authenticated;
+
+/*============================================================
+= 3) Trigger على route_orders (INSERT / UPDATE / DELETE)  =
+============================================================*/
+CREATE OR REPLACE FUNCTION trg_route_orders_sync()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM update_order_team(OLD.order_id);
+  ELSE
+    PERFORM update_order_team(NEW.order_id);
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS route_orders_sync_team ON route_orders;
+CREATE TRIGGER route_orders_sync_team
+AFTER INSERT OR UPDATE OR DELETE ON route_orders
+FOR EACH ROW EXECUTE PROCEDURE trg_route_orders_sync();
+
+/*============================================================
+= 4) Trigger على routes لتحديث الطلبات عند تغيير الفريق =
+============================================================*/
+CREATE OR REPLACE FUNCTION trg_routes_team_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE orders
+  SET    team_id = NEW.team_id
+  WHERE  id IN (
+    SELECT ro.order_id
+    FROM   route_orders ro
+    WHERE  ro.route_id = NEW.id
+  );
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS routes_team_change ON routes;
+CREATE TRIGGER routes_team_change
+AFTER UPDATE OF team_id ON routes
+FOR EACH ROW EXECUTE PROCEDURE trg_routes_team_change();
+
+/*============================================================
+= 5) مزامنة أولية للبيانات التاريخية (تشغَّل مرة واحدة)  =
+============================================================*/
+-- لإعادة ملء team_id للطلبات القديمة، أزل التعليقات وشغّل الجزء التالي
+/*
+UPDATE orders o
+SET    team_id = sub.team_id
+FROM (
+  SELECT DISTINCT ON (ro.order_id) ro.order_id, r.team_id
+  FROM   route_orders ro
+  JOIN   routes r ON r.id = ro.route_id
+  ORDER  BY ro.order_id, ro.created_at DESC
+) sub
+WHERE  o.id = sub.order_id;
+*/
+
+/*============================================================
+= 6) اختبار اختياري بعد التنفيذ                            =
+============================================================
+-- مثال مختصر للاختبار موضح في السكربت السابق؛ يمكن تشغيله للتأكد من المزامنة.
+*/
+
+
+
+
+-- إضافة الأعمدة إن لم تكن موجودة
+ALTER TABLE route_orders
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- فهرس اختياري للأداء
+CREATE INDEX IF NOT EXISTS idx_route_orders_created_at ON route_orders(created_at);
+
+-- استعلام المزامنة التاريخية (بعد إضافة العمود)
+UPDATE orders o
+SET    team_id = sub.team_id
+FROM (
+  SELECT DISTINCT ON (ro.order_id) ro.order_id, r.team_id
+  FROM   route_orders ro
+  JOIN   routes r ON r.id = ro.route_id
+  ORDER  BY ro.order_id, ro.created_at DESC
+) sub
+WHERE  o.id = sub.order_id;

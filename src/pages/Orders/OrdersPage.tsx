@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw } from 'lucide-react'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
@@ -11,6 +11,9 @@ import OrderDetailsModal from '../../components/Orders/OrderDetailsModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
 import { useOrders, useSystemHealth, useOrderCounts } from '../../hooks/useEnhancedAPI'
+import OrdersFilterBar, { OrdersFiltersUI } from '../../components/Orders/OrdersFilterBar'
+import SearchResultsInfo from '../../components/Orders/SearchResultsInfo'
+import { eventBus } from '../../utils/EventBus'
 
 const OrdersPage: React.FC = () => {
   const { user } = useAuth()
@@ -26,12 +29,24 @@ const OrdersPage: React.FC = () => {
   const [cancelReason, setCancelReason] = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
 
+  // Smart filter UI state
+  const [filtersUI, setFiltersUI] = useState<OrdersFiltersUI>({
+    status: [],
+    dateFrom: '',
+    dateTo: '',
+    teamId: ''
+  })
+
   const [refreshing, setRefreshing] = useState(false)
 
   // Enhanced API hooks for optimized performance
   const filters = useMemo(() => ({
+    status: filtersUI.status.length ? filtersUI.status : undefined,
+    date_from: filtersUI.dateFrom || undefined,
+    date_to: filtersUI.dateTo || undefined,
+    team_id: filtersUI.teamId || undefined,
     search: searchTerm || undefined
-  }), [searchTerm])
+  }), [filtersUI, searchTerm])
 
   const { 
     data: orders, 
@@ -44,6 +59,21 @@ const OrdersPage: React.FC = () => {
   } = useOrders(filters, 1, 20, true)
   // Sentinel for infinite scroll
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+
+  // تحديث لحظي لقائمة الطلبات عند تغيير خطوط السير أو الطلبات
+  useEffect(() => {
+    const handler = () => {
+      // مسح كاش الطلبات حتى يتم جلب البيانات المحدَّثة
+      EnhancedAPI.clearCache('enhanced:orders');
+      refresh();
+    }
+    const offRoutes = eventBus.on('routes:changed', handler)
+    const offOrders = eventBus.on('orders:changed', handler)
+    return () => {
+      offRoutes()
+      offOrders()
+    }
+  }, [refresh])
 
   // Orders are already filtered by the API based on search term
   const filteredOrders = orders || []
@@ -305,6 +335,12 @@ const OrdersPage: React.FC = () => {
         </div>
       )}
 
+      {/* Smart Filters Bar */}
+      <OrdersFilterBar
+        filters={filtersUI}
+        onFiltersChange={(changes) => setFiltersUI(prev => ({ ...prev, ...changes }))}
+      />
+
       <div className="card-compact">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -316,14 +352,18 @@ const OrdersPage: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {searchTerm && (
-          <div className="mt-3 p-3 bg-primary-50 rounded-lg border border-primary-200">
-            <p className="text-sm text-primary-700">
-              عرض {filteredOrders.length} {pagination?.total ? `من أصل ${pagination.total}` : ''} طلب
-            </p>
-          </div>
-        )}
       </div>
+
+      {/* Search Results Info */}
+      <SearchResultsInfo
+        totalResults={filteredOrders.length}
+        totalCount={pagination?.total}
+        searchTerm={searchTerm}
+        filters={filtersUI}
+        isLoading={isLoading}
+        onClearSearch={() => setSearchTerm('')}
+        onClearFilters={() => setFiltersUI({ status: [], dateFrom: '', dateTo: '', teamId: '' })}
+      />
 
       <div className="card-elevated">
         <div className="overflow-x-auto">

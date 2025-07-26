@@ -32,6 +32,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   showPresets = true
 }) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [dropdownStyles, setDropdownStyles] = useState<React.CSSProperties>({})
   const [isMobile, setIsMobile] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -71,33 +72,41 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     }
   }, [isOpen, isMobile])
 
-  // Position dropdown to stay within viewport
+  // Position dropdown (desktop) to stay within viewport using fixed positioning
   useEffect(() => {
     if (isOpen && !isMobile && dropdownRef.current && containerRef.current) {
+      const inputRect = containerRef.current.getBoundingClientRect()
       const dropdown = dropdownRef.current
-      const container = containerRef.current
-      const rect = container.getBoundingClientRect()
+      // Temporarily show to measure width/height (in case hidden)
+      dropdown.style.visibility = 'hidden'
+      dropdown.style.display = 'block'
       const dropdownRect = dropdown.getBoundingClientRect()
+      dropdown.style.display = ''
+      dropdown.style.visibility = ''
+
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
 
-      // Reset position
-      dropdown.style.left = '0'
-      dropdown.style.right = 'auto'
-      dropdown.style.top = '100%'
-      dropdown.style.bottom = 'auto'
+      let left = inputRect.left
+      let top = inputRect.bottom + 8 // 8px margin
 
-      // Check if dropdown goes beyond right edge
-      if (rect.left + dropdownRect.width > viewportWidth - 20) {
-        dropdown.style.left = 'auto'
-        dropdown.style.right = '0'
+      // Adjust horizontal overflow
+      if (left + dropdownRect.width > viewportWidth - 16) {
+        left = viewportWidth - dropdownRect.width - 16
+      }
+      if (left < 16) {
+        left = 16
       }
 
-      // Check if dropdown goes beyond bottom edge
-      if (rect.bottom + dropdownRect.height > viewportHeight - 20) {
-        dropdown.style.top = 'auto'
-        dropdown.style.bottom = '100%'
+      // Adjust vertical overflow
+      if (top + dropdownRect.height > viewportHeight - 16) {
+        top = inputRect.top - dropdownRect.height - 8
       }
+      if (top < 16) {
+        top = 16
+      }
+
+      setDropdownStyles({ left, top })
     }
   }, [isOpen, isMobile])
 
@@ -139,20 +148,32 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
         onStartDateChange(yesterdayStr)
         onEndDateChange(yesterdayStr)
         break
-      case 'thisWeek':
+      case 'thisWeek': {
+        // في مصر يبدأ الأسبوع يوم السبت (getDay() = 6) وينتهي الجمعة (getDay() = 5)
+        const daysSinceSaturday = (today.getDay() + 1) % 7 // السبت = 0 بعد هذا الحساب
         const startOfWeek = new Date(today)
-        startOfWeek.setDate(today.getDate() - today.getDay())
+        startOfWeek.setDate(today.getDate() - daysSinceSaturday)
+        const endOfWeek = new Date(startOfWeek)
+        endOfWeek.setDate(startOfWeek.getDate() + 6)
+        const endDate = endOfWeek > today ? today : endOfWeek
         onStartDateChange(startOfWeek.toISOString().split('T')[0])
-        onEndDateChange(todayStr)
+        onEndDateChange(endDate.toISOString().split('T')[0])
         break
-      case 'lastWeek':
-        const lastWeekEnd = new Date(today)
-        lastWeekEnd.setDate(today.getDate() - today.getDay() - 1)
-        const lastWeekStart = new Date(lastWeekEnd)
-        lastWeekStart.setDate(lastWeekEnd.getDate() - 6)
+      }
+      case 'lastWeek': {
+        // نحسب بداية هذا الأسبوع أولاً (السبت)
+        const daysSinceSaturday = (today.getDay() + 1) % 7
+        const startOfCurrentWeek = new Date(today)
+        startOfCurrentWeek.setDate(today.getDate() - daysSinceSaturday)
+        // الأسبوع الماضي يبدأ قبل 7 أيام من بداية الأسبوع الحالي
+        const lastWeekStart = new Date(startOfCurrentWeek)
+        lastWeekStart.setDate(startOfCurrentWeek.getDate() - 7)
+        const lastWeekEnd = new Date(lastWeekStart)
+        lastWeekEnd.setDate(lastWeekStart.getDate() + 6)
         onStartDateChange(lastWeekStart.toISOString().split('T')[0])
         onEndDateChange(lastWeekEnd.toISOString().split('T')[0])
         break
+      }
       case 'thisMonth':
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
         onStartDateChange(startOfMonth.toISOString().split('T')[0])
@@ -345,7 +366,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
       {isOpen && !isMobile && (
         <div 
           ref={dropdownRef}
-          className="absolute z-50 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg w-full sm:w-auto sm:min-w-[500px] lg:min-w-[600px] max-w-[95vw]"
+          style={dropdownStyles}
+          className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-lg w-full sm:w-auto sm:min-w-[500px] lg:min-w-[600px] max-w-[95vw]"
         >
           <div className="flex flex-col lg:flex-row">
             {/* Presets Sidebar */}

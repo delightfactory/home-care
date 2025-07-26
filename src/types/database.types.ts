@@ -443,6 +443,8 @@ export interface Database {
           actual_arrival_time: string | null
           estimated_completion_time: string | null
           actual_completion_time: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -453,6 +455,8 @@ export interface Database {
           actual_arrival_time?: string | null
           estimated_completion_time?: string | null
           actual_completion_time?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -463,6 +467,8 @@ export interface Database {
           actual_arrival_time?: string | null
           estimated_completion_time?: string | null
           actual_completion_time?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
       expense_categories: {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { X, ArrowRight, Users, Crown } from 'lucide-react'
+import { ArrowRight, Users, Crown, ArrowRightLeft } from 'lucide-react'
 import { WorkerWithTeam, TeamWithMembers } from '../../types'
 import { TeamsAPI } from '../../api/workers'
 import LoadingSpinner from '../UI/LoadingSpinner'
+import SmartModal from '../UI/SmartModal'
 import AssignNewLeaderModal from './AssignNewLeaderModal'
 import toast from 'react-hot-toast'
 
@@ -111,49 +112,50 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
     onClose()
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center">
-            <Users className="h-6 w-6 ml-2 text-primary-600" />
-            نقل العامل
-          </h2>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
+    <>
+      <SmartModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="نقل العامل"
+        icon={<ArrowRightLeft className="h-5 w-5" />}
+        size="md"
+        headerGradient="from-blue-500 via-blue-600 to-blue-700"
+        contentClassName="p-6"
+        className="ring-1 ring-blue-100"
+      >
+        <div className="space-y-6">
           {/* معلومات العامل */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">معلومات العامل</h3>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">الاسم:</span> {worker?.name}
-              </p>
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">الفريق الحالي:</span> {worker?.team?.name || 'غير محدد'}
-              </p>
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mr-3">معلومات العامل</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                <span className="text-sm font-medium text-gray-700">الاسم:</span>
+                <span className="text-sm text-gray-900 font-semibold">{worker?.name}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                <span className="text-sm font-medium text-gray-700">الفريق الحالي:</span>
+                <span className="text-sm text-gray-900 font-semibold">{worker?.team?.name || 'غير محدد'}</span>
+              </div>
               {isLeader && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl">
                   <div className="flex items-center mb-3">
-                    <Crown className="h-5 w-5 text-yellow-500 ml-2" />
-                    <p className="text-sm text-yellow-800 font-medium">
+                    <Crown className="h-5 w-5 text-yellow-600 ml-2" />
+                    <p className="text-sm text-yellow-800 font-semibold">
                       هذا العامل قائد للفريق الحالي
                     </p>
                   </div>
-                  <p className="text-xs text-yellow-700 mb-3">
-                    لنقل قائد الفريق، يجب تعيين قائد جديد أولاً
+                  <p className="text-xs text-yellow-700 mb-4 leading-relaxed">
+                    لنقل قائد الفريق، يجب تعيين قائد جديد أولاً. هذا يضمن استمرارية إدارة الفريق.
                   </p>
                   <button
                     onClick={() => setShowAssignLeaderModal(true)}
-                    className="w-full btn-warning text-sm py-2 flex items-center justify-center"
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:scale-105"
                     type="button"
                   >
                     <Crown className="h-4 w-4 ml-2" />
@@ -166,57 +168,81 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
 
           {/* اختيار الفريق الجديد */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+              <ArrowRightLeft className="h-4 w-4 ml-2 text-blue-500" />
               الفريق الجديد
             </label>
             {loadingData ? (
-              <div className="flex items-center justify-center py-4">
+              <div className="flex items-center justify-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
                 <LoadingSpinner size="small" text="جاري تحميل الفرق..." />
               </div>
             ) : (
-              <select
-                value={selectedTeamId}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-                className="input w-full"
-              >
-                <option value="">اختر الفريق الجديد</option>
-                {teams.map(team => (
-                  <option key={team.id} value={team.id}>
-                    {team.name} ({team.members?.length || 0} أعضاء)
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  className="input w-full pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  disabled={isLeader}
+                >
+                  <option value="">اختر الفريق الجديد</option>
+                  {teams.map(team => (
+                    <option key={team.id} value={team.id}>
+                      {team.name} ({team.members?.length || 0} أعضاء)
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <Users className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
             )}
             {isLeader && (
-              <p className="text-sm text-yellow-600 mt-1">
-                💡 نصيحة: استخدم زر "تعيين قائد جديد" أعلاه لتمكين النقل
-              </p>
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-700 flex items-center">
+                  <Crown className="h-4 w-4 ml-2 text-yellow-600" />
+                  💡 نصيحة: استخدم زر "تعيين قائد جديد" أعلاه لتمكين النقل
+                </p>
+              </div>
             )}
           </div>
 
           {/* معاينة النقل */}
           {selectedTeamId && !isLeader && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center justify-center space-x-4 space-x-reverse">
-                <div className="text-center">
-                  <p className="text-sm font-medium text-blue-900">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+              <h4 className="text-sm font-semibold text-blue-900 mb-4 flex items-center">
+                <ArrowRightLeft className="h-4 w-4 ml-2" />
+                معاينة النقل
+              </h4>
+              <div className="flex items-center justify-center space-x-6 space-x-reverse">
+                <div className="text-center p-3 bg-white rounded-lg border border-blue-100 shadow-sm">
+                  <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Users className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">
                     {worker?.team?.name || 'بدون فريق'}
                   </p>
-                  <p className="text-xs text-blue-600">الفريق الحالي</p>
+                  <p className="text-xs text-gray-600 mt-1">الفريق الحالي</p>
                 </div>
-                <ArrowRight className="h-6 w-6 text-blue-500" />
-                <div className="text-center">
-                  <p className="text-sm font-medium text-blue-900">
+                <div className="flex flex-col items-center">
+                  <ArrowRight className="h-6 w-6 text-blue-500 mb-1" />
+                  <span className="text-xs text-blue-600 font-medium">نقل</span>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border border-blue-100 shadow-sm">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-semibold text-blue-900">
                     {teams.find(t => t.id === selectedTeamId)?.name}
                   </p>
-                  <p className="text-xs text-blue-600">الفريق الجديد</p>
+                  <p className="text-xs text-blue-600 mt-1">الفريق الجديد</p>
                 </div>
               </div>
             </div>
           )}
         </div>
-
-        <div className="flex justify-end space-x-3 space-x-reverse p-6 border-t border-gray-200">
+        
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-3 space-x-reverse pt-6 border-t border-gray-200 mt-6">
           <button
             onClick={handleClose}
             className="btn-secondary"
@@ -226,20 +252,23 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
           </button>
           <button
             onClick={handleTransfer}
-            disabled={loading || !selectedTeamId}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !selectedTeamId || isLeader}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {loading ? (
-              <div className="flex items-center">
+              <>
                 <LoadingSpinner size="small" />
                 <span className="mr-2">جاري النقل...</span>
-              </div>
+              </>
             ) : (
-              'تأكيد النقل'
+              <>
+                <ArrowRightLeft className="h-4 w-4 ml-2" />
+                تأكيد النقل
+              </>
             )}
           </button>
         </div>
-      </div>
+      </SmartModal>
 
       {/* نموذج تعيين قائد جديد */}
       {showAssignLeaderModal && currentTeam && (
@@ -251,7 +280,7 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
           onSuccess={handleNewLeaderAssigned}
         />
       )}
-    </div>
+    </>
   )
 }
 
