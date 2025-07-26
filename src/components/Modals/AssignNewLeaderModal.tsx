@@ -81,11 +81,19 @@ const AssignNewLeaderModal: React.FC<AssignNewLeaderModalProps> = ({
     onClose()
   }
 
+  // تمت إزالة الإغلاق التلقائي عند النقر خارج المحتوى لمنع إغلاق غير مقصود
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={handleClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-t-xl">
           <h2 className="text-xl font-bold flex items-center">
             <Crown className="h-6 w-6 ml-2" />
@@ -126,6 +134,7 @@ const AssignNewLeaderModal: React.FC<AssignNewLeaderModalProps> = ({
                 value={selectedNewLeaderId}
                 onChange={(e) => setSelectedNewLeaderId(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onFocus={(e) => e.stopPropagation()}
                 className="input w-full"
               >

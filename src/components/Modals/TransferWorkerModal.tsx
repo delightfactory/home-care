@@ -119,6 +119,7 @@ const TransferWorkerModal: React.FC<TransferWorkerModalProps> = ({
         onClose={handleClose}
         title="نقل العامل"
         icon={<ArrowRightLeft className="h-5 w-5" />}
+        closeOnOutsideClick={false}
         size="md"
         headerGradient="from-blue-500 via-blue-600 to-blue-700"
         contentClassName="p-6"
