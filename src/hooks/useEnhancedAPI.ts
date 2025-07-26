@@ -219,22 +219,35 @@ export function useWorkers(filters?: WorkerFilters) {
   
   const filtersString = JSON.stringify(filters);
 
-  const fetchWorkers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await EnhancedAPI.getWorkers(filters);
-      setWorkers(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
-    } finally {
-      setLoading(false);
-    }
-  }, [filtersString]);
+  const fetchWorkers = useCallback(
+    async (bypassCache: boolean = false) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // إذا تم طلب تجاوز الكاش، نمرر useCache = false
+        const result = await EnhancedAPI.getWorkers(filters, !bypassCache);
+        setWorkers(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filtersString]
+  );
 
   useEffect(() => {
     fetchWorkers();
+  }, [fetchWorkers]);
+
+  // Listen to workers:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('workers:changed', () => {
+      // تجاوز الكاش لضمان تحديث البيانات فورياً
+      fetchWorkers(true);
+    });
+    return off;
   }, [fetchWorkers]);
 
   return { workers, loading, error, refresh: fetchWorkers };

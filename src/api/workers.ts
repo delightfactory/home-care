@@ -1,5 +1,6 @@
 // Workers and Teams API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
+import { eventBus } from '../utils/EventBus'
 import { 
   Worker, 
   Team,
@@ -112,6 +113,7 @@ export class WorkersAPI {
 
       if (error) throw error
 
+      eventBus.emit('workers:changed')
       return {
         success: true,
         data,
@@ -140,6 +142,7 @@ export class WorkersAPI {
 
       if (error) throw error
 
+      eventBus.emit('workers:changed')
       return {
         success: true,
         data,
@@ -171,6 +174,7 @@ export class WorkersAPI {
 
       if (error) throw error
 
+      eventBus.emit('workers:changed')
       return {
         success: true,
         data,
@@ -550,6 +554,8 @@ export class TeamsAPI {
         return addResult
       }
 
+      eventBus.emit('workers:changed')
+      eventBus.emit('teams:changed')
       return {
         success: true,
         message: 'تم نقل العامل بنجاح'
