@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { X, ArrowUp, ArrowDown, Plus, Minus, Save, ClipboardList } from 'lucide-react'
+import { X, ArrowUp, ArrowDown, Plus, Minus, Save, ClipboardList, RefreshCw, Check, XCircle } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
 import { RoutesAPI } from '../../api'
-import { OrderWithDetails, RouteWithOrders } from '../../types'
+import { OrderWithDetails, RouteWithOrders, ConfirmationStatus } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
 import toast from 'react-hot-toast'
@@ -15,6 +15,35 @@ interface AssignOrdersModalProps {
 }
 
 const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, route, onSaved }) => {
+  // Helper to render confirmation badge
+  const getConfirmationBadge = (status?: ConfirmationStatus | null) => {
+    const statusClasses: Record<ConfirmationStatus, string> = {
+      pending: 'bg-gray-200 text-gray-700',
+      confirmed: 'bg-green-200 text-green-700',
+      declined: 'bg-red-200 text-red-700'
+    } as any;
+
+    const statusTexts: Record<ConfirmationStatus, string> = {
+      pending: 'معلقة',
+      confirmed: 'مؤكَّدة',
+      declined: 'مرفوضة'
+    } as any;
+
+    const iconMap: Record<ConfirmationStatus, JSX.Element> = {
+      pending: <RefreshCw className="inline-block w-3 h-3" />,
+      confirmed: <Check className="inline-block w-3 h-3" />,
+      declined: <XCircle className="inline-block w-3 h-3" />
+    } as any;
+
+    const effectiveStatus: ConfirmationStatus = (status && status in statusTexts ? status : 'pending') as ConfirmationStatus;
+
+    return (
+      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${statusClasses[effectiveStatus]} text-[10px]`}> 
+        {iconMap[effectiveStatus]}
+        {statusTexts[effectiveStatus]}
+      </span>
+    )
+  }
   const [availableOrders, setAvailableOrders] = useState<OrderWithDetails[]>([])
   const [assignedOrders, setAssignedOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(false)
@@ -167,7 +196,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                 {availableOrders.map((o) => (
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
                     <div>
-                      <p className="font-medium">{o.customer?.name || o.id}</p>
+                      <p className="font-medium flex items-center gap-1">{o.customer?.name || o.id} {getConfirmationBadge(o.confirmation_status as any)}</p>
                       <p className="text-xs text-gray-500">{o.scheduled_time} {o.customer?.area ? `- ${o.customer.area}` : ''}</p>
                       <p className="text-xs text-gray-500">مدة: {formatDuration(getOrderDuration(o))} • خدمات: {o.items?.length || 0}</p>
                     </div>
@@ -192,7 +221,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                 {assignedOrders.map((o, idx) => (
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
                     <div>
-                      <p className="font-medium">#{idx + 1} - {o.customer?.name || o.id}</p>
+                      <p className="font-medium flex items-center gap-1">#{idx + 1} - {o.customer?.name || o.id} {getConfirmationBadge(o.confirmation_status as any)}</p>
                       <p className="text-xs text-gray-500">{o.scheduled_time} {o.customer?.area ? `- ${o.customer.area}` : ''}</p>
                       <p className="text-xs text-gray-500">مدة: {formatDuration(getOrderDuration(o))} • خدمات: {o.items?.length || 0}</p>
                     </div>

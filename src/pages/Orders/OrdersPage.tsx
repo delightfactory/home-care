@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw } from 'lucide-react'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
-import { OrderStatus } from '../../types'
+import { OrderStatus, ConfirmationStatus } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import { OrderWithDetails } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -32,6 +32,7 @@ const OrdersPage: React.FC = () => {
   // Smart filter UI state
   const [filtersUI, setFiltersUI] = useState<OrdersFiltersUI>({
     status: [],
+    confirmationStatuses: [],
     dateFrom: '',
     dateTo: '',
     teamId: ''
@@ -42,6 +43,7 @@ const OrdersPage: React.FC = () => {
   // Enhanced API hooks for optimized performance
   const filters = useMemo(() => ({
     status: filtersUI.status.length ? filtersUI.status : undefined,
+    confirmation_status: filtersUI.confirmationStatuses.length ? filtersUI.confirmationStatuses : undefined,
     date_from: filtersUI.dateFrom || undefined,
     date_to: filtersUI.dateTo || undefined,
     team_id: filtersUI.teamId || undefined,
@@ -147,6 +149,60 @@ const OrdersPage: React.FC = () => {
         {statusTexts[status as keyof typeof statusTexts] || status}
       </span>
     )
+  }
+
+  const getConfirmationBadge = (status?: ConfirmationStatus | null) => {
+    const statusClasses: Record<ConfirmationStatus, string> = {
+      pending: 'bg-gray-200 text-gray-700',
+      confirmed: 'bg-green-200 text-green-700',
+      declined: 'bg-red-200 text-red-700'
+    } as any;
+
+    const statusTexts: Record<ConfirmationStatus, string> = {
+      pending: 'معلقة',
+      confirmed: 'مؤكَّدة',
+      declined: 'مرفوضة'
+    } as any;
+
+    // عيّن الحالة الافتراضية إلى pending إذا كانت غير موجودة
+    const effectiveStatus: ConfirmationStatus = (status && status in statusTexts ? status : 'pending') as ConfirmationStatus;
+
+    const iconMap: Record<ConfirmationStatus, JSX.Element> = {
+      pending: <RefreshCw className="inline-block w-4 h-4 mr-1" />,
+      confirmed: <Check className="inline-block w-4 h-4 mr-1" />,
+      declined: <XCircle className="inline-block w-4 h-4 mr-1" />
+    } as any;
+
+    return (
+      <span className={`badge flex items-center gap-1 ${statusClasses[effectiveStatus]} hover:opacity-80 transition`}>
+        {iconMap[effectiveStatus]}
+        {statusTexts[effectiveStatus]}
+      </span>
+    );
+  };
+
+  const handleConfirmationChange = async (order: OrderWithDetails) => {
+    // دورة الحالات: pending -> confirmed -> declined -> pending
+    const nextMap: Record<ConfirmationStatus, ConfirmationStatus> = {
+      pending: 'confirmed',
+      confirmed: 'declined',
+      declined: 'pending'
+    } as any;
+
+    const nextStatus = nextMap[order.confirmation_status as ConfirmationStatus] || 'confirmed';
+    try {
+      toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
+      const response = await EnhancedAPI.updateOrderConfirmationStatus(order.id, nextStatus, undefined, user?.id)
+      if (response.success) {
+        toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
+        refresh()
+      } else {
+        throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
+      console.error('Confirmation status update error:', error)
+    }
   }
 
   const handleStatusChange = async (order: OrderWithDetails, status: OrderStatus) => {
@@ -362,7 +418,7 @@ const OrdersPage: React.FC = () => {
         filters={filtersUI}
         isLoading={isLoading}
         onClearSearch={() => setSearchTerm('')}
-        onClearFilters={() => setFiltersUI({ status: [], dateFrom: '', dateTo: '', teamId: '' })}
+        onClearFilters={() => setFiltersUI({ status: [], confirmationStatuses: [], dateFrom: '', dateTo: '', teamId: '' })}
       />
 
       <div className="card-elevated">
@@ -376,6 +432,7 @@ const OrdersPage: React.FC = () => {
                 <th className="table-header-cell">الوقت</th>
                 <th className="table-header-cell">مدة التنفيذ</th>
                 <th className="table-header-cell">الحالة</th>
+                <th className="table-header-cell">تأكيد</th>
                 <th className="table-header-cell">المبلغ</th>
                 <th className="table-header-cell">الفريق</th>
                 <th className="table-header-cell">الإجراءات</th>
@@ -392,6 +449,9 @@ const OrdersPage: React.FC = () => {
                   <td className="table-cell">{order.scheduled_time}</td>
                    <td className="table-cell">{formatDuration(getOrderDuration(order))}</td>
                   <td className="table-cell">{getStatusBadge(order.status)}</td>
+                  <td className="table-cell cursor-pointer" onClick={() => handleConfirmationChange(order)}>
+                    {getConfirmationBadge(order.confirmation_status as ConfirmationStatus)}
+                  </td>
                   <td className="table-cell">{order.total_amount} ج.م</td>
                   <td className="table-cell">{order.team_name || 'غير محدد'}</td>
                   <td className="table-cell">

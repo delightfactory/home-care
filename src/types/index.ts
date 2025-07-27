@@ -67,6 +67,12 @@ export enum OrderStatus {
   CANCELLED = 'cancelled'
 }
 
+export enum ConfirmationStatus {
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  DECLINED = 'declined'
+}
+
 export enum PaymentStatus {
   UNPAID = 'unpaid',
   PAID_CASH = 'paid_cash',
@@ -404,6 +410,7 @@ export interface WorkerStats {
 // Filter and search types
 export interface OrderFilters {
   status?: OrderStatus[]
+  confirmation_status?: ConfirmationStatus[]
   payment_status?: PaymentStatus[]
   date_from?: string
   date_to?: string

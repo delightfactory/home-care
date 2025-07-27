@@ -140,6 +140,25 @@ export class EnhancedAPI {
     );
   }
 
+  static async updateOrderConfirmationStatus(id: string, confirmationStatus: 'pending' | 'confirmed' | 'declined', notes?: string, userId?: string): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.orders.updateConfirmationStatus',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          OrdersAPI.updateOrderConfirmationStatus(id, confirmationStatus as any, notes, userId)
+        );
+
+        // Clear related caches
+        this.clearCache('enhanced:orders');
+        this.clearCache(`enhanced:order:${id}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('orders:changed');
+
+        return result;
+      }
+    );
+  }
+
   static async updateOrderStatus(id: string, status: string, notes?: string, userId?: string): Promise<ApiResponse<any>> {
     return performanceMonitor.monitorQuery(
       'enhanced.orders.updateStatus',

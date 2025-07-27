@@ -46,19 +46,37 @@ export const handleSupabaseError = (error: any) => {
   return error?.message || 'حدث خطأ غير متوقع'
 }
 
-// Helper function to generate order number
+// Helper function to generate sequential order number
 export const generateOrderNumber = async (): Promise<string> => {
+  // 1) الحصول على البادئة من الإعدادات
   const { data: settings } = await supabase
     .from('system_settings')
     .select('value')
     .eq('key', 'order_number_prefix')
     .single()
-  
   const prefix = settings?.value || 'ORD'
-  const timestamp = Date.now().toString().slice(-6)
-  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0')
-  
-  return `${prefix}${timestamp}${random}`
+
+  // 2) جلب أعلى رقم حالى يبدأ بالبادئة نفسها
+  const { data: lastOrder } = await supabase
+    .from('orders')
+    .select('order_number')
+    .ilike('order_number', `${prefix}%`)
+    .order('order_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  // 3) استخراج الجزء الرقمى وزيادته بمقدار واحد
+  let nextNumber = 1
+  if (lastOrder?.order_number) {
+    const numericPart = parseInt(lastOrder.order_number.replace(prefix, ''))
+    if (!isNaN(numericPart)) {
+      nextNumber = numericPart + 1
+    }
+  }
+
+  // 4) تنسيق الرقم ليكون بطول ثابت (6 أرقام مثلاً)
+  const numericStr = nextNumber.toString().padStart(6, '0')
+  return `${prefix}${numericStr}`
 }
 
 // Helper function to calculate transport cost

@@ -65,7 +65,32 @@ export class OrdersAPI {
 
       if (error) throw error;
 
-      let ordersWithDetails = orders || [];
+      let confirmationMap: Record<string, string> = {};
+
+      let ordersWithDetails: OrderWithDetails[] = [];
+
+      // Ensure confirmation_status is loaded (view may not include it)
+      if (orders?.length) {
+        const orderIds = orders.map(o => o.id)
+        // Fetch confirmation statuses from base orders table (lightweight)
+        const { data: confirms } = await supabase
+          .from('orders')
+          .select('id, confirmation_status')
+          .in('id', orderIds)
+
+        if (confirms) {
+          confirmationMap = confirms.reduce((acc: Record<string, string>, cur) => {
+            acc[cur.id] = (cur as any).confirmation_status || 'pending'
+            return acc
+          }, {})
+        }
+      }
+
+      // Build initial list with confirmation_status merged
+      ordersWithDetails = (orders || []).map(order => ({
+        ...order,
+        confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending'
+      }));
 
       // Load detailed data only when requested
       if (includeDetails && orders?.length) {
@@ -83,8 +108,14 @@ export class OrdersAPI {
         // Attach items to orders
         ordersWithDetails = orders.map(order => ({
           ...order,
+          confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending',
           items: items?.filter(item => item.order_id === order.id) || []
         }));
+      }
+
+      // Apply confirmation_status filter if provided
+      if (filters?.confirmation_status?.length) {
+        ordersWithDetails = ordersWithDetails.filter(o => filters.confirmation_status!.includes(o.confirmation_status as any))
       }
 
       return {
@@ -303,6 +334,39 @@ export class OrdersAPI {
         success: false,
         error: handleSupabaseError(error)
       }
+    }
+  }
+
+  // Update order confirmation status
+  static async updateOrderConfirmationStatus(
+    orderId: string,
+    confirmationStatus: 'pending' | 'confirmed' | 'declined',
+    notes?: string,
+    userId?: string
+  ): Promise<ApiResponse<void>> {
+    try {
+      const updates: any = {
+        confirmation_status: confirmationStatus,
+        confirmation_notes: notes || null,
+        updated_at: new Date().toISOString()
+      };
+      if (confirmationStatus !== 'pending') {
+        updates.confirmed_at = new Date().toISOString();
+        updates.confirmed_by = userId || null;
+      } else {
+        updates.confirmed_at = null;
+        updates.confirmed_by = null;
+      }
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update(updates)
+        .eq('id', orderId);
+      if (orderError) throw orderError;
+
+      return { success: true, message: 'تم تحديث حالة التأكيد بنجاح' };
+    } catch (error) {
+      return { success: false, error: handleSupabaseError(error) };
     }
   }
 

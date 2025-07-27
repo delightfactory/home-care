@@ -45,6 +45,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -54,6 +58,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       customers: {
@@ -80,6 +88,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -92,6 +104,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       service_categories: {
@@ -146,6 +162,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -159,6 +179,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       workers: {
@@ -191,6 +215,10 @@ export interface Database {
           total_orders?: number
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -206,6 +234,10 @@ export interface Database {
           total_orders?: number
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       teams: {
@@ -226,6 +258,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -235,6 +271,10 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       team_members: {
@@ -277,6 +317,10 @@ export interface Database {
           created_by: string | null
           created_at: string
           updated_at: string
+          confirmation_status: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmation_notes: string | null
         }
         Insert: {
           id?: string
@@ -297,6 +341,10 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -317,6 +365,10 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       order_items: {
@@ -414,6 +466,10 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -431,6 +487,10 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       route_orders: {
@@ -457,6 +517,10 @@ export interface Database {
           actual_completion_time?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -469,6 +533,10 @@ export interface Database {
           actual_completion_time?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       expense_categories: {
@@ -537,6 +605,10 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -554,6 +626,10 @@ export interface Database {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+
+
+
+
         }
       }
       daily_reports: {
@@ -651,6 +727,10 @@ export interface Database {
           description?: string | null
           updated_by?: string | null
           updated_at?: string
+
+
+
+
         }
         Update: {
           id?: string
@@ -659,6 +739,10 @@ export interface Database {
           description?: string | null
           updated_by?: string | null
           updated_at?: string
+
+
+
+
         }
       }
     }

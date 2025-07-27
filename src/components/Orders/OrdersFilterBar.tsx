@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import DateRangePicker from '../UI/DateRangePicker'
 import EnhancedAPI from '../../api/enhanced-api'
-import { OrderStatus, TeamWithMembers } from '../../types'
+import { OrderStatus, ConfirmationStatus, TeamWithMembers } from '../../types'
 
 export interface OrdersFiltersUI {
   status: OrderStatus[]
+  confirmationStatuses: ConfirmationStatus[]
   dateFrom: string
   dateTo: string
   teamId: string
@@ -24,7 +25,7 @@ const statusOptions: { value: OrderStatus; label: string }[] = [
 ]
 
 const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({ filters, onFiltersChange }) => {
-  const defaultFilters: OrdersFiltersUI = { status: [], dateFrom: '', dateTo: '', teamId: '' }
+  const defaultFilters: OrdersFiltersUI = { status: [], confirmationStatuses: [], dateFrom: '', dateTo: '', teamId: '' }
   const [teams, setTeams] = useState<TeamWithMembers[]>([])
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -48,6 +49,12 @@ const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({ filters, onFiltersCha
     const exists = filters.status.includes(value)
     const newStatus = exists ? filters.status.filter(s => s !== value) : [...filters.status, value]
     onFiltersChange({ status: newStatus })
+  }
+
+  const toggleConfirmation = (value: ConfirmationStatus) => {
+    const exists = filters.confirmationStatuses.includes(value)
+    const newStatuses = exists ? filters.confirmationStatuses.filter(s => s !== value) : [...filters.confirmationStatuses, value]
+    onFiltersChange({ confirmationStatuses: newStatuses })
   }
 
   return (
@@ -78,10 +85,11 @@ const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({ filters, onFiltersCha
           
           <div className="flex items-center space-x-2 space-x-reverse">
             {/* Active Filters Count */}
-            {(filters.status.length > 0 || filters.dateFrom || filters.dateTo || filters.teamId) && (
+            {(filters.status.length > 0 || filters.confirmationStatuses.length > 0 || filters.dateFrom || filters.dateTo || filters.teamId) && (
               <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
                 {[
                   filters.status.length > 0 && filters.status.length,
+                  filters.confirmationStatuses.length > 0 && filters.confirmationStatuses.length,
                   (filters.dateFrom || filters.dateTo) && 1,
                   filters.teamId && 1
                 ].filter(Boolean).reduce((a, b) => Number(a) + Number(b), 0)} فلتر نشط
@@ -147,6 +155,57 @@ const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({ filters, onFiltersCha
                         isSelected ? 'text-blue-700' : 'text-gray-700 group-hover:text-gray-900'
                       }`}>
                         {opt.label}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Confirmation Status Filters */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-1.5 space-x-reverse">
+                <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">حالة التأكيد</label>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5">
+                {[ConfirmationStatus.PENDING, ConfirmationStatus.CONFIRMED, ConfirmationStatus.DECLINED].map(cs => {
+                  const labels: Record<ConfirmationStatus, string> = {
+                    pending: 'معلقة',
+                    confirmed: 'مؤكدة',
+                    declined: 'مرفوضة',
+                  } as any
+                  const isSelected = filters.confirmationStatuses.includes(cs)
+                  return (
+                    <label
+                      key={cs}
+                      className={`group relative flex items-center p-2 rounded-md border cursor-pointer transition-all duration-150 hover:shadow-sm ${
+                        isSelected ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={isSelected}
+                        onChange={() => toggleConfirmation(cs)}
+                      />
+                      <div
+                        className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all duration-150 ${
+                          isSelected ? 'border-yellow-500 bg-yellow-500' : 'border-gray-300 group-hover:border-yellow-400'
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span
+                        className={`mr-2 text-xs font-medium transition-colors duration-150 ${
+                          isSelected ? 'text-yellow-700' : 'text-gray-700 group-hover:text-gray-900'
+                        }`}
+                      >
+                        {labels[cs]}
                       </span>
                     </label>
                   )
