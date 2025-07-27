@@ -73,6 +73,8 @@ export interface Database {
           area: string | null
           location_coordinates: string | null
           notes: string | null
+          extra_phone: string | null
+          referral_source: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -85,13 +87,11 @@ export interface Database {
           area?: string | null
           location_coordinates?: string | null
           notes?: string | null
+          extra_phone?: string | null
+          referral_source?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
-
-
-
-
         }
         Update: {
           id?: string
@@ -101,13 +101,11 @@ export interface Database {
           area?: string | null
           location_coordinates?: string | null
           notes?: string | null
+          extra_phone?: string | null
+          referral_source?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
-
-
-
-
         }
       }
       service_categories: {

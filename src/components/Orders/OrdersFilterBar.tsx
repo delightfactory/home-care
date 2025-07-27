@@ -171,8 +171,8 @@ const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({ filters, onFiltersCha
               <div className="grid grid-cols-1 gap-1.5">
                 {[ConfirmationStatus.PENDING, ConfirmationStatus.CONFIRMED, ConfirmationStatus.DECLINED].map(cs => {
                   const labels: Record<ConfirmationStatus, string> = {
-                    pending: 'معلقة',
-                    confirmed: 'مؤكدة',
+                    pending: 'غير مؤكد',
+                    confirmed: 'تم التأكيد',
                     declined: 'مرفوضة',
                   } as any
                   const isSelected = filters.confirmationStatuses.includes(cs)

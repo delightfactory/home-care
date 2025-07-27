@@ -237,6 +237,8 @@ export interface CustomerForm {
   longitude?: number
   is_active?: boolean
   notes?: string
+  extra_phone?: string
+  referral_source?: string
 }
 
 export interface ServiceForm {

@@ -534,3 +534,23 @@ COMMENT ON COLUMN orders.confirmation_status  IS 'حالة تأكيد الطلب
 COMMENT ON COLUMN orders.confirmed_at         IS 'تاريخ ووقت تأكيد أو رفض العميل';
 COMMENT ON COLUMN orders.confirmed_by         IS 'معرّف المستخدم الذي قام بعملية التأكيد/الرفض';
 COMMENT ON COLUMN orders.confirmation_notes   IS 'ملاحظات موظف الكول سنتر أثناء التأكيد أو الرفض';
+
+
+
+
+
+
+-- إضافة الحقول (اختيارية = تسمح بقيم NULL)
+ALTER TABLE public.customers
+  ADD COLUMN IF NOT EXISTS extra_phone     VARCHAR(20),  -- رقم تليفون إضافي
+  ADD COLUMN IF NOT EXISTS referral_source TEXT;         -- كيف وصل العميل (نص حر)
+
+-- توثيق الأعمدة (اختياري)
+COMMENT ON COLUMN public.customers.extra_phone
+  IS 'رقم تليفون إضافي للعميل (اختياري)';
+COMMENT ON COLUMN public.customers.referral_source
+  IS 'الطريقة التي وصل بها العميل إلى الشركة (نص حر)';
+
+-- (اختياري) فهرس بحث سريع على رقم الهاتف الإضافي
+CREATE INDEX IF NOT EXISTS idx_customers_extra_phone
+  ON public.customers (extra_phone);

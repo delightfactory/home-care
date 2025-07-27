@@ -26,7 +26,9 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     phone: '',
     address: '',
     area: '',
-    notes: ''
+    notes: '',
+    extra_phone: '',
+    referral_source: ''
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -60,7 +62,9 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
            return undefined
          })(),
         is_active: customer.is_active,
-        notes: customer.notes || ''
+        notes: customer.notes || '',
+        extra_phone: customer.extra_phone || '',
+        referral_source: customer.referral_source || ''
       })
     } else {
       setFormData({
@@ -71,7 +75,9 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         latitude: undefined,
         longitude: undefined,
         is_active: true,
-        notes: ''
+        notes: '',
+        extra_phone: '',
+        referral_source: ''
       })
     }
     setErrors({})
@@ -94,6 +100,14 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
       newErrors.address = 'العنوان مطلوب'
     }
 
+    if (!formData.area || !formData.area.trim()) {
+      newErrors.area = 'المنطقة مطلوبة'
+    }
+
+    if (!formData.referral_source || !formData.referral_source.trim()) {
+      newErrors.referral_source = 'مصدر الإحالة مطلوب'
+    }
+
     return newErrors
   }
 
@@ -102,7 +116,19 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     
     const validationErrors = validateForm()
     setErrors(validationErrors)
-    if (Object.keys(validationErrors).length > 0) return
+    
+    if (Object.keys(validationErrors).length > 0) {
+      // Focus on first error field
+      const firstErrorField = Object.keys(validationErrors)[0]
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement
+      if (errorElement) {
+        errorElement.focus()
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      
+      toast.error('يرجى تصحيح الأخطاء المذكورة أعلاه')
+      return
+    }
 
     setLoading(true)
     try {
@@ -112,6 +138,8 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         address: formData.address,
         area: formData.area || null,
         notes: formData.notes || null,
+        extra_phone: formData.extra_phone || null,
+        referral_source: formData.referral_source || null,
         is_active: formData.is_active ?? true,
         location_coordinates: formData.latitude !== undefined && formData.longitude !== undefined ? `(${formData.longitude},${formData.latitude})` : null
       }
@@ -132,6 +160,8 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
           location_coordinates: formData.latitude !== undefined && formData.longitude !== undefined ? `(${formData.longitude},${formData.latitude})` : null,
           is_active: formData.is_active ?? true,
           notes: formData.notes || '',
+          extra_phone: formData.extra_phone || null,
+          referral_source: formData.referral_source || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -192,6 +222,19 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
       headerGradient="from-primary-500 via-primary-600 to-primary-700"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Required fields notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <CheckCircle className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="mr-3">
+              <p className="text-sm text-blue-800">
+                <span className="font-medium">الحقول المطلوبة:</span> اسم العميل، رقم الهاتف، العنوان، المنطقة، ومصدر الإحالة
+              </p>
+            </div>
+          </div>
+        </div>
           <div className="space-y-2">
             <label className="flex items-center label label-required text-gray-700 font-medium">
               <User className="h-4 w-4 ml-2 text-primary-500" />
@@ -257,6 +300,64 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
           </div>
 
           <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <Phone className="h-4 w-4 ml-2 text-primary-500" />
+              رقم هاتف إضافي
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                name="extra_phone"
+                value={formData.extra_phone || ''}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.extra_phone && formData.extra_phone ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل رقم هاتف إضافي (اختياري)"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.extra_phone && formData.extra_phone ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Phone className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center label label-required text-gray-700 font-medium">
+              <User className="h-4 w-4 ml-2 text-primary-500" />
+              مصدر الإحالة
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                name="referral_source"
+                value={formData.referral_source || ''}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${errors.referral_source ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'} ${touched.referral_source && !errors.referral_source && formData.referral_source ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="كيف وصل العميل إلينا؟"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.referral_source && !errors.referral_source && formData.referral_source ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <User className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+            {errors.referral_source && (
+              <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
+                <X className="h-3 w-3 ml-1" />
+                {errors.referral_source}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <label className="flex items-center label label-required text-gray-700 font-medium">
               <Home className="h-4 w-4 ml-2 text-primary-500" />
               العنوان
@@ -289,7 +390,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="flex items-center label text-gray-700 font-medium">
+            <label className="flex items-center label label-required text-gray-700 font-medium">
               <MapPin className="h-4 w-4 ml-2 text-primary-500" />
               المنطقة
             </label>
@@ -300,18 +401,24 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
                 value={formData.area}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.area && formData.area ? 'border-green-500 focus:ring-green-500' : ''}`}
-                placeholder="أدخل المنطقة (اختياري)"
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pl-10 ${errors.area ? 'input-error border-red-500 focus:ring-red-500' : 'hover:border-primary-300'} ${touched.area && !errors.area && formData.area ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل المنطقة"
                 disabled={loading}
               />
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                {touched.area && formData.area ? (
+                {touched.area && !errors.area && formData.area ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 ) : (
                   <MapPin className="h-4 w-4 text-gray-400" />
                 )}
               </div>
             </div>
+            {errors.area && (
+              <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
+                <X className="h-3 w-3 ml-1" />
+                {errors.area}
+              </p>
+            )}
           </div>
 
           {/* Coordinates */}

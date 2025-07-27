@@ -128,7 +128,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     }
   }
 
-  const validateForm = (): boolean => {
+  const validateForm = (): Record<string, string> => {
     const newErrors: Record<string, string> = {}
 
     if (!formData.customer_id) {
@@ -152,14 +152,27 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       }
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return newErrors
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) return
+    const validationErrors = validateForm()
+    setErrors(validationErrors)
+    
+    if (Object.keys(validationErrors).length > 0) {
+      // Focus on first error field
+      const firstErrorField = Object.keys(validationErrors)[0]
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement
+      if (errorElement) {
+        errorElement.focus()
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      
+      toast.error('يرجى تصحيح الأخطاء المذكورة أعلاه')
+      return
+    }
 
     setLoading(true)
     try {
@@ -313,6 +326,20 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Required fields notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircle className="h-5 w-5 text-blue-400" />
+              </div>
+              <div className="mr-3">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">الحقول المطلوبة:</span> العميل، تاريخ الخدمة، وقت الخدمة، والخدمات المطلوبة
+                </p>
+              </div>
+            </div>
+          </div>
+          
             {/* Customer Selection */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -358,6 +385,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                 disabled={loading}
                 error={errors.scheduled_date}
                 minDate={new Date().toISOString().split('T')[0]}
+                name="scheduled_date"
               />
 
               <DateTimePicker
@@ -369,6 +397,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                 required
                 disabled={loading}
                 error={errors.scheduled_time}
+                name="scheduled_time"
               />
             </div>
 
@@ -396,6 +425,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                         onChange={(e) => handleServiceChange(index, 'service_id', e.target.value)}
                         className="input"
                         disabled={loading}
+                        name={index === 0 ? "services" : undefined}
                       >
                         <option value="">اختر الخدمة</option>
                         {services.map(service => (

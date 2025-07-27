@@ -120,16 +120,37 @@ ON services(is_active, created_at DESC);
 -- 2. إنشاء Views محسنة للتقارير
 -- =========================================================
 
--- View للطلبات مع التفاصيل الأساسية (بدون JOIN معقدة)
-CREATE OR REPLACE VIEW v_orders_summary AS
-SELECT 
+-- =========================================================
+-- v_orders_summary (مُحدَّث بإضافة customer_area + customer_feedback)
+-- =========================================================
+CREATE OR REPLACE VIEW v_orders_summary (
+    id,
+    order_number,
+    customer_id,
+    customer_name,
+    customer_phone,
+    team_id,
+    team_name,
+    scheduled_date,
+    scheduled_time,
+    status,
+    payment_status,
+    total_amount,
+    transport_cost,
+    customer_rating,
+    created_at,
+    updated_at,
+    customer_area,       -- جديد
+    customer_feedback    -- جديد
+) AS
+SELECT
     o.id,
     o.order_number,
     o.customer_id,
-    c.name as customer_name,
-    c.phone as customer_phone,
+    c.name                       AS customer_name,
+    c.phone                      AS customer_phone,
     o.team_id,
-    t.name as team_name,
+    t.name                       AS team_name,
     o.scheduled_date,
     o.scheduled_time,
     o.status,
@@ -138,15 +159,16 @@ SELECT
     o.transport_cost,
     o.customer_rating,
     o.created_at,
-    o.updated_at
+    o.updated_at,
+    c.area                       AS customer_area,      -- 🡄 جلب المنطقة من customers
+    o.customer_feedback          AS customer_feedback   -- 🡄 تعليق العميل من orders
 FROM orders o
-LEFT JOIN customers c ON o.customer_id = c.id
-LEFT JOIN teams t ON o.team_id = t.id;
+LEFT JOIN customers c ON c.id = o.customer_id
+LEFT JOIN teams     t ON t.id = o.team_id;
 
--- فهرس للـ View
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_v_orders_summary_status_date 
-ON orders(status, scheduled_date DESC);
-
+-- يظلّ نفس الفهرس كما هو (لا حاجة لتغييره):
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_v_orders_summary_status_date
+ON orders (status, scheduled_date DESC);
 -- View للإحصائيات اليومية المحسنة
 CREATE OR REPLACE VIEW v_daily_stats AS
 SELECT 

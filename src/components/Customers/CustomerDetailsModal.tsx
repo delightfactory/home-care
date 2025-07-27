@@ -45,9 +45,19 @@ const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ isOpen, onC
             <div>
               <span className="font-semibold">رقم الهاتف:</span> {customer.phone}
             </div>
+            {customer.extra_phone && (
+              <div>
+                <span className="font-semibold">رقم هاتف إضافي:</span> {customer.extra_phone}
+              </div>
+            )}
             <div>
               <span className="font-semibold">المنطقة:</span> {customer.area || 'غير محدد'}
             </div>
+            {customer.referral_source && (
+              <div>
+                <span className="font-semibold">مصدر الإحالة:</span> {customer.referral_source}
+              </div>
+            )}
             <div>
               <span className="font-semibold">الحالة:</span> {customer.is_active ? 'نشط' : 'موقوف'}
             </div>

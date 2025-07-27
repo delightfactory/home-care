@@ -24,6 +24,7 @@ interface DateTimePickerProps {
   error?: string
   minDate?: string
   maxDate?: string
+  name?: string
 }
 
 const DateTimePicker: React.FC<DateTimePickerProps> = ({
@@ -37,7 +38,8 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   label,
   error,
   minDate,
-  maxDate
+  maxDate,
+  name
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -506,6 +508,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
         <input
           ref={inputRef}
           type="text"
+          name={name}
           value={formatDisplayValue()}
           onClick={() => !disabled && setIsOpen(true)}
           onChange={() => {}} // Controlled by picker

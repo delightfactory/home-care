@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw } from 'lucide-react'
+import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw, Star } from 'lucide-react'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
 import { OrderStatus, ConfirmationStatus } from '../../types'
@@ -8,6 +8,7 @@ import { OrderWithDetails } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import OrderFormModal from '../../components/Forms/OrderFormModal'
 import OrderDetailsModal from '../../components/Orders/OrderDetailsModal'
+import OrderRatingModal from '../../components/Orders/OrderRatingModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
 import { useOrders, useSystemHealth, useOrderCounts } from '../../hooks/useEnhancedAPI'
@@ -28,6 +29,8 @@ const OrdersPage: React.FC = () => {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [ratingOrderId, setRatingOrderId] = useState<string | undefined>()
 
   // Smart filter UI state
   const [filtersUI, setFiltersUI] = useState<OrdersFiltersUI>({
@@ -153,14 +156,14 @@ const OrdersPage: React.FC = () => {
 
   const getConfirmationBadge = (status?: ConfirmationStatus | null) => {
     const statusClasses: Record<ConfirmationStatus, string> = {
-      pending: 'bg-gray-200 text-gray-700',
-      confirmed: 'bg-green-200 text-green-700',
-      declined: 'bg-red-200 text-red-700'
+      pending: 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-amber-200',
+      confirmed: 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border border-emerald-200',
+      declined: 'bg-gradient-to-r from-rose-100 to-red-100 text-rose-800 border border-rose-200'
     } as any;
 
     const statusTexts: Record<ConfirmationStatus, string> = {
-      pending: 'معلقة',
-      confirmed: 'مؤكَّدة',
+      pending: 'غير مؤكد',
+      confirmed: 'تم التأكيد',
       declined: 'مرفوضة'
     } as any;
 
@@ -168,18 +171,38 @@ const OrdersPage: React.FC = () => {
     const effectiveStatus: ConfirmationStatus = (status && status in statusTexts ? status : 'pending') as ConfirmationStatus;
 
     const iconMap: Record<ConfirmationStatus, JSX.Element> = {
-      pending: <RefreshCw className="inline-block w-4 h-4 mr-1" />,
-      confirmed: <Check className="inline-block w-4 h-4 mr-1" />,
-      declined: <XCircle className="inline-block w-4 h-4 mr-1" />
+      pending: <RefreshCw className="inline-block w-3.5 h-3.5 mr-1" />,
+      confirmed: <Check className="inline-block w-3.5 h-3.5 mr-1" />,
+      declined: <XCircle className="inline-block w-3.5 h-3.5 mr-1" />
     } as any;
 
     return (
-      <span className={`badge flex items-center gap-1 ${statusClasses[effectiveStatus]} hover:opacity-80 transition`}>
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer ${statusClasses[effectiveStatus]}`}>
         {iconMap[effectiveStatus]}
         {statusTexts[effectiveStatus]}
       </span>
     );
   };
+
+  const getRatingDisplay = (rating: number | null) => {
+    const stars = []
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <Star
+          key={i}
+          className={`h-3 w-3 ${
+            rating && i <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+          }`}
+        />
+      )
+    }
+
+    return (
+      <div className="flex justify-center">
+        {stars}
+      </div>
+    )
+  }
 
   const handleConfirmationChange = async (order: OrderWithDetails) => {
     // دورة الحالات: pending -> confirmed -> declined -> pending
@@ -423,48 +446,66 @@ const OrdersPage: React.FC = () => {
 
       <div className="card-elevated">
         <div className="overflow-x-auto">
-          <table className="table">
+          <table className="min-w-full table-auto border-collapse">
             <thead className="table-header">
               <tr>
-                <th className="table-header-cell">رقم الطلب</th>
-                <th className="table-header-cell">العميل</th>
-                <th className="table-header-cell">التاريخ</th>
-                <th className="table-header-cell">الوقت</th>
-                <th className="table-header-cell">مدة التنفيذ</th>
-                <th className="table-header-cell">الحالة</th>
-                <th className="table-header-cell">تأكيد</th>
-                <th className="table-header-cell">المبلغ</th>
-                <th className="table-header-cell">الفريق</th>
-                <th className="table-header-cell">الإجراءات</th>
+                <th className="table-header-cell w-24 text-xs">رقم الطلب</th>
+                <th className="table-header-cell w-16 text-xs">التقييم</th>
+                <th className="table-header-cell w-32 text-xs">العميل</th>
+                <th className="table-header-cell w-24 text-xs">التاريخ</th>
+                <th className="table-header-cell w-20 text-xs">الوقت</th>
+                <th className="table-header-cell w-20 text-xs">المدة</th>
+                <th className="table-header-cell w-24 text-xs">الحالة</th>
+                <th className="table-header-cell w-20 text-xs">المبلغ</th>
+                <th className="table-header-cell w-28 text-xs">الفريق</th>
+                <th className="table-header-cell w-20 text-xs">تأكيد</th>
+                <th className="table-header-cell w-32 text-xs">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="table-body">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="table-row">
-                  <td className="table-cell font-medium">{order.order_number}</td>
-                  <td className="table-cell">{order.customer_name || 'غير محدد'}</td>
-                  <td className="table-cell">
-                    {new Date(order.scheduled_date).toLocaleDateString('ar-AE')}
+              {filteredOrders.map((order, index) => (
+                <tr key={order.id} className={`table-row transition-colors duration-200 ${
+                  index % 2 === 0 
+                    ? 'bg-white hover:bg-blue-50/40' 
+                    : 'bg-gray-50/80 hover:bg-blue-50/60'
+                }`}>
+                  <td className="table-cell font-medium text-xs px-2 py-2">{order.order_number}</td>
+                  <td className="table-cell px-2 py-2">{getRatingDisplay(order.customer_rating)}</td>
+                  <td className="table-cell text-xs px-2 py-2" title={`${order.customer_name || 'غير محدد'}${order.customer?.area ? ' - ' + order.customer.area : ''}`}>
+                    <div className="flex flex-col gap-1 max-w-32">
+                      <span className="truncate font-medium text-gray-900">{order.customer_name || 'غير محدد'}</span>
+                      {order.customer?.area && (
+                        <span className="badge bg-purple-100 text-purple-800 border border-purple-200 text-[10px] whitespace-nowrap px-1.5 py-0.5 self-start">
+                          {order.customer.area}
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td className="table-cell">{order.scheduled_time}</td>
-                   <td className="table-cell">{formatDuration(getOrderDuration(order))}</td>
-                  <td className="table-cell">{getStatusBadge(order.status)}</td>
-                  <td className="table-cell cursor-pointer" onClick={() => handleConfirmationChange(order)}>
+                  <td className="table-cell text-xs px-2 py-2">
+                    {new Date(order.scheduled_date).toLocaleDateString('ar-AE', { day: '2-digit', month: '2-digit' })}
+                  </td>
+                  <td className="table-cell text-xs px-2 py-2">{order.scheduled_time}</td>
+                  <td className="table-cell text-xs px-2 py-2">{formatDuration(getOrderDuration(order))}</td>
+                  <td className="table-cell px-2 py-2">{getStatusBadge(order.status)}</td>
+                  <td className="table-cell text-xs px-2 py-2 font-medium">{order.total_amount} ج.م</td>
+                  <td className="table-cell text-xs px-2 py-2 truncate max-w-28" title={order.team_name || 'غير محدد'}>
+                    {order.team_name || 'غير محدد'}
+                  </td>
+                  <td className="table-cell cursor-pointer px-2 py-2" onClick={() => handleConfirmationChange(order)}>
                     {getConfirmationBadge(order.confirmation_status as ConfirmationStatus)}
                   </td>
-                  <td className="table-cell">{order.total_amount} ج.م</td>
-                  <td className="table-cell">{order.team_name || 'غير محدد'}</td>
-                  <td className="table-cell">
-                    <div className="flex space-x-2 space-x-reverse">
+                  <td className="table-cell px-2 py-2">
+                    <div className="flex space-x-1 space-x-reverse justify-start min-w-[120px]">
+                      {/* الأزرار الأساسية - تظهر دائماً */}
                       <button 
                         onClick={() => {
                           setDetailsOrderId(order.id)
                           setShowDetailsModal(true)
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors flex-shrink-0"
                         title="عرض التفاصيل"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
                       <button 
                         onClick={() => {
@@ -472,36 +513,50 @@ const OrdersPage: React.FC = () => {
                           setFormMode('edit')
                           setShowFormModal(true)
                         }}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                        className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
                         title="تعديل"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3.5 w-3.5" />
                       </button>
+                      
+                      {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
                       {order.status === 'pending' || order.status === 'scheduled' ? (
                         <button
                           onClick={() => handleStatusChange(order, OrderStatus.IN_PROGRESS)}
-                          className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                          className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0"
                           title="بدء التنفيذ"
                         >
-                          <Play className="h-4 w-4" />
+                          <Play className="h-3.5 w-3.5" />
                         </button>
                       ) : null}
                       {order.status === 'in_progress' ? (
                         <button
                           onClick={() => handleStatusChange(order, OrderStatus.COMPLETED)}
-                          className="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                          className="p-1.5 text-green-700 hover:bg-green-50 rounded transition-colors flex-shrink-0"
                           title="إكمال"
                         >
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                      {order.status === 'completed' && !order.customer_rating ? (
+                        <button
+                          onClick={() => {
+                            setRatingOrderId(order.id)
+                            setShowRatingModal(true)
+                          }}
+                          className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0"
+                          title="تقييم الخدمة"
+                        >
+                          <Star className="h-3.5 w-3.5" />
                         </button>
                       ) : null}
                       {order.status !== 'cancelled' && order.status !== 'completed' ? (
                         <button
                           onClick={() => handleStatusChange(order, OrderStatus.CANCELLED)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                           title="إلغاء"
                         >
-                          <XCircle className="h-4 w-4" />
+                          <XCircle className="h-3.5 w-3.5" />
                         </button>
                       ) : null}
                     </div>
@@ -563,6 +618,23 @@ const OrdersPage: React.FC = () => {
         }}
         order={selectedOrder}
         mode={formMode}
+      />
+
+      {/* Order Rating Modal */}
+      <OrderRatingModal
+        isOpen={showRatingModal}
+        onClose={() => {
+          setShowRatingModal(false)
+          setRatingOrderId(undefined)
+        }}
+        onSuccess={() => {
+           // مسح كاش الطلبات لضمان تحديث التقييم الظاهر فوراً
+           EnhancedAPI.clearCache('enhanced:orders')
+           refresh()
+         }}
+        orderId={ratingOrderId || ''}
+        orderNumber={filteredOrders.find(o => o.id === ratingOrderId)?.order_number}
+        customerName={filteredOrders.find(o => o.id === ratingOrderId)?.customer_name}
       />
 
       {/* Cancel Order Modal */}

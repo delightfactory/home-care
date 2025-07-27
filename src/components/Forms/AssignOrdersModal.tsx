@@ -24,8 +24,8 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     } as any;
 
     const statusTexts: Record<ConfirmationStatus, string> = {
-      pending: 'معلقة',
-      confirmed: 'مؤكَّدة',
+      pending: 'غير مؤكد',
+      confirmed: 'تم التأكيد',
       declined: 'مرفوضة'
     } as any;
 

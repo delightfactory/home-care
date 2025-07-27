@@ -89,6 +89,13 @@ export class OrdersAPI {
       // Build initial list with confirmation_status merged
       ordersWithDetails = (orders || []).map(order => ({
         ...order,
+        // إنشاء كائن عميل مبسط ليحتوي المنطقة لاستخدامه في الواجهة
+        customer: order.customer_id ? {
+          id: order.customer_id,
+          name: order.customer_name,
+          phone: order.customer_phone,
+          area: (order as any).customer_area || null
+        } : null,
         confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending'
       }));
 
@@ -108,6 +115,12 @@ export class OrdersAPI {
         // Attach items to orders
         ordersWithDetails = orders.map(order => ({
           ...order,
+          customer: order.customer_id ? {
+            id: order.customer_id,
+            name: order.customer_name,
+            phone: order.customer_phone,
+            area: (order as any).customer_area || null
+          } : null,
           confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending',
           items: items?.filter(item => item.order_id === order.id) || []
         }));
@@ -615,6 +628,48 @@ export class OrdersAPI {
       return {
         success: true,
         message: 'تم إنهاء الطلب بنجاح'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  // Update order rating
+  static async updateOrderRating(
+    orderId: string,
+    customerRating: number,
+    customerFeedback: string,
+    userId?: string
+  ): Promise<ApiResponse<void>> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          customer_rating: customerRating,
+          customer_feedback: customerFeedback,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', orderId)
+        .eq('status', 'completed') // Only allow rating for completed orders
+
+      if (error) throw error
+
+      // Add status log for rating
+      await supabase
+        .from('order_status_logs')
+        .insert({
+          order_id: orderId,
+          status: 'completed',
+          notes: `تم إضافة تقييم العميل: ${customerRating}/5 نجوم`,
+          created_by: userId
+        })
+
+      return {
+        success: true,
+        message: 'تم حفظ التقييم بنجاح'
       }
     } catch (error) {
       return {
