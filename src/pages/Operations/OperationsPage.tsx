@@ -70,6 +70,21 @@ interface ExpandedSections {
   [routeId: string]: boolean
 }
 
+// دالة مساعدة لتنسيق رقم الهاتف لاستخدامه مع واتساب
+export const formatPhoneForWhatsApp = (raw: string, defaultCountryCode = '20'): string => {
+  let phone = raw.replace(/[^0-9]/g, '') // إبقاء الأرقام فقط
+  if (phone.startsWith('00')) {
+    phone = phone.slice(2)
+  }
+  if (phone.startsWith('0')) {
+    phone = phone.slice(1)
+  }
+  if (!phone.startsWith(defaultCountryCode)) {
+    phone = defaultCountryCode + phone
+  }
+  return phone
+}
+
 const OperationsPage: React.FC = () => {
   // State management
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -640,7 +655,8 @@ const OperationsPage: React.FC = () => {
       // Send via WhatsApp if customer phone is available
       if (order.customer?.phone) {
         const whatsappMessage = `مرحباً ${order.customer.name || 'عزيزي العميل'},\n\nإليك تفاصيل طلبك رقم: ${order.order_number}\n\nشكراً لثقتكم بنا 🌟`
-        const whatsappUrl = `https://wa.me/${order.customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
+        const waNumber = formatPhoneForWhatsApp(order.customer.phone)
+        const whatsappUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(whatsappMessage)}`
         window.open(whatsappUrl, '_blank')
         toast.success('تم تصدير الطلب وفتح واتساب للإرسال')
       } else {
@@ -1281,7 +1297,7 @@ const OperationsPage: React.FC = () => {
                                     <Phone className="h-3 w-3" />
                                   </button>
                                   <button
-                                    onClick={() => window.open(`https://wa.me/${worker.phone.replace(/[^0-9]/g, '')}`, '_blank')}
+                                    onClick={() => window.open(`https://wa.me/${formatPhoneForWhatsApp(worker.phone)}`, '_blank')}
                                     className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
                                     title="واتساب"
                                   >
@@ -1497,12 +1513,8 @@ const OperationsPage: React.FC = () => {
                                       
                                       <button
                                         onClick={() => {
-                                          // تنسيق رقم الهاتف للواتساب - إضافة كود الدولة إذا لم يكن موجود
-                                          let phoneNumber = routeOrder.order.customer.phone.replace(/[^0-9]/g, '')
-                                          if (!phoneNumber.startsWith('20')) {
-                                            phoneNumber = '20' + phoneNumber
-                                          }
-                                          window.open(`https://wa.me/${phoneNumber}`, '_blank')
+                                          const waNumber = formatPhoneForWhatsApp(routeOrder.order.customer.phone)
+                                          window.open(`https://wa.me/${waNumber}`, '_blank')
                                         }}
                                         className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0 border border-green-200 hover:border-green-300 touch-manipulation"
                                         title="واتساب"
