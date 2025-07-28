@@ -413,6 +413,7 @@ export class TeamsAPI {
       // Get complete team data
       const completeTeam = await this.getTeamById(team.id)
 
+      eventBus.emit('teams:changed')
       return {
         success: true,
         data: completeTeam,
@@ -451,6 +452,7 @@ export class TeamsAPI {
 
       if (error) throw error
 
+      eventBus.emit('teams:changed')
       return {
         success: true,
         data,
@@ -474,6 +476,7 @@ export class TeamsAPI {
 
       if (error) throw error
 
+      eventBus.emit('teams:changed')
       return {
         success: true,
         message: 'تم حذف الفريق بنجاح'
@@ -498,6 +501,7 @@ export class TeamsAPI {
 
       if (error) throw error
 
+      eventBus.emit('teams:changed')
       return {
         success: true,
         message: 'تم إضافة العضو للفريق بنجاح'
@@ -524,6 +528,7 @@ export class TeamsAPI {
 
       if (error) throw error
 
+      eventBus.emit('teams:changed')
       return {
         success: true,
         message: 'تم إزالة العضو من الفريق بنجاح'

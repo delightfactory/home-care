@@ -119,12 +119,17 @@ export function useOrders(
     [filtersString, includeDetails]
   );
 
-  return usePaginatedData<OrderWithDetails>(
-    fetchFunction,
-    page,
-    limit,
-    [filtersString, includeDetails]
-  );
+  const result = usePaginatedData<OrderWithDetails>(fetchFunction, page, limit, [filtersString, includeDetails]);
+  
+  // Listen to orders:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('orders:changed', () => {
+      result.refresh();
+    });
+    return off;
+  }, [result.refresh]);
+  
+  return result;
 }
 
 export function useOrder(id: string) {
@@ -168,12 +173,17 @@ export function useCustomers(
     [filtersString]
   );
 
-  return usePaginatedData<CustomerWithOrders>(
-    fetchFunction,
-    page,
-    limit,
-    [filtersString]
-  );
+  const result = usePaginatedData<CustomerWithOrders>(fetchFunction, page, limit, [filtersString]);
+  
+  // Listen to customers:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('customers:changed', () => {
+      result.refresh();
+    });
+    return off;
+  }, [result.refresh]);
+  
+  return result;
 }
 
 export function useCustomerSearch(searchTerm: string, limit = 10) {
@@ -317,6 +327,20 @@ export function useRoutes(
     hasMore
   } = usePaginatedData<RouteWithOrders>(fetchFunction, page, limit, [filtersString]);
 
+  // Listen to routes:changed and orders:changed events for real-time updates
+  useEffect(() => {
+    const offRoutes = eventBus.on('routes:changed', () => {
+      refresh();
+    });
+    const offOrders = eventBus.on('orders:changed', () => {
+      refresh(); // Routes contain orders, so refresh when orders change
+    });
+    return () => {
+      offRoutes();
+      offOrders();
+    };
+  }, [refresh]);
+
   return {
     routes: data,
     loading,
@@ -343,12 +367,22 @@ export function useExpenses(
     [filtersString, includeDetails]
   );
 
-  return usePaginatedData<ExpenseWithDetails>(
+  const result = usePaginatedData<ExpenseWithDetails>(
     fetchFunction,
     page,
     limit,
     [filtersString, includeDetails]
   );
+  
+  // Listen to expenses:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('expenses:changed', () => {
+      result.refresh();
+    });
+    return off;
+  }, [result.refresh]);
+  
+  return result;
 }
 
 // Services hooks
@@ -373,6 +407,14 @@ export function useServices() {
 
   useEffect(() => {
     fetchServices();
+  }, [fetchServices]);
+
+  // Listen to services:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('services:changed', () => {
+      fetchServices();
+    });
+    return off;
   }, [fetchServices]);
 
   return { services, loading, error, refresh: fetchServices };

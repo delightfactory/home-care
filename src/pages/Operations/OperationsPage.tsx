@@ -1,0 +1,1933 @@
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  Route,
+  Users,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  Clock,
+  Check,
+  XCircle,
+  Eye,
+  Copy,
+  Play,
+  ArrowRightLeft,
+  Edit,
+  Trash2,
+  Plus,
+  RefreshCw,
+  Activity,
+  Target,
+
+
+
+  Phone,
+  MessageSquare,
+  MessageCircle,
+
+
+  Star,
+
+  User,
+  Send,
+  Crown,
+  ListTodo,
+  Pencil,
+  AlertTriangle,
+  Package
+} from 'lucide-react'
+import html2canvas from 'html2canvas'
+import { 
+  RouteWithOrders, 
+  ExpenseWithDetails, 
+  OrderWithDetails,
+  WorkerWithTeam 
+} from '../../types'
+import LoadingSpinner from '../../components/UI/LoadingSpinner'
+import { useAuth } from '../../contexts/AuthContext'
+import toast from 'react-hot-toast'
+import { 
+  useRoutes, 
+  useTeams, 
+  useExpenses, 
+  useSystemHealth 
+} from '../../hooks/useEnhancedAPI'
+import EnhancedAPI from '../../api/enhanced-api'
+import { eventBus } from '../../utils/EventBus'
+import TransferWorkerModal from '../../components/Modals/TransferWorkerModal'
+import OrderFormModal from '../../components/Forms/OrderFormModal'
+import OrderDetailsModal from '../../components/Orders/OrderDetailsModal'
+import OrderRatingModal from '../../components/Orders/OrderRatingModal'
+import ExpenseFormModal from '../../components/Forms/ExpenseFormModal'
+import RouteFormModal from '../../components/Forms/RouteFormModal'
+import AssignOrdersModal from '../../components/Forms/AssignOrdersModal'
+import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
+import SmartModal from '../../components/UI/SmartModal'
+import EnhancedRouteHeader from '../../components/Operations/EnhancedRouteHeader'
+
+interface ExpandedSections {
+  [routeId: string]: boolean
+}
+
+const OperationsPage: React.FC = () => {
+  // State management
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [expandedSections, setExpandedSections] = useState<ExpandedSections>({})
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [showOrderModal, setShowOrderModal] = useState(false)
+  const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [showRouteModal, setShowRouteModal] = useState(false)
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedWorker, setSelectedWorker] = useState<WorkerWithTeam | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null)
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseWithDetails | null>(null)
+  const [selectedRoute, setSelectedRoute] = useState<RouteWithOrders | null>(null)
+  const [routeForOrders, setRouteForOrders] = useState<RouteWithOrders | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{type: string, id: string, name: string} | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const orderExportRef = useRef<HTMLDivElement>(null)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  
+  // Additional states for imported functionality from OrdersPage
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [showFormModal, setShowFormModal] = useState(false)
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [detailsOrderId, setDetailsOrderId] = useState<string | undefined>()
+  const [ratingOrderId, setRatingOrderId] = useState<string | undefined>()
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelLoading, setCancelLoading] = useState(false)
+
+  const { user } = useAuth()
+
+  // Data hooks
+  const { routes, loading: routesLoading, refresh: refreshRoutes } = useRoutes(
+    { date: selectedDate }, 1, 50
+  )
+  const { teams, loading: teamsLoading, refresh: refreshTeams } = useTeams()
+  const { data: expenses, loading: expensesLoading, refresh: refreshExpenses } = useExpenses(
+    { date_from: `${selectedDate}T00:00:00`, date_to: `${selectedDate}T23:59:59` }, 1, 100
+  )
+  const { health, refresh: refreshHealth } = useSystemHealth()
+
+  // Auto-refresh data when date changes
+  useEffect(() => {
+    refreshRoutes()
+    refreshExpenses()
+  }, [selectedDate])
+
+  // Smart real-time updates with debouncing
+  const debounceTimeouts = useRef<{ [key: string]: NodeJS.Timeout }>({})
+  
+  const debouncedRefresh = (key: string, refreshFn: () => void, delay = 300) => {
+    if (debounceTimeouts.current[key]) {
+      clearTimeout(debounceTimeouts.current[key])
+    }
+    
+    debounceTimeouts.current[key] = setTimeout(() => {
+      refreshFn()
+      delete debounceTimeouts.current[key]
+    }, delay)
+  }
+
+  useEffect(() => {
+    const unsubscribeRoutes = eventBus.on('routes:changed', () => {
+      debouncedRefresh('routes', refreshRoutes)
+    })
+    
+    const unsubscribeOrders = eventBus.on('orders:changed', () => {
+      // Only refresh routes if orders change, with debouncing
+      debouncedRefresh('orders-routes', refreshRoutes)
+    })
+    
+    const unsubscribeExpenses = eventBus.on('expenses:changed', () => {
+      debouncedRefresh('expenses', refreshExpenses)
+    })
+    
+    const unsubscribeTeams = eventBus.on('teams:changed', () => {
+      debouncedRefresh('teams', refreshTeams)
+    })
+
+    return () => {
+      // Clear all pending timeouts
+      Object.values(debounceTimeouts.current).forEach(timeout => clearTimeout(timeout))
+      debounceTimeouts.current = {}
+      
+      unsubscribeRoutes()
+      unsubscribeOrders()
+      unsubscribeExpenses()
+      unsubscribeTeams()
+    }
+  }, [refreshRoutes, refreshExpenses, refreshTeams])
+
+  // Toggle route expansion
+  const toggleRouteExpansion = (routeId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [routeId]: !prev[routeId]
+    }))
+  }
+
+  // Helper functions for order details
+  const getStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'pending': 'في الانتظار',
+      'scheduled': 'مجدول',
+      'in_progress': 'قيد التنفيذ',
+      'completed': 'مكتمل',
+      'cancelled': 'ملغي'
+    }
+    return statusMap[status] || status
+  }
+
+  const getConfirmationStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'pending': 'غير مؤكد',
+      'confirmed': 'تم التأكيد',
+      'declined': 'مرفوض'
+    }
+    return statusMap[status] || status
+  }
+
+  const getOrderStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'pending': 'في الانتظار',
+      'scheduled': 'مجدول',
+      'in_progress': 'قيد التنفيذ',
+      'completed': 'مكتمل',
+      'cancelled': 'ملغي'
+    }
+    return statusMap[status] || status
+  }
+
+  // Helper functions imported from OrdersPage
+  const handleStatusChange = async (order: OrderWithDetails, status: string) => {
+    if (status === 'cancelled') {
+      setSelectedOrder(order)
+      setShowCancelModal(true)
+      return
+    }
+    let notes: string | undefined
+    
+    try {
+      toast.loading('جاري تحديث حالة الطلب...', { id: 'status' })
+      const response = await EnhancedAPI.updateOrderStatus(order.id, status, notes, undefined)
+      if (response.success) {
+        toast.success('تم تحديث حالة الطلب', { id: 'status' })
+        // EventBus will handle the refresh automatically via orders:changed event
+      } else {
+        throw new Error(response.error || 'فشل في تحديث الحالة')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ في تحديث الحالة', { id: 'status' })
+      console.error('Status update error:', error)
+    }
+  }
+
+  // دالة تغيير حالة التأكيد - نفس المنطق المستخدم في صفحة الطلبات
+  const getConfirmationBadge = (status?: string | null) => {
+    const statusClasses: Record<string, string> = {
+      pending: 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-amber-200',
+      confirmed: 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border border-emerald-200',
+      declined: 'bg-gradient-to-r from-rose-100 to-red-100 text-rose-800 border border-rose-200'
+    };
+
+    const statusTexts: Record<string, string> = {
+      pending: 'غير مؤكد',
+      confirmed: 'تم التأكيد',
+      declined: 'مرفوضة'
+    };
+
+    // عيّن الحالة الافتراضية إلى pending إذا كانت غير موجودة
+    const effectiveStatus: string = (status && status in statusTexts ? status : 'pending');
+
+    const iconMap: Record<string, JSX.Element> = {
+      pending: <RefreshCw className="inline-block w-3.5 h-3.5 mr-1" />,
+      confirmed: <Check className="inline-block w-3.5 h-3.5 mr-1" />,
+      declined: <XCircle className="inline-block w-3.5 h-3.5 mr-1" />
+    };
+
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer ${statusClasses[effectiveStatus]}`}>
+        {iconMap[effectiveStatus]}
+        {statusTexts[effectiveStatus]}
+      </span>
+    );
+  };
+
+  const handleConfirmationChange = async (order: OrderWithDetails) => {
+    // دورة الحالات: pending -> confirmed -> declined -> pending
+    const nextMap: Record<string, 'pending' | 'confirmed' | 'declined'> = {
+      pending: 'confirmed',
+      confirmed: 'declined',
+      declined: 'pending'
+    };
+
+    const nextStatus = nextMap[order.confirmation_status as string] || 'confirmed';
+    try {
+      toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
+      const response = await EnhancedAPI.updateOrderConfirmationStatus(order.id, nextStatus, undefined, undefined)
+      if (response.success) {
+        toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
+        // EventBus will handle the refresh automatically via orders:changed event
+      } else {
+        throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
+      console.error('Confirmation status update error:', error)
+    }
+  }
+
+
+
+  // Copy order details as formatted text
+  const copyOrderDetails = (order: OrderWithDetails, teamName?: string) => {
+    const orderDetails = `🏠 تفاصيل الطلب رقم: ${order.order_number}
+
+` +
+      `👤 العميل: ${order.customer?.name || 'غير محدد'}\n` +
+      `📞 الهاتف: ${order.customer?.phone || 'غير محدد'}\n` +
+      `📍 العنوان: ${order.customer?.address || 'غير محدد'}\n` +
+      `🏘️ المنطقة: ${order.customer?.area || 'غير محدد'}\n\n` +
+      `📅 التاريخ: ${new Date(order.scheduled_date).toLocaleDateString('ar-EG')}\n` +
+      `⏰ الوقت: ${order.scheduled_time}\n` +
+      `💰 المبلغ: ${order.total_amount} ج.م\n` +
+      `📊 الحالة: ${getStatusText(order.status)}\n` +
+      `✅ التأكيد: ${getConfirmationStatusText(order.confirmation_status || 'pending')}\n` +
+      `👥 الفريق: ${teamName || 'غير محدد'}\n\n` +
+      `📝 الخدمات:\n${order.items?.map(item => `• ${item.service?.name_ar || 'خدمة'} (${item.quantity || 1})`).join('\n') || 'لا توجد خدمات'}\n\n` +
+      `📋 ملاحظات: ${order.notes || 'لا توجد ملاحظات'}`
+
+    navigator.clipboard.writeText(orderDetails)
+    toast.success('تم نسخ تفاصيل الطلب')
+  }
+
+  // Export order as image using existing template from OrderDetailsModal
+  const exportOrderAsImage = async (order: OrderWithDetails, teamName?: string) => {
+    try {
+      setIsExporting(true)
+      
+      // Create a temporary container with the same structure as OrderDetailsModal
+      const tempContainer = document.createElement('div')
+      tempContainer.style.position = 'absolute'
+      tempContainer.style.left = '-9999px'
+      tempContainer.style.top = '0'
+      tempContainer.style.width = '400px'
+      tempContainer.style.backgroundColor = 'white'
+      
+      // Use the same template structure from OrderDetailsModal
+      tempContainer.innerHTML = `
+        <div class="bg-white mobile-export">
+          <!-- Compact Header -->
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 text-center">
+            <div class="flex items-center justify-center gap-3 mb-2">
+              <h1 class="text-xl font-bold">تفاصيل الطلب رقم: ${order.order_number || 'غير محدد'}</h1>
+            </div>
+            <p class="text-sm opacity-90">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+          </div>
+
+          <div class="p-4 space-y-4">
+            <!-- Customer Information -->
+            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+              <h2 class="text-lg font-bold text-gray-800 mb-3">بيانات العميل</h2>
+              <div class="space-y-1 text-sm">
+                <div class="flex items-center gap-2 p-2 rounded bg-white border border-blue-100">
+                  <span class="font-semibold text-gray-700">الاسم:</span>
+                  <span class="text-gray-900">${order.customer?.name || 'غير محدد'}</span>
+                </div>
+                <div class="flex items-center gap-2 p-2 rounded bg-blue-25 border border-blue-100">
+                  <span class="font-semibold text-gray-700">الهاتف:</span>
+                  <span class="text-gray-900">${order.customer?.phone || 'غير محدد'}</span>
+                </div>
+                <div class="flex items-start gap-2 p-2 rounded bg-white border border-blue-100">
+                  <span class="font-semibold text-gray-700">العنوان:</span>
+                  <span class="text-gray-900 flex-1">${order.customer?.address || 'غير محدد'}</span>
+                </div>
+                ${order.customer?.area ? `
+                <div class="flex items-center gap-2 p-2 rounded bg-blue-25 border border-blue-100">
+                  <span class="font-semibold text-gray-700">المنطقة:</span>
+                  <span class="text-gray-900">${order.customer.area}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Order Information -->
+            <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+              <h2 class="text-lg font-bold text-gray-800 mb-3">بيانات الطلب</h2>
+              <div class="grid grid-cols-1 gap-1 text-sm">
+                <div class="flex items-center justify-between p-2 rounded bg-white border border-green-100">
+                  <span class="font-semibold text-gray-700">التاريخ:</span>
+                  <span class="text-gray-900">${order.scheduled_date || 'غير محدد'}</span>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-green-25 border border-green-100">
+                  <span class="font-semibold text-gray-700">الوقت:</span>
+                  <span class="text-gray-900">${order.scheduled_time || 'غير محدد'}</span>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-white border border-green-100">
+                  <span class="font-semibold text-gray-700">الحالة:</span>
+                  <span class="px-2 py-1 rounded text-xs font-medium ${
+                    order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                    order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }">${getOrderStatusText(order.status)}</span>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-green-25 border border-green-100">
+                  <span class="font-semibold text-gray-700">المبلغ الإجمالي:</span>
+                  <span class="font-bold text-green-700">${order.total_amount || 0} ج.م</span>
+                </div>
+                <div class="flex items-center justify-between p-2 rounded bg-white border border-green-100">
+                  <span class="font-semibold text-gray-700">الفريق:</span>
+                  <span class="text-gray-900">${teamName || 'غير محدد'}</span>
+                </div>
+                ${order.customer_rating ? `
+                <div class="flex items-center justify-between p-2 rounded bg-green-25 border border-green-100">
+                  <span class="font-semibold text-gray-700">التقييم:</span>
+                  <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-semibold">${order.customer_rating}/5</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Services Information -->
+            <div class="border border-orange-200 rounded-lg p-4 bg-orange-50">
+              <h2 class="text-lg font-bold text-gray-800 mb-3">الخدمات المطلوبة</h2>
+              <div class="space-y-1 text-sm">
+                ${order.items?.map((item, index) => `
+                <div class="flex items-center justify-between p-2 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-orange-25'} border border-orange-100">
+                  <span class="text-gray-900">${item.service?.name_ar || 'خدمة'}</span>
+                  <span class="font-semibold text-gray-700">الكمية: ${item.quantity || 1}</span>
+                </div>
+                `).join('') || '<div class="text-center text-gray-500 py-2">لا توجد خدمات</div>'}
+              </div>
+              ${order.notes ? `
+              <div class="mt-3 pt-3 border-t border-orange-200">
+                <div class="bg-white p-2 rounded border border-orange-100">
+                  <span class="font-semibold text-gray-700">ملاحظات:</span>
+                  <p class="text-gray-900 mt-1">${order.notes}</p>
+                </div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `
+      
+      document.body.appendChild(tempContainer)
+      
+      // Create mobile-friendly styles
+      const exportStyles = document.createElement('style')
+      exportStyles.textContent = `
+        .mobile-export {
+          width: 400px !important;
+          font-size: 0.875rem !important;
+          background: white !important;
+          font-family: Arial, sans-serif !important;
+          direction: rtl !important;
+        }
+        .mobile-export .text-sm {
+          font-size: 0.875rem !important;
+        }
+        .mobile-export .text-xs {
+          font-size: 0.75rem !important;
+        }
+        .mobile-export .text-xl {
+          font-size: 1.25rem !important;
+        }
+        .mobile-export .text-lg {
+          font-size: 1.125rem !important;
+        }
+        .mobile-export .mb-2 {
+          margin-bottom: 0.5rem !important;
+        }
+        .mobile-export .mb-3 {
+          margin-bottom: 0.75rem !important;
+        }
+        .mobile-export .mt-1 {
+          margin-top: 0.25rem !important;
+        }
+        .mobile-export .mt-3 {
+          margin-top: 0.75rem !important;
+        }
+        .mobile-export .pt-3 {
+          padding-top: 0.75rem !important;
+        }
+        .mobile-export .p-2 {
+          padding: 0.5rem !important;
+        }
+        .mobile-export .p-4 {
+          padding: 1rem !important;
+        }
+        .mobile-export .space-y-1 > * + * {
+          margin-top: 0.25rem !important;
+        }
+        .mobile-export .space-y-4 > * + * {
+          margin-top: 1rem !important;
+        }
+        .mobile-export .gap-2 {
+          gap: 0.5rem !important;
+        }
+        .mobile-export .gap-3 {
+          gap: 0.75rem !important;
+        }
+        .mobile-export .gap-1 {
+          gap: 0.25rem !important;
+        }
+        .mobile-export .rounded {
+          border-radius: 0.25rem !important;
+        }
+        .mobile-export .rounded-lg {
+          border-radius: 0.5rem !important;
+        }
+        .mobile-export .border {
+          border-width: 1px !important;
+        }
+        .mobile-export .border-t {
+          border-top-width: 1px !important;
+        }
+        .mobile-export .flex {
+          display: flex !important;
+        }
+        .mobile-export .grid {
+          display: grid !important;
+        }
+        .mobile-export .grid-cols-1 {
+          grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+        }
+        .mobile-export .items-center {
+          align-items: center !important;
+        }
+        .mobile-export .items-start {
+          align-items: flex-start !important;
+        }
+        .mobile-export .justify-center {
+          justify-content: center !important;
+        }
+        .mobile-export .justify-between {
+          justify-content: space-between !important;
+        }
+        .mobile-export .text-center {
+          text-align: center !important;
+        }
+        .mobile-export .flex-1 {
+          flex: 1 1 0% !important;
+        }
+        .mobile-export .font-bold {
+          font-weight: 700 !important;
+        }
+        .mobile-export .font-semibold {
+          font-weight: 600 !important;
+        }
+        .mobile-export .opacity-90 {
+          opacity: 0.9 !important;
+        }
+        .mobile-export .bg-gradient-to-r {
+          background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
+        }
+        .mobile-export .text-white {
+          color: white !important;
+        }
+        .mobile-export .bg-white {
+          background-color: white !important;
+        }
+        .mobile-export .bg-blue-50 {
+          background-color: #eff6ff !important;
+        }
+        .mobile-export .bg-green-50 {
+          background-color: #f0fdf4 !important;
+        }
+        .mobile-export .bg-orange-50 {
+          background-color: #fff7ed !important;
+        }
+        .mobile-export .border-blue-200 {
+          border-color: #bfdbfe !important;
+        }
+        .mobile-export .border-green-200 {
+          border-color: #bbf7d0 !important;
+        }
+        .mobile-export .border-orange-200 {
+          border-color: #fed7aa !important;
+        }
+        .mobile-export .border-blue-100 {
+          border-color: #dbeafe !important;
+        }
+        .mobile-export .border-green-100 {
+          border-color: #dcfce7 !important;
+        }
+        .mobile-export .border-orange-100 {
+          border-color: #ffedd5 !important;
+        }
+        .mobile-export .text-gray-800 {
+          color: #1f2937 !important;
+        }
+        .mobile-export .text-gray-700 {
+          color: #374151 !important;
+        }
+        .mobile-export .text-gray-900 {
+          color: #111827 !important;
+        }
+        .mobile-export .text-gray-500 {
+          color: #6b7280 !important;
+        }
+        .mobile-export .text-green-700 {
+          color: #15803d !important;
+        }
+        .mobile-export .bg-green-100 {
+          background-color: #dcfce7 !important;
+        }
+        .mobile-export .text-green-800 {
+          color: #166534 !important;
+        }
+        .mobile-export .bg-blue-100 {
+          background-color: #dbeafe !important;
+        }
+        .mobile-export .text-blue-800 {
+          color: #1e40af !important;
+        }
+        .mobile-export .bg-red-100 {
+          background-color: #fee2e2 !important;
+        }
+        .mobile-export .text-red-800 {
+          color: #991b1b !important;
+        }
+        .mobile-export .bg-yellow-100 {
+          background-color: #fef3c7 !important;
+        }
+        .mobile-export .text-yellow-800 {
+          color: #92400e !important;
+        }
+        .mobile-export .px-2 {
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+        .mobile-export .py-1 {
+          padding-top: 0.25rem !important;
+          padding-bottom: 0.25rem !important;
+        }
+        .mobile-export .py-2 {
+          padding-top: 0.5rem !important;
+          padding-bottom: 0.5rem !important;
+        }
+      `
+      document.head.appendChild(exportStyles)
+      
+      const canvas = await html2canvas(tempContainer.firstElementChild as HTMLElement, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 400,
+        height: (tempContainer.firstElementChild as HTMLElement).scrollHeight
+      })
+      
+      // Clean up
+      document.body.removeChild(tempContainer)
+      document.head.removeChild(exportStyles)
+      
+      // Create download link
+      const link = document.createElement('a')
+      link.download = `order-${order.order_number || order.id}-${new Date().toISOString().split('T')[0]}.png`
+      link.href = canvas.toDataURL()
+      
+      // Auto-download
+      link.click()
+      
+      // Send via WhatsApp if customer phone is available
+      if (order.customer?.phone) {
+        const whatsappMessage = `مرحباً ${order.customer.name || 'عزيزي العميل'},\n\nإليك تفاصيل طلبك رقم: ${order.order_number}\n\nشكراً لثقتكم بنا 🌟`
+        const whatsappUrl = `https://wa.me/${order.customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
+        window.open(whatsappUrl, '_blank')
+        toast.success('تم تصدير الطلب وفتح واتساب للإرسال')
+      } else {
+        toast.success('تم تصدير الطلب كصورة')
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      toast.error('حدث خطأ في تصدير الطلب')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Handle worker transfer
+  const handleTransferWorker = (worker: WorkerWithTeam) => {
+    setSelectedWorker(worker)
+    setShowTransferModal(true)
+  }
+
+
+
+  // Handle expense actions
+  const handleExpenseAction = async (action: string, expense: ExpenseWithDetails) => {
+    setLoading(true)
+    try {
+      let result
+      switch (action) {
+        case 'approve':
+          result = await EnhancedAPI.approveExpense(expense.id, user?.id || '')
+          break
+        case 'reject':
+          const reason = window.prompt('أدخل سبب الرفض:')
+          if (reason === null) {
+            setLoading(false)
+            return
+          }
+          result = await EnhancedAPI.rejectExpense(expense.id, reason, user?.id || '')
+          break
+        case 'edit':
+          setSelectedExpense(expense)
+          setShowExpenseModal(true)
+          return
+        case 'delete':
+          setDeleteTarget({ type: 'expense', id: expense.id, name: expense.description })
+          setShowDeleteModal(true)
+          return
+        default:
+          return
+      }
+      
+      if (result?.success) {
+        toast.success(result.message || 'تم تنفيذ العملية بنجاح')
+        // EventBus will handle the refresh automatically via expenses:changed event
+      } else {
+        toast.error(result?.error || 'حدث خطأ')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء تنفيذ العملية')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle start route
+  const handleStartRoute = async (route: RouteWithOrders) => {
+    try {
+      const res = await EnhancedAPI.startRoute(route.id)
+      if (!res.success) throw new Error(res.error)
+      toast.success('تم بدء خط السير')
+      // EventBus will handle the refresh automatically via routes:changed event
+    } catch (error) {
+      toast.error('تعذر بدء خط السير')
+      console.error(error)
+    }
+  }
+
+  // Handle complete route
+  const handleCompleteRoute = async (route: RouteWithOrders) => {
+    try {
+      const res = await EnhancedAPI.completeRoute(route.id)
+      if (!res.success) throw new Error(res.error)
+      toast.success('تم إكمال خط السير')
+      // EventBus will handle the refresh automatically via routes:changed event
+    } catch (error) {
+      toast.error('تعذر إكمال خط السير')
+      console.error(error)
+    }
+  }
+
+  // Handle delete route
+  const handleDeleteRoute = async (route: RouteWithOrders) => {
+    try {
+      const res = await EnhancedAPI.deleteRoute(route.id)
+      if (!res.success) throw new Error(res.error)
+      toast.success('تم حذف خط السير')
+      setShowDeleteModal(false)
+      // EventBus will handle the refresh automatically via routes:changed event
+    } catch (error) {
+      toast.error('تعذر حذف خط السير')
+      console.error(error)
+    }
+  }
+
+
+
+  // Handle delete confirmation
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    
+    setLoading(true)
+    try {
+      let result
+      switch (deleteTarget.type) {
+        case 'order':
+          result = await EnhancedAPI.deleteOrder(deleteTarget.id)
+          break
+        case 'expense':
+          result = await EnhancedAPI.deleteExpense(deleteTarget.id)
+          break
+        case 'route':
+          result = await EnhancedAPI.deleteRoute(deleteTarget.id)
+          break
+        default:
+          return
+      }
+      
+      if (result?.success) {
+        toast.success(result.message || 'تم الحذف بنجاح')
+        // EventBus will handle the refresh automatically via respective changed events
+      } else {
+        toast.error(result?.error || 'حدث خطأ')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء الحذف')
+    } finally {
+      setLoading(false)
+      setShowDeleteModal(false)
+      setDeleteTarget(null)
+    }
+  }
+
+  // Get status badge component
+  const getStatusBadge = (status: string, type: 'order' | 'route' | 'expense') => {
+    const statusConfig = {
+      order: {
+        pending: { class: 'bg-yellow-100 text-yellow-800', text: 'في الانتظار' },
+        confirmed: { class: 'bg-blue-100 text-blue-800', text: 'مؤكد' },
+        scheduled: { class: 'bg-purple-100 text-purple-800', text: 'مجدول' },
+        in_progress: { class: 'bg-orange-100 text-orange-800', text: 'قيد التنفيذ' },
+        completed: { class: 'bg-green-100 text-green-800', text: 'مكتمل' },
+        cancelled: { class: 'bg-red-100 text-red-800', text: 'ملغي' }
+      },
+      route: {
+        planned: { class: 'bg-blue-100 text-blue-800', text: 'مخطط' },
+        in_progress: { class: 'bg-orange-100 text-orange-800', text: 'قيد التنفيذ' },
+        completed: { class: 'bg-green-100 text-green-800', text: 'مكتمل' }
+      },
+      expense: {
+        pending: { class: 'bg-yellow-100 text-yellow-800', text: 'في الانتظار' },
+        approved: { class: 'bg-green-100 text-green-800', text: 'موافق عليه' },
+        rejected: { class: 'bg-red-100 text-red-800', text: 'مرفوض' }
+      }
+    }
+
+    const config = statusConfig[type][status as keyof typeof statusConfig[typeof type]] || 
+                  { class: 'bg-gray-100 text-gray-800', text: status }
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(config as any).class}`}>
+        {(config as any).text}
+      </span>
+    )
+  }
+
+  // Calculate daily statistics
+  const dailyStats = {
+    totalRoutes: routes?.length || 0,
+    activeRoutes: routes?.filter((r: any) => r.status === 'in_progress').length || 0,
+    completedRoutes: routes?.filter((r: any) => r.status === 'completed').length || 0,
+    totalOrders: routes?.reduce((sum: number, route: any) => sum + (route.route_orders?.length || 0), 0) || 0,
+    totalExpenses: expenses?.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0) || 0,
+    pendingExpenses: expenses?.filter((e: any) => e.status === 'pending').length || 0
+  }
+
+  if (routesLoading || teamsLoading || expensesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner size="large" text="جاري تحميل بيانات العمليات..." />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
+            إدارة العمليات اليومية
+          </h1>
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">
+            إدارة شاملة لخطوط السير والطلبات والفرق والمصروفات
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 sm:space-x-4 sm:space-x-reverse">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500 w-full sm:w-auto"
+          />
+          <button
+            onClick={async () => {
+              setLoading(true)
+              try {
+                await Promise.all([
+                  refreshRoutes(),
+                  refreshExpenses(),
+                  refreshTeams(),
+                  refreshHealth()
+                ])
+                toast.success('تم تحديث جميع البيانات بنجاح')
+              } catch (error) {
+                toast.error('حدث خطأ أثناء تحديث البيانات')
+              } finally {
+                setLoading(false)
+              }
+            }}
+            className="btn-secondary hover:scale-105 transition-all duration-200 w-full sm:w-auto flex items-center justify-center"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-5 w-5 ml-2 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">تحديث</span>
+            <span className="sm:hidden">تحديث البيانات</span>
+          </button>
+        </div>
+      </div>
+
+      {/* System Health & Statistics - Hidden on mobile */}
+      <div className="hidden md:grid grid-cols-1 md:grid-cols-6 gap-4">
+        {/* System Health */}
+        {health && (
+          <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">حالة النظام</p>
+                <div className="flex items-center mt-1">
+                  <div className={`w-2 h-2 rounded-full ml-2 ${
+                    health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
+                  <span className="text-xs text-gray-600">
+                    {health.database?.response_time_ms || 0}ms
+                  </span>
+                </div>
+              </div>
+              <Activity className="h-5 w-5 text-gray-600" />
+            </div>
+          </div>
+        )}
+
+        {/* Daily Statistics */}
+        <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600">خطوط السير</p>
+              <p className="text-xl font-bold text-blue-800">{dailyStats.totalRoutes}</p>
+            </div>
+            <Route className="h-6 w-6 text-blue-600" />
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600">نشطة</p>
+              <p className="text-xl font-bold text-green-800">{dailyStats.activeRoutes}</p>
+            </div>
+            <Play className="h-6 w-6 text-green-600" />
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-600">الطلبات</p>
+              <p className="text-xl font-bold text-purple-800">{dailyStats.totalOrders}</p>
+            </div>
+            <Target className="h-6 w-6 text-purple-600" />
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-orange-600">المصروفات</p>
+              <p className="text-xl font-bold text-orange-800">{dailyStats.totalExpenses.toFixed(0)} ج.م</p>
+            </div>
+            <DollarSign className="h-6 w-6 text-orange-600" />
+          </div>
+        </div>
+
+        <div className="card-compact bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600">في الانتظار</p>
+              <p className="text-xl font-bold text-red-800">{dailyStats.pendingExpenses}</p>
+            </div>
+            <XCircle className="h-6 w-6 text-red-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* Routes Management */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center">
+            <Route className="h-6 w-6 ml-2 text-primary-600" />
+            خطوط السير اليومية
+          </h2>
+          <button
+            onClick={() => {
+              setSelectedRoute(null)
+              setShowRouteModal(true)
+            }}
+            className="btn-primary hover:scale-105 transition-all duration-200"
+          >
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة خط سير
+          </button>
+        </div>
+
+        {routes?.length === 0 ? (
+          <div className="card-compact text-center py-12">
+            <Route className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500 text-lg font-medium">لا توجد خطوط سير لهذا التاريخ</p>
+            <p className="text-gray-400 text-sm mt-1">ابدأ بإنشاء خط سير جديد</p>
+          </div>
+        ) : (
+          routes?.map((route: any) => (
+            <div key={route.id} className="mb-4">
+              <EnhancedRouteHeader
+                route={route}
+                isExpanded={expandedSections[route.id]}
+                onToggleExpansion={() => toggleRouteExpansion(route.id)}
+                onEdit={(e) => { e.stopPropagation(); setSelectedRoute(route); setFormMode('edit'); setShowRouteModal(true); }}
+                onManageOrders={(e) => { e.stopPropagation(); setRouteForOrders(route); setShowAssignModal(true); }}
+                onStartRoute={(e) => { e.stopPropagation(); handleStartRoute(route); }}
+                onCompleteRoute={(e) => { e.stopPropagation(); handleCompleteRoute(route); }}
+                onDeleteRoute={(e) => { e.stopPropagation(); setSelectedRoute(route); setShowDeleteModal(true); }}
+                getStatusBadge={getStatusBadge}
+              />
+              {/* Legacy header (hidden) */}
+              {false && (<div className="p-4">
+                {/* Main Header Row */}
+                <div 
+                  className="flex items-start justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200"
+                  onClick={() => toggleRouteExpansion(route.id)}
+                >
+                  {/* Left Side - Route Info */}
+                  <div className="flex items-start space-x-3 space-x-reverse flex-1 min-w-0">
+                    {/* Expand/Collapse Icon */}
+                    <div className="flex-shrink-0 mt-1">
+                      {expandedSections[route.id] ? (
+                        <ChevronUp className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-500" />
+                      )}
+                    </div>
+                    
+                    {/* Route Details */}
+                    <div className="flex-1 min-w-0">
+                      {/* Route Name and Icon */}
+                      <div className="flex items-center space-x-2 space-x-reverse mb-2">
+                        <MapPin className="h-5 w-5 text-primary-600 flex-shrink-0" />
+                        <h3 className="text-lg font-semibold text-gray-900 truncate">{route.name}</h3>
+                        {getStatusBadge(route.status, 'route')}
+                      </div>
+                      
+                      {/* Route Basic Info */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-600 mb-3">
+                        <span className="flex items-center">
+                          <Clock className="h-4 w-4 ml-1 flex-shrink-0" />
+                          <span className="truncate">{route.start_time} - {route.end_time}</span>
+                        </span>
+                        <span className="flex items-center">
+                          <Users className="h-4 w-4 ml-1 flex-shrink-0" />
+                          <span className="truncate">{route.team?.name || 'غير محدد'}</span>
+                        </span>
+                        <span className="flex items-center">
+                          <Package className="h-4 w-4 ml-1 flex-shrink-0" />
+                          <span>{route.route_orders?.length || 0} طلب</span>
+                        </span>
+                      </div>
+                      
+                      {/* Smart Performance Summary */}
+                      {(() => {
+                        const orders = route.route_orders || []
+                        const totalOrders = orders.length
+                        const completedOrders = orders.filter((ro: any) => ro.order.status === 'completed').length
+                        const inProgressOrders = orders.filter((ro: any) => ro.order.status === 'in_progress').length
+                        const totalRevenue = orders.reduce((sum: number, ro: any) => sum + (ro.order.total_amount || 0), 0)
+                        const completionRate = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0
+                        const avgRating = orders.filter((ro: any) => ro.order.customer_rating).reduce((sum: number, ro: any, _index: number, arr: any[]) => sum + ro.order.customer_rating / arr.length, 0)
+                        const hasIssues = orders.some((ro: any) => ro.order.status === 'cancelled' || ro.order.confirmation_status === 'declined')
+                        const confirmedOrders = orders.filter((ro: any) => ro.order.confirmation_status === 'confirmed').length
+                        
+                        if (totalOrders === 0) return null
+                        
+                        return (
+                          <div className="mt-2 space-y-2">
+                            {/* Main Progress Bar */}
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className="text-gray-600 font-medium">التقدم</span>
+                                  <span className="font-bold text-gray-800">{completionRate}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500 ease-out"
+                                    style={{ width: `${completionRate}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              {hasIssues && (
+                                <div className="flex items-center bg-red-100 text-red-700 px-2 py-1 rounded-md">
+                                  <AlertTriangle className="h-3 w-3 ml-1" />
+                                  <span className="text-xs font-medium">تنبيه</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Compact Stats Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+                              {/* Orders Status */}
+                              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg px-2 py-1.5 border border-blue-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-1 space-x-reverse">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <span className="text-blue-700 font-medium">{completedOrders + inProgressOrders}</span>
+                                  </div>
+                                  <span className="text-blue-600 text-xs">نشط</span>
+                                </div>
+                              </div>
+                              
+                              {/* Revenue */}
+                              {totalRevenue > 0 && (
+                                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg px-2 py-1.5 border border-green-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-green-700 font-bold text-xs">{(totalRevenue / 1000).toFixed(1)}ك</span>
+                                    <span className="text-green-600 text-xs">ج.م</span>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Rating */}
+                              {avgRating > 0 && (
+                                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg px-2 py-1.5 border border-yellow-200">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-1 space-x-reverse">
+                                      <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                                      <span className="text-yellow-700 font-bold">{avgRating.toFixed(1)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Confirmation Rate */}
+                              {confirmedOrders > 0 && (
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg px-2 py-1.5 border border-purple-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-purple-700 font-bold">{Math.round((confirmedOrders / totalOrders) * 100)}%</span>
+                                    <span className="text-purple-600 text-xs">تأكيد</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                  
+                  {/* Right Side - Action Buttons */}
+                   <div className="flex-shrink-0">
+                     <div className="flex items-center space-x-1 space-x-reverse">
+                       {/* Primary Actions Group */}
+                       <div className="flex items-center space-x-1 space-x-reverse bg-gray-50 rounded-lg p-1">
+                         {/* Edit */}
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation()
+                             setSelectedRoute(route)
+                             setFormMode('edit')
+                             setShowRouteModal(true)
+                           }}
+                           className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-all duration-200 hover:scale-105"
+                           title="تعديل"
+                         >
+                           <Pencil className="h-4 w-4" />
+                         </button>
+                         
+                         {/* Manage Orders */}
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation()
+                             setRouteForOrders(route)
+                             setShowAssignModal(true)
+                           }}
+                           className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-md transition-all duration-200 hover:scale-105"
+                           title="إدارة الطلبات"
+                         >
+                           <ListTodo className="h-4 w-4" />
+                         </button>
+                       </div>
+                       
+                       {/* Status Actions Group */}
+                       <div className="flex items-center space-x-1 space-x-reverse">
+                         {/* Start Route */}
+                         {route.status === 'planned' && (
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation()
+                               handleStartRoute(route)
+                             }}
+                             className="p-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 hover:scale-105 shadow-sm"
+                             title="بدء الخط"
+                           >
+                             <Play className="h-4 w-4" />
+                           </button>
+                         )}
+                         
+                         {/* Complete Route */}
+                         {route.status === 'in_progress' && (
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation()
+                               handleCompleteRoute(route)
+                             }}
+                             className="p-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 hover:scale-105 shadow-sm"
+                             title="إكمال الخط"
+                           >
+                             <Check className="h-4 w-4" />
+                           </button>
+                         )}
+                         
+                         {/* Delete Route */}
+                         {route.status === 'planned' && (
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation()
+                               setSelectedRoute(route)
+                               setShowDeleteModal(true)
+                             }}
+                             className="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-all duration-200 hover:scale-105"
+                             title="حذف"
+                           >
+                             <Trash2 className="h-4 w-4" />
+                           </button>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+              </div>
+              )} 
+               {/* Expanded Content */}
+              {expandedSections[route.id] && (
+                <div className="border-t border-gray-200 p-4 space-y-6">
+                  {/* Team Details */}
+                  {route.team && (
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <h4 className="font-medium text-blue-900 mb-2 flex items-center text-sm">
+                        <Users className="h-4 w-4 ml-1" />
+                        فريق: {route.team.name}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                        {/* All Team Members (including leader with special styling) */}
+                        {(() => {
+                          // Create a combined list of all team members
+                          const allMembers = [];
+                          
+                          // Add leader first if exists
+                          if (route.team.leader) {
+                            allMembers.push({
+                              worker: route.team.leader,
+                              isLeader: true
+                            });
+                          }
+                          
+                          // Add other members (excluding leader to avoid duplication)
+                          if (route.team.members) {
+                            route.team.members.forEach((member: any) => {
+                              // Only add if not the leader
+                              if (!route.team.leader || member.worker.id !== route.team.leader.id) {
+                                allMembers.push({
+                                  worker: member.worker,
+                                  isLeader: false
+                                });
+                              }
+                            });
+                          }
+                          
+                          return allMembers.map((member: any) => {
+                            const isLeader = member.isLeader;
+                            const worker = member.worker;
+                            
+                            return (
+                              <div 
+                                key={worker.id} 
+                                className={`rounded-md p-2 flex items-center justify-between transition-colors ${
+                                  isLeader 
+                                    ? 'bg-yellow-50 border border-yellow-200' 
+                                    : 'bg-white border border-gray-200 hover:bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1 min-w-0 flex-1">
+                                  <div className="relative flex-shrink-0">
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                      isLeader ? 'bg-yellow-500' : 'bg-gray-500'
+                                    }`}>
+                                      <span className="text-white font-bold text-xs">
+                                        {worker.name.charAt(0)}
+                                      </span>
+                                    </div>
+                                    {isLeader && (
+                                      <Crown className="absolute -top-0.5 -right-0.5 h-2 w-2 text-yellow-600" />
+                                    )}
+                                  </div>
+                                  <span className="font-medium text-gray-900 text-sm truncate">{worker.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <button
+                                    onClick={() => window.open(`tel:${worker.phone}`, '_self')}
+                                    className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                    title="اتصال"
+                                  >
+                                    <Phone className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => window.open(`https://wa.me/${worker.phone.replace(/[^0-9]/g, '')}`, '_blank')}
+                                    className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                    title="واتساب"
+                                  >
+                                    <MessageSquare className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleTransferWorker({
+                                      ...worker,
+                                      team: { id: route.team!.id, name: route.team!.name, leader_id: route.team!.leader_id }
+                                    })}
+                                    className="p-1 text-orange-600 hover:bg-orange-100 rounded transition-colors"
+                                    title="نقل"
+                                  >
+                                    <ArrowRightLeft className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Orders in Route */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <Target className="h-5 w-5 ml-2 text-purple-600" />
+                      الطلبات ({route.route_orders?.length || 0})
+                    </h4>
+                    {route.route_orders?.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <Target className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p className="text-gray-500">لا توجد طلبات في هذا الخط</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {route.route_orders?.sort((a: any, b: any) => (a.sequence_order || 0) - (b.sequence_order || 0)).map((routeOrder: any) => (
+                          <div key={routeOrder.order.id} className="bg-gradient-to-r from-white to-gray-50 rounded-lg p-2 sm:p-3 border-2 border-gray-300 hover:border-blue-400 hover:shadow-lg transition-all duration-200 group shadow-sm">
+                            {/* Mobile-First Responsive Layout */}
+                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-0">
+                              <div className="flex-1 min-w-0">
+                                {/* First Row - Header with Status and Rating */}
+                                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-2 gap-2 lg:gap-4">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <div className="bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap border border-gray-300 shadow-sm">
+                                      #{routeOrder.order.order_number}
+                                    </div>
+                                    <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold whitespace-nowrap border shadow-sm ${
+                                      routeOrder.order.status === 'completed' ? 'bg-green-200 text-green-900 border-green-300' :
+                                      routeOrder.order.status === 'in_progress' ? 'bg-blue-200 text-blue-900 border-blue-300' :
+                                      routeOrder.order.status === 'cancelled' ? 'bg-red-200 text-red-900 border-red-300' :
+                                      'bg-yellow-200 text-yellow-900 border-yellow-300'
+                                    }`}>
+                                      {getOrderStatusText(routeOrder.order.status)}
+                                    </span>
+                                    {/* Rating - Inline with status */}
+                                    {routeOrder.order.customer_rating && (
+                                      <div className="flex items-center bg-yellow-200 px-3 py-1.5 rounded-md text-xs sm:text-sm border border-yellow-300 shadow-sm">
+                                        <Star className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-700 ml-1" />
+                                        <span className="font-semibold text-yellow-900">{routeOrder.order.customer_rating}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Desktop: Additional info in first row */}
+                                  <div className="hidden lg:flex items-center gap-3 text-xs text-gray-700">
+                                    <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md whitespace-nowrap border border-gray-300 shadow-sm">
+                                      <Target className="h-3 w-3 text-blue-600 ml-1" />
+                                      <span className="font-medium">ترتيب {routeOrder.sequence_order}</span>
+                                    </span>
+                                    <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md border border-gray-300 shadow-sm">
+                                      <Users className="h-3 w-3 text-indigo-600 ml-1" />
+                                      <span className="truncate max-w-[120px] font-medium">{route.team?.name || 'غير محدد'}</span>
+                                    </span>
+                                    <div onClick={() => handleConfirmationChange(routeOrder.order)}>
+                                      {getConfirmationBadge(routeOrder.order.confirmation_status)}
+                                    </div>
+                                    {routeOrder.order.customer?.phone && (
+                                      <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md border border-gray-300 shadow-sm">
+                                        <Phone className="h-3 w-3 text-green-600 ml-1" />
+                                        <span className="text-xs font-medium">{routeOrder.order.customer.phone}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Second Row - Main Content */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs sm:text-sm mb-2">
+                                  {/* Customer & Location */}
+                                  <div className="lg:col-span-2 flex items-center space-x-1 space-x-reverse bg-blue-100 px-3 py-2 rounded-md border border-blue-300 shadow-sm">
+                                    <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-700 flex-shrink-0" />
+                                    <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-1 lg:space-x-reverse min-w-0 flex-1">
+                                      <span className="font-semibold text-blue-900 truncate">{routeOrder.order.customer?.name || 'غير محدد'}</span>
+                                      <span className="text-blue-700 hidden lg:inline">•</span>
+                                      <span className="text-blue-800 truncate text-xs lg:text-sm font-medium">{routeOrder.order.customer?.area || 'غير محدد'}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Time & Amount */}
+                                  <div className="lg:col-span-2 flex items-center space-x-1 space-x-reverse bg-green-100 px-3 py-2 rounded-md border border-green-300 shadow-sm">
+                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-orange-700 flex-shrink-0" />
+                                    <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-1 lg:space-x-reverse flex-1">
+                                      <span className="text-orange-800 whitespace-nowrap font-medium">{routeOrder.order.scheduled_time}</span>
+                                      <span className="text-green-700 hidden lg:inline">•</span>
+                                      <span className="font-bold text-green-800 whitespace-nowrap">{routeOrder.order.total_amount} ج.م</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Mobile: Bottom Info - Only shown on mobile */}
+                                <div className="lg:hidden flex flex-wrap items-center gap-2 text-xs text-gray-700">
+                                  <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md whitespace-nowrap border border-gray-300 shadow-sm">
+                                    <Target className="h-3 w-3 text-blue-600 ml-1" />
+                                    <span className="font-medium">ترتيب {routeOrder.sequence_order}</span>
+                                  </span>
+                                  <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md border border-gray-300 shadow-sm">
+                                    <Users className="h-3 w-3 text-indigo-600 ml-1" />
+                                    <span className="truncate max-w-[120px] sm:max-w-none font-medium">{route.team?.name || 'غير محدد'}</span>
+                                  </span>
+                                  <div onClick={() => handleConfirmationChange(routeOrder.order)}>
+                                    {getConfirmationBadge(routeOrder.order.confirmation_status)}
+                                  </div>
+                                  {routeOrder.order.customer?.phone && (
+                                    <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md border border-gray-300 shadow-sm">
+                                      <Phone className="h-3 w-3 text-green-600 ml-1" />
+                                      <span className="text-xs sm:text-sm font-medium">{routeOrder.order.customer.phone}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Actions - Mobile Responsive */}
+                              <div className="flex flex-col gap-2 lg:ml-2">
+                                {/* Primary Actions - Mobile Responsive */}
+                                <div className="flex flex-wrap gap-1 justify-start">
+                                  {/* الأزرار الأساسية - تظهر دائماً */}
+                                  <button 
+                                    onClick={() => {
+                                      setDetailsOrderId(routeOrder.order.id)
+                                      setShowDetailsModal(true)
+                                    }}
+                                    className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                    title="عرض التفاصيل"
+                                  >
+                                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedOrder(routeOrder.order)
+                                      setFormMode('edit')
+                                      setShowFormModal(true)
+                                    }}
+                                    className="p-1.5 sm:p-2 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                    title="تعديل"
+                                  >
+                                    <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </button>
+                                  
+                                  {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
+                                  {routeOrder.order.status === 'pending' || routeOrder.order.status === 'scheduled' ? (
+                                    <button
+                                      onClick={() => handleStatusChange(routeOrder.order, 'in_progress')}
+                                      className="p-1.5 sm:p-2 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                      title="بدء التنفيذ"
+                                    >
+                                      <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    </button>
+                                  ) : null}
+                                  {routeOrder.order.status === 'in_progress' ? (
+                                    <button
+                                      onClick={() => handleStatusChange(routeOrder.order, 'completed')}
+                                      className="p-1.5 sm:p-2 text-green-700 hover:bg-green-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                      title="إكمال"
+                                    >
+                                      <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    </button>
+                                  ) : null}
+                                  {routeOrder.order.status === 'completed' && !routeOrder.order.customer_rating ? (
+                                    <button
+                                      onClick={() => {
+                                        setRatingOrderId(routeOrder.order.id)
+                                        setShowRatingModal(true)
+                                      }}
+                                      className="p-1.5 sm:p-2 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                      title="تقييم الخدمة"
+                                    >
+                                      <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    </button>
+                                  ) : null}
+                                  {routeOrder.order.status !== 'cancelled' && routeOrder.order.status !== 'completed' ? (
+                                    <button
+                                      onClick={() => handleStatusChange(routeOrder.order, 'cancelled')}
+                                      className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                      title="إلغاء"
+                                    >
+                                      <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    </button>
+                                  ) : null}
+                                </div>
+                                
+                                {/* Secondary Actions - Mobile Optimized */}
+                                <div className="flex flex-wrap gap-1">
+                                  {routeOrder.order.customer?.phone && (
+                                    <>
+                                      <button
+                                        onClick={() => window.open(`tel:${routeOrder.order.customer.phone}`, '_self')}
+                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-full transition-colors flex-shrink-0 border border-blue-200 hover:border-blue-300 touch-manipulation"
+                                        title="اتصال"
+                                      >
+                                        <Phone className="h-3.5 w-3.5" />
+                                      </button>
+                                      
+                                      <button
+                                        onClick={() => {
+                                          // تنسيق رقم الهاتف للواتساب - إضافة كود الدولة إذا لم يكن موجود
+                                          let phoneNumber = routeOrder.order.customer.phone.replace(/[^0-9]/g, '')
+                                          if (!phoneNumber.startsWith('20')) {
+                                            phoneNumber = '20' + phoneNumber
+                                          }
+                                          window.open(`https://wa.me/${phoneNumber}`, '_blank')
+                                        }}
+                                        className="p-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0 border border-green-200 hover:border-green-300 touch-manipulation"
+                                        title="واتساب"
+                                      >
+                                        <MessageCircle className="h-3.5 w-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                  
+                                  <button
+                                    onClick={() => copyOrderDetails(routeOrder.order, route.team?.name)}
+                                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex-shrink-0 border border-indigo-200 hover:border-indigo-300 touch-manipulation"
+                                    title="نسخ التفاصيل"
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => exportOrderAsImage(routeOrder.order, route.team?.name)}
+                                    disabled={isExporting}
+                                    className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-full transition-colors flex-shrink-0 border border-teal-200 hover:border-teal-300 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                                    title="تصدير وإرسال"
+                                  >
+                                    {isExporting ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Send className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Route Expenses */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <DollarSign className="h-5 w-5 ml-2 text-orange-600" />
+                      مصروفات الخط
+                    </h4>
+                    {expenses?.filter((exp: any) => {
+                      // Filter expenses that are linked to this route, its orders, or its team
+                      return exp.route_id === route.id || 
+                             route.route_orders?.some((routeOrder: any) => routeOrder.order.id === exp.order_id) ||
+                             exp.team_id === route.team?.id
+                    }).length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <DollarSign className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p className="text-gray-500">لا توجد مصروفات لهذا الخط</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {expenses?.filter((exp: any) => {
+                          // Filter expenses that are linked to this route, its orders, or its team
+                          return exp.route_id === route.id || 
+                                 route.route_orders?.some((routeOrder: any) => routeOrder.order.id === exp.order_id) ||
+                                 exp.team_id === route.team?.id
+                        }).map((expense: any) => (
+                          <div key={expense.id} className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 space-x-reverse mb-2">
+                                  <span className="font-medium text-gray-900">
+                                    {expense.description}
+                                  </span>
+                                  {getStatusBadge(expense.status, 'expense')}
+                                </div>
+                                <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
+                                  <span className="flex items-center">
+                                    <DollarSign className="h-4 w-4 ml-1" />
+                                    {expense.amount} ج.م
+                                  </span>
+                                  <span>
+                                    {expense.category?.name_ar || 'غير محدد'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-1 space-x-reverse">
+                                {/* Approval Actions */}
+                                {expense.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleExpenseAction('approve', expense)}
+                                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                      title="موافقة"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleExpenseAction('reject', expense)}
+                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="رفض"
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
+                                
+                                
+                                
+                                
+                                
+                                
+                                {/* Standard Actions */}
+                                <button
+                                  onClick={() => handleExpenseAction('edit', expense)}
+                                  className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                  title="تعديل"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleExpenseAction('delete', expense)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="حذف"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Modals */}
+      <TransferWorkerModal
+        isOpen={showTransferModal}
+        onClose={() => {
+          setShowTransferModal(false)
+          setSelectedWorker(null)
+        }}
+        onSuccess={() => {
+          // EventBus will handle the refresh automatically via teams:changed and routes:changed events
+          setShowTransferModal(false)
+          setSelectedWorker(null)
+        }}
+        worker={selectedWorker}
+      />
+
+      <OrderFormModal
+        isOpen={showOrderModal}
+        onClose={() => {
+          setShowOrderModal(false)
+          setSelectedOrder(null)
+        }}
+        onSuccess={() => {
+          // EventBus will handle the refresh automatically via orders:changed event
+          setShowOrderModal(false)
+          setSelectedOrder(null)
+        }}
+        order={selectedOrder || undefined}
+        mode={selectedOrder ? 'edit' : 'create'}
+      />
+
+      <ExpenseFormModal
+        isOpen={showExpenseModal}
+        onClose={() => {
+          setShowExpenseModal(false)
+          setSelectedExpense(null)
+        }}
+        onSuccess={() => {
+          // EventBus will handle the refresh automatically via expenses:changed event
+          setShowExpenseModal(false)
+          setSelectedExpense(null)
+        }}
+        expense={selectedExpense || undefined}
+        mode={selectedExpense ? 'edit' : 'create'}
+      />
+
+      <RouteFormModal
+        open={showRouteModal}
+        onClose={() => {
+          setShowRouteModal(false)
+          setSelectedRoute(null)
+        }}
+        onSaved={() => {
+          // EventBus will handle the refresh automatically via routes:changed event
+          setShowRouteModal(false)
+          setSelectedRoute(null)
+        }}
+        existingRoute={selectedRoute || undefined}
+        mode={formMode}
+        teams={teams}
+      />
+
+      {showAssignModal && routeForOrders && (
+        <AssignOrdersModal
+          open={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+          route={routeForOrders}
+          onSaved={() => {
+            // EventBus will handle the refresh automatically via routes:changed event
+            setShowAssignModal(false)
+            setRouteForOrders(null)
+          }}
+        />
+      )}
+
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false)
+          setDeleteTarget(null)
+          setSelectedRoute(null)
+        }}
+        onConfirm={() => {
+          if (deleteTarget) {
+            handleDelete()
+          } else if (selectedRoute) {
+            handleDeleteRoute(selectedRoute)
+          }
+        }}
+        message={deleteTarget ? `هل أنت متأكد من حذف ${deleteTarget.name}؟` : selectedRoute ? `هل أنت متأكد من حذف خط السير "${selectedRoute.name}"؟` : 'هل أنت متأكد من الحذف؟'}
+        loading={loading}
+      />
+
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setDetailsOrderId(undefined)
+        }}
+        orderId={detailsOrderId}
+      />
+
+      {showFormModal && (
+        <OrderFormModal
+          isOpen={showFormModal}
+          onClose={() => {
+            setShowFormModal(false)
+            setSelectedOrder(null)
+          }}
+          onSuccess={() => {
+            // EventBus will handle the refresh automatically via orders:changed event
+            setShowFormModal(false)
+            setSelectedOrder(null)
+          }}
+          order={selectedOrder || undefined}
+          mode={formMode}
+        />
+      )}
+
+      {/* Order Rating Modal */}
+      <OrderRatingModal
+        isOpen={showRatingModal}
+        onClose={() => {
+          setShowRatingModal(false)
+          setRatingOrderId(undefined)
+        }}
+        onSuccess={() => {
+           // مسح كاش الطلبات لضمان تحديث التقييم الظاهر فوراً
+           EnhancedAPI.clearCache('enhanced:orders')
+           // EventBus will handle the refresh automatically via orders:changed event
+         }}
+        orderId={ratingOrderId || ''}
+        orderNumber={routes.flatMap(r => r.orders || []).find(o => o.id === ratingOrderId)?.order_number}
+        customerName={routes.flatMap(r => r.orders || []).find(o => o.id === ratingOrderId)?.customer?.name}
+      />
+
+      {/* Cancel Order Modal */}
+      <SmartModal
+        isOpen={showCancelModal}
+        size="sm"
+        headerGradient="from-red-500 via-red-600 to-red-700"
+        contentClassName="p-6"
+        className="ring-1 ring-red-100"
+        onClose={() => {
+          setShowCancelModal(false)
+          setCancelReason('')
+          setSelectedOrder(null)
+        }}
+        title="تأكيد إلغاء الطلب"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">يرجى كتابة سبب الإلغاء قبل المتابعة:</p>
+          <textarea
+            className="textarea w-full textarea-bordered"
+            rows={3}
+            placeholder="سبب الإلغاء"
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+          />
+          <div className="flex justify-end gap-4 mt-6">
+            <button
+              onClick={async () => {
+                if (!selectedOrder) return
+                if (!cancelReason.trim()) return
+                setCancelLoading(true)
+                try {
+                  toast.loading('جاري إلغاء الطلب...', { id: 'cancel' })
+                  const response = await EnhancedAPI.updateOrderStatus(
+                    selectedOrder.id,
+                    'cancelled',
+                    cancelReason.trim(),
+                    undefined
+                  )
+                  if (response.success) {
+                    toast.success('تم إلغاء الطلب', { id: 'cancel' })
+                    setShowCancelModal(false)
+                    setCancelReason('')
+                    // EventBus will handle the refresh automatically via orders:changed event
+                  } else {
+                    throw new Error(response.error || 'فشل في إلغاء الطلب')
+                  }
+                } catch (error) {
+                  toast.error('حدث خطأ أثناء الإلغاء', { id: 'cancel' })
+                  console.error('Cancel order error:', error)
+                } finally {
+                  setCancelLoading(false)
+                }
+              }}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={cancelLoading || !cancelReason.trim()}
+            >
+              {cancelLoading ? 'جاري الإلغاء...' : 'تأكيد الإلغاء'}
+            </button>
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="btn btn-ghost"
+              disabled={cancelLoading}
+            >
+              تراجع
+            </button>
+          </div>
+        </div>
+      </SmartModal>
+      
+      {/* Hidden Order Export Template */}
+      <div 
+        ref={orderExportRef}
+        className="fixed -top-[9999px] left-0 bg-white p-6 w-96 border border-gray-200 rounded-lg shadow-lg"
+        style={{ fontFamily: 'Arial, sans-serif' }}
+      >
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">تفاصيل الطلب</h2>
+        </div>
+        
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">رقم الطلب:</span>
+            <span id="export-order-number" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">اسم العميل:</span>
+            <span id="export-customer-name" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">رقم الهاتف:</span>
+            <span id="export-customer-phone" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">المنطقة:</span>
+            <span id="export-customer-area" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">العنوان:</span>
+            <span id="export-customer-address" className="text-gray-800 text-right"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">التاريخ:</span>
+            <span id="export-order-date" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">الوقت المحدد:</span>
+            <span id="export-scheduled-time" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">المدة:</span>
+            <span id="export-duration" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">حالة الطلب:</span>
+            <span id="export-order-status" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">حالة التأكيد:</span>
+            <span id="export-confirmation-status" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">المبلغ الإجمالي:</span>
+            <span id="export-total-amount" className="text-gray-800 font-bold"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">الفريق:</span>
+            <span id="export-team-name" className="text-gray-800"></span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="font-semibold text-gray-600">التقييم:</span>
+            <span id="export-rating" className="text-gray-800"></span>
+          </div>
+          
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-500 text-center">
+              تم إنشاء هذا التقرير في {new Date().toLocaleDateString('ar-EG')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default OperationsPage

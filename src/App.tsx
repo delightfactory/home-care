@@ -29,6 +29,7 @@ const WorkersPage = React.lazy(() => import('./pages/Workers/WorkersPage'))
 const TeamsPage = React.lazy(() => import('./pages/Teams/TeamsPage'))
 const RoutesPage = React.lazy(() => import('./pages/Routes/RoutesPage'))
 const ExpensesPage = React.lazy(() => import('./pages/Expenses/ExpensesPage'))
+const OperationsPage = React.lazy(() => import('./pages/Operations/OperationsPage'))
 const ReportsPage = React.lazy(() => import('./pages/Reports/ReportsPage'))
 const SettingsPage = React.lazy(() => import('./pages/Settings/SettingsPage'))
 const RolesPage = React.lazy(() => import('./pages/Admin/RolesPage'))
@@ -116,6 +117,7 @@ const AppRoutes: React.FC = () => {
         <Route path="teams" element={<TeamsPage />} />
         <Route path="routes" element={<RoutesPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="operations" element={<OperationsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route 

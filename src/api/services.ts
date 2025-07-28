@@ -1,5 +1,6 @@
 // Services API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
+import { eventBus } from '../utils/EventBus'
 import { 
   Service, 
   ServiceCategory,
@@ -113,6 +114,8 @@ export class ServicesAPI {
 
       if (error) throw error
 
+      eventBus.emit('services:changed');
+      
       return {
         success: true,
         data,
@@ -141,6 +144,8 @@ export class ServicesAPI {
 
       if (error) throw error
 
+      eventBus.emit('services:changed');
+      
       return {
         success: true,
         data,
@@ -164,6 +169,8 @@ export class ServicesAPI {
 
       if (error) throw error
 
+      eventBus.emit('services:changed');
+      
       return {
         success: true,
         message: 'تم حذف الخدمة بنجاح'
@@ -220,6 +227,8 @@ export class ServicesAPI {
 
       if (error) throw error
 
+      eventBus.emit('services:changed');
+      
       return {
         success: true,
         data,

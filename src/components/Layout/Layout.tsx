@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar.tsx'
 import Header from './Header.tsx'
+import FloatingRefreshButton from '../UI/FloatingRefreshButton'
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -31,6 +32,9 @@ const Layout: React.FC = () => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+      
+      {/* Floating Refresh Button */}
+      <FloatingRefreshButton />
     </div>
   )
 }

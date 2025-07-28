@@ -307,8 +307,20 @@ export class RoutesAPI {
     orderSequences: { order_id: string; sequence_order: number }[]
   ): Promise<ApiResponse<void>> {
     try {
-      // Update sequence orders in batch
-      const updates = orderSequences.map(({ order_id, sequence_order }) =>
+      // First, set all sequence_order to negative values to avoid conflicts
+      // This is necessary because of the UNIQUE constraint on (route_id, sequence_order)
+      const tempUpdates = orderSequences.map(({ order_id }, index) =>
+        supabase
+          .from('route_orders')
+          .update({ sequence_order: -(index + 1) })
+          .eq('route_id', routeId)
+          .eq('order_id', order_id)
+      )
+
+      await Promise.all(tempUpdates)
+
+      // Then update to the final sequence_order values
+      const finalUpdates = orderSequences.map(({ order_id, sequence_order }) =>
         supabase
           .from('route_orders')
           .update({ sequence_order })
@@ -316,7 +328,7 @@ export class RoutesAPI {
           .eq('order_id', order_id)
       )
 
-      await Promise.all(updates)
+      await Promise.all(finalUpdates)
 
       return {
         success: true,
