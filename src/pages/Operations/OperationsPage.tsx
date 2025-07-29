@@ -38,6 +38,7 @@ import {
   Package
 } from 'lucide-react'
 import html2canvas from 'html2canvas'
+import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
 import { 
   RouteWithOrders, 
   ExpenseWithDetails, 
@@ -95,6 +96,11 @@ const OperationsPage: React.FC = () => {
   const [showRouteModal, setShowRouteModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  // حالات نافذة تأكيد تغيير الحالة
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [targetOrder, setTargetOrder] = useState<OrderWithDetails | null>(null)
+  const [targetStatus, setTargetStatus] = useState<string | null>(null)
   const [selectedWorker, setSelectedWorker] = useState<WorkerWithTeam | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null)
   const [selectedExpense, setSelectedExpense] = useState<ExpenseWithDetails | null>(null)
@@ -218,28 +224,44 @@ const OperationsPage: React.FC = () => {
     return statusMap[status] || status
   }
 
-  // Helper functions imported from OrdersPage
-  const handleStatusChange = async (order: OrderWithDetails, status: string) => {
+  // -------- تأكيد تغيير حالة الطلب -----------
+  const promptStatusChange = (order: OrderWithDetails, status: string) => {
     if (status === 'cancelled') {
       setSelectedOrder(order)
       setShowCancelModal(true)
       return
     }
+    setTargetOrder(order)
+    setTargetStatus(status)
+    setShowConfirmModal(true)
+  }
+
+  const handleConfirmStatusChange = async () => {
+    if (!targetOrder || !targetStatus) return
     let notes: string | undefined
-    
     try {
-      toast.loading('جاري تحديث حالة الطلب...', { id: 'status' })
-      const response = await EnhancedAPI.updateOrderStatus(order.id, status, notes, undefined)
+      setConfirmLoading(true)
+      toast.loading('جاري تحديث حالة الطلب...', { id: 'statusConfirm' })
+      const response = await EnhancedAPI.updateOrderStatus(targetOrder.id, targetStatus, notes, undefined)
       if (response.success) {
-        toast.success('تم تحديث حالة الطلب', { id: 'status' })
-        // EventBus will handle the refresh automatically via orders:changed event
+        toast.success('تم تحديث حالة الطلب', { id: 'statusConfirm' })
+        setShowConfirmModal(false)
+        setTargetOrder(null)
+        setTargetStatus(null)
       } else {
         throw new Error(response.error || 'فشل في تحديث الحالة')
       }
     } catch (error) {
-      toast.error('حدث خطأ في تحديث الحالة', { id: 'status' })
+      toast.error('حدث خطأ في تحديث الحالة', { id: 'statusConfirm' })
       console.error('Status update error:', error)
+    } finally {
+      setConfirmLoading(false)
     }
+  }
+
+  // الدالة القديمة للتوافق مع نداءات سابقة
+  const handleStatusChange = (order: OrderWithDetails, status: string) => {
+    promptStatusChange(order, status)
   }
 
   // دالة تغيير حالة التأكيد - نفس المنطق المستخدم في صفحة الطلبات
@@ -1854,6 +1876,16 @@ const OperationsPage: React.FC = () => {
           </div>
         </div>
       </SmartModal>
+
+      {/* Confirm Status Modal */}
+      <ConfirmStatusModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmStatusChange}
+        loading={confirmLoading}
+        orderNumber={targetOrder?.order_number}
+        newStatusLabel={targetStatus ? getOrderStatusText(targetStatus) : ''}
+      />
       
       {/* Hidden Order Export Template */}
       <div 

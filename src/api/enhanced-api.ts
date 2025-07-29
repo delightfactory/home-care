@@ -115,6 +115,8 @@ export class EnhancedAPI {
         this.clearCache('enhanced:orders');
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
+        this.clearCache('enhanced:routes');
+        eventBus.emit('routes:changed');
         
         return result;
       }
@@ -134,6 +136,8 @@ export class EnhancedAPI {
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
+        this.clearCache('enhanced:routes');
+        eventBus.emit('routes:changed');
         
         return result;
       }
@@ -153,6 +157,8 @@ export class EnhancedAPI {
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
+        this.clearCache('enhanced:routes');
+        eventBus.emit('routes:changed');
 
         return result;
       }
@@ -172,6 +178,8 @@ export class EnhancedAPI {
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
+        this.clearCache('enhanced:routes');
+        eventBus.emit('routes:changed');
         
         return result;
       }
@@ -191,6 +199,8 @@ export class EnhancedAPI {
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
+        this.clearCache('enhanced:routes');
+        eventBus.emit('routes:changed');
         
         return result;
       }
@@ -1050,6 +1060,8 @@ export class EnhancedAPI {
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
+        this.clearCache('enhanced:routes');
+        eventBus.emit('routes:changed');
 
         return result;
       }

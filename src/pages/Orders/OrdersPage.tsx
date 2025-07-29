@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw, Star } from 'lucide-react'
+import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
 import { OrderStatus, ConfirmationStatus } from '../../types'
@@ -27,6 +28,11 @@ const OrdersPage: React.FC = () => {
   const [detailsOrderId, setDetailsOrderId] = useState<string | undefined>()
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  // حالة تأكيد تغيير الحالة
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [targetOrder, setTargetOrder] = useState<OrderWithDetails | null>(null)
+  const [targetStatus, setTargetStatus] = useState<OrderStatus | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -228,28 +234,42 @@ const OrdersPage: React.FC = () => {
     }
   }
 
-  const handleStatusChange = async (order: OrderWithDetails, status: OrderStatus) => {
+  const promptStatusChange = (order: OrderWithDetails, status: OrderStatus) => {
+    // إلغاء الطلب يحتفظ بنموذج خاص
     if (status === OrderStatus.CANCELLED) {
       setSelectedOrder(order)
       setShowCancelModal(true)
       return
     }
+    setTargetOrder(order)
+    setTargetStatus(status)
+    setShowConfirmModal(true)
+  }
+
+  const handleConfirmStatusChange = async () => {
+    if (!targetOrder || !targetStatus) return
     let notes: string | undefined
-    
     try {
-      toast.loading('جاري تحديث حالة الطلب...', { id: 'status' })
-      const response = await EnhancedAPI.updateOrderStatus(order.id, status, notes, user?.id)
+      setConfirmLoading(true)
+      toast.loading('جاري تحديث حالة الطلب...', { id: 'statusConfirm' })
+      const response = await EnhancedAPI.updateOrderStatus(targetOrder.id, targetStatus, notes, user?.id)
       if (response.success) {
-        toast.success('تم تحديث حالة الطلب', { id: 'status' })
+        toast.success('تم تحديث حالة الطلب', { id: 'statusConfirm' })
         refresh()
+        setShowConfirmModal(false)
+        setTargetOrder(null)
+        setTargetStatus(null)
       } else {
         throw new Error(response.error || 'فشل في تحديث الحالة')
       }
     } catch (error) {
-      toast.error('حدث خطأ في تحديث الحالة', { id: 'status' })
+      toast.error('حدث خطأ في تحديث الحالة', { id: 'statusConfirm' })
       console.error('Status update error:', error)
+    } finally {
+      setConfirmLoading(false)
     }
   }
+
 
   // Manual refresh handler
   const handleRefresh = async () => {
@@ -522,7 +542,7 @@ const OrdersPage: React.FC = () => {
                       {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
                       {order.status === 'pending' || order.status === 'scheduled' ? (
                         <button
-                          onClick={() => handleStatusChange(order, OrderStatus.IN_PROGRESS)}
+                          onClick={() => promptStatusChange(order, OrderStatus.IN_PROGRESS)}
                           className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0"
                           title="بدء التنفيذ"
                         >
@@ -531,7 +551,7 @@ const OrdersPage: React.FC = () => {
                       ) : null}
                       {order.status === 'in_progress' ? (
                         <button
-                          onClick={() => handleStatusChange(order, OrderStatus.COMPLETED)}
+                          onClick={() => promptStatusChange(order, OrderStatus.COMPLETED)}
                           className="p-1.5 text-green-700 hover:bg-green-50 rounded transition-colors flex-shrink-0"
                           title="إكمال"
                         >
@@ -552,7 +572,7 @@ const OrdersPage: React.FC = () => {
                       ) : null}
                       {order.status !== 'cancelled' && order.status !== 'completed' ? (
                         <button
-                          onClick={() => handleStatusChange(order, OrderStatus.CANCELLED)}
+                          onClick={() => promptStatusChange(order, OrderStatus.CANCELLED)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                           title="إلغاء"
                         >
@@ -704,6 +724,25 @@ const OrdersPage: React.FC = () => {
           </div>
         </div>
       </SmartModal>
+
+      {/* Confirm Status Modal */}
+      <ConfirmStatusModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmStatusChange}
+        loading={confirmLoading}
+        orderNumber={targetOrder?.order_number}
+        newStatusLabel={(() => {
+          const map: Record<OrderStatus, string> = {
+            pending: 'معلق',
+            scheduled: 'مجدول',
+            in_progress: 'قيد التنفيذ',
+            completed: 'مكتمل',
+            cancelled: 'ملغي'
+          } as any
+          return targetStatus ? map[targetStatus] || targetStatus : ''
+        })()}
+      />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

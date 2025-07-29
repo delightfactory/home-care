@@ -39,14 +39,39 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const [teams, setTeams] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const [routes, setRoutes] = useState<any[]>([])
+  const [filteredOrders, setFilteredOrders] = useState<any[]>([])
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (isOpen) {
-      Promise.all([fetchCategories(), fetchTeams(), fetchOrders(), fetchRoutes()])
+      Promise.all([fetchCategories(), fetchTeams()])
     }
   }, [isOpen])
+
+  // Fetch routes and orders when expense date changes
+  useEffect(() => {
+    if (isOpen && expenseDate) {
+      fetchRoutes()
+      fetchOrders()
+    }
+  }, [isOpen, expenseDate])
+
+  // Filter orders based on selected route and date
+  useEffect(() => {
+    if (formData.route_id) {
+      // If route is selected, show only orders linked to this route
+      const routeOrders = orders.filter(order => {
+        const route = routes.find(r => r.id === formData.route_id)
+        return route?.route_orders?.some((ro: any) => ro.order_id === order.id)
+      })
+      setFilteredOrders(routeOrders)
+    } else {
+      // If no route selected, show orders matching the expense date
+      const dateOrders = orders.filter(order => order.scheduled_date === expenseDate)
+      setFilteredOrders(dateOrders)
+    }
+  }, [formData.route_id, orders, routes, expenseDate])
 
   useEffect(() => {
     if (expense && mode === 'edit') {
@@ -92,7 +117,11 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
   const fetchOrders = async () => {
     try {
-      const res = await OrdersAPI.getOrders({}, 1, 100)
+      // Fetch orders for the selected date with customer details
+      const res = await OrdersAPI.getOrders({
+        date_from: expenseDate,
+        date_to: expenseDate
+      }, 1, 100, true)
       setOrders(res.data)
     } catch (error) {
       console.error('Orders fetch error', error)
@@ -101,8 +130,9 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
   const fetchRoutes = async () => {
     try {
-      const res = await RoutesAPI.getRoutes({}, 1, 100)
-      setRoutes(res.data)
+      // Fetch routes for the selected date
+      const routes = await RoutesAPI.getRoutesByDate(expenseDate)
+      setRoutes(routes)
     } catch (error) {
       console.error('Routes fetch error', error)
     }
@@ -130,6 +160,24 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }))
     validateForm()
+  }
+
+  const handleRouteChange = (routeId: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      route_id: routeId || undefined,
+      order_id: undefined // Reset order selection when route changes
+    }))
+  }
+
+  const handleDateChange = (date: string) => {
+    setExpenseDate(date)
+    // Reset route and order selections when date changes
+    setFormData(prev => ({
+      ...prev,
+      route_id: undefined,
+      order_id: undefined
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,6 +272,94 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
               </div>
             </div>
 
+            <DateTimePicker
+              type="date"
+              value={expenseDate}
+              onChange={handleDateChange}
+              label="تاريخ المصروف"
+              placeholder="اختر تاريخ المصروف"
+              required
+              disabled={loading}
+            />
+
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <Route className="h-4 w-4 ml-2 text-red-500" />
+                خط السير (اختياري)
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.route_id || ''}
+                  onChange={(e) => handleRouteChange(e.target.value)}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 ${
+                    formData.route_id ? 'border-green-500 focus:ring-green-500' : ''
+                  }`}
+                  disabled={loading}
+                >
+                  <option value="">اختر خط السير</option>
+                  {routes.map((r:any) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  {formData.route_id ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Route className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {formData.route_id && (
+                <p className="text-sm text-blue-600 mt-1 flex items-center">
+                  <Route className="h-3 w-3 ml-1" />
+                  سيتم عرض الطلبات المرتبطة بخط السير المحدد
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <ShoppingCart className="h-4 w-4 ml-2 text-red-500" />
+                الطلب (اختياري)
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.order_id || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, order_id: e.target.value || undefined }))}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 ${
+                    formData.order_id ? 'border-green-500 focus:ring-green-500' : ''
+                  }`}
+                  disabled={loading}
+                >
+                  <option value="">اختر الطلب</option>
+                  {filteredOrders.map((o:any) => (
+                    <option key={o.id} value={o.id}>
+                      {o.order_number} - {o.customer?.name || 'عميل غير محدد'} ({o.customer?.area || 'منطقة غير محددة'})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  {formData.order_id ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <ShoppingCart className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {!formData.route_id && filteredOrders.length > 0 && (
+                <p className="text-sm text-green-600 mt-1 flex items-center">
+                  <ShoppingCart className="h-3 w-3 ml-1" />
+                  عرض طلبات تاريخ {new Date(expenseDate).toLocaleDateString('ar-EG')}
+                </p>
+              )}
+              {filteredOrders.length === 0 && expenseDate && (
+                <p className="text-sm text-gray-500 mt-1 flex items-center">
+                  <ShoppingCart className="h-3 w-3 ml-1" />
+                  لا توجد طلبات متاحة للتاريخ المحدد
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <label className="flex items-center label text-gray-700 font-medium">
                 <Users className="h-4 w-4 ml-2 text-red-500" />
@@ -248,64 +384,6 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   ) : (
                     <Users className="h-4 w-4 text-gray-400" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center label text-gray-700 font-medium">
-                <ShoppingCart className="h-4 w-4 ml-2 text-red-500" />
-                الطلب (اختياري)
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.order_id || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, order_id: e.target.value || undefined }))}
-                  className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 ${
-                    formData.order_id ? 'border-green-500 focus:ring-green-500' : ''
-                  }`}
-                  disabled={loading}
-                >
-                  <option value="">اختر الطلب</option>
-                  {orders.map((o:any) => (
-                    <option key={o.id} value={o.id}>{o.order_number}</option>
-                  ))}
-                </select>
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                  {formData.order_id ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <ShoppingCart className="h-4 w-4 text-gray-400" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center label text-gray-700 font-medium">
-                <Route className="h-4 w-4 ml-2 text-red-500" />
-                خط السير (اختياري)
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.route_id || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, route_id: e.target.value || undefined }))}
-                  className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 ${
-                    formData.route_id ? 'border-green-500 focus:ring-green-500' : ''
-                  }`}
-                  disabled={loading}
-                >
-                  <option value="">اختر الخط</option>
-                  {routes.map((r:any) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                  {formData.route_id ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Route className="h-4 w-4 text-gray-400" />
                   )}
                 </div>
               </div>
@@ -388,16 +466,6 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 )}
               </div>
             </div>
-
-            <DateTimePicker
-              type="date"
-              value={expenseDate}
-              onChange={(value) => setExpenseDate(value)}
-              label="تاريخ المصروف"
-              placeholder="اختر تاريخ المصروف"
-              required
-              disabled={loading}
-            />
 
             <div className="space-y-2">
               <label className="flex items-center label text-gray-700 font-medium">
