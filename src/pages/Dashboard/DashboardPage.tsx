@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo, useEffect, useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { 
@@ -12,26 +12,105 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { getToday, supabase } from '../../api'
-import { useDashboard, useSystemHealth } from '../../hooks/useEnhancedAPI'
+import { useSystemHealth } from '../../hooks/useEnhancedAPI'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import toast from 'react-hot-toast'
+
+// Hook مخصص لحساب إحصائيات لوحة التحكم بطريقة مبسطة ومباشرة
+const useDashboardStats = (date: string) => {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // جلب طلبات اليوم المكتملة والمدفوعة فقط
+      const { data: todayOrders } = await supabase
+        .from('orders')
+        .select('id, status, total_amount, customer_rating, payment_status')
+        .eq('scheduled_date', date)
+      
+      // جلب مصروفات اليوم المعتمدة فقط
+      const { data: todayExpenses } = await supabase
+        .from('expenses')
+        .select('id, amount, status')
+        .gte('created_at', `${date}T00:00:00`)
+        .lte('created_at', `${date}T23:59:59`)
+        .eq('status', 'approved')
+      
+      // جلب الفرق النشطة
+      const { data: activeTeams } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('is_active', true)
+      
+      // حساب الإحصائيات
+      const totalOrders = todayOrders?.length || 0
+      const completedOrders = todayOrders?.filter(o => o.status === 'completed').length || 0
+      const cancelledOrders = todayOrders?.filter(o => o.status === 'cancelled').length || 0
+      
+      // حساب الإيرادات من الطلبات المكتملة والمدفوعة فقط
+      const paidOrders = todayOrders?.filter(o => 
+        o.status === 'completed' && 
+        (o.payment_status === 'paid_cash' || o.payment_status === 'paid_card')
+      ) || []
+      
+      const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+      
+      // حساب المصروفات المعتمدة فقط
+      const totalExpenses = todayExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+      
+      // حساب صافي الربح
+      const netProfit = totalRevenue - totalExpenses
+      
+      // حساب متوسط التقييم
+      const ratedOrders = todayOrders?.filter(o => o.customer_rating) || []
+      const averageRating = ratedOrders.length > 0 
+        ? ratedOrders.reduce((sum, o) => sum + (o.customer_rating || 0), 0) / ratedOrders.length
+        : 0
+      
+      setStats({
+        total_orders: totalOrders,
+        completed_orders: completedOrders,
+        cancelled_orders: cancelledOrders,
+        total_revenue: totalRevenue,
+        total_expenses: totalExpenses,
+        net_profit: netProfit,
+        active_teams: activeTeams?.length || 0,
+        average_rating: averageRating,
+        paid_orders_count: paidOrders.length,
+        approved_expenses_count: todayExpenses?.length || 0
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع')
+    } finally {
+      setLoading(false)
+    }
+  }, [date])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  return { stats, loading, error, refresh: fetchStats }
+}
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
   const today = useMemo(() => getToday(), [])
 
-  // Dashboard stats via optimized hook
+  // استخدام Hook المخصص للحساب المباشر
   const {
-    dashboard,
+    stats,
     loading: statsLoading,
-    error: statsError,
-    refresh: _refreshStats
-  } = useDashboard(today)
+    error: statsError
+  } = useDashboardStats(today)
 
   // Optional: system health (auto-refresh)
   const { health: _health } = useSystemHealth()
-
-  const stats = dashboard?.daily
 
   // Active routes query (cached for 1 minute)
   const { data: activeRoutes = 0, error: routesError } = useQuery(['activeRoutes', today], async () => {
@@ -143,6 +222,7 @@ if (statsLoading) {
     {
       name: 'إجمالي الإيرادات',
       value: `${stats?.total_revenue?.toLocaleString() || 0} ج.م`,
+      subtitle: `من ${stats?.paid_orders_count || 0} طلب مدفوع`,
       icon: DollarSign,
       color: 'text-emerald-600',
       bgGradient: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
@@ -151,6 +231,7 @@ if (statsLoading) {
     {
       name: 'إجمالي المصروفات',
       value: `${stats?.total_expenses?.toLocaleString() || 0} ج.م`,
+      subtitle: `من ${stats?.approved_expenses_count || 0} مصروف معتمد`,
       icon: TrendingUp,
       color: 'text-red-600',
       bgGradient: 'bg-gradient-to-br from-red-50 to-red-100',
@@ -159,6 +240,7 @@ if (statsLoading) {
     {
       name: 'صافي الربح',
       value: `${stats?.net_profit?.toLocaleString() || 0} ج.م`,
+      subtitle: 'الإيرادات المدفوعة - المصروفات المعتمدة',
       icon: DollarSign,
       color: stats && stats.net_profit >= 0 ? 'text-green-600' : 'text-red-600',
       bgGradient: stats && stats.net_profit >= 0 ? 'bg-gradient-to-br from-green-50 to-green-100' : 'bg-gradient-to-br from-red-50 to-red-100',
@@ -205,6 +287,9 @@ if (statsLoading) {
                 <p className="text-2xl font-bold text-gray-900 group-hover:text-primary-700 transition-colors duration-300">
                   {stat.value}
                 </p>
+                {stat.subtitle && (
+                  <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
+                )}
               </div>
             </div>
           </div>

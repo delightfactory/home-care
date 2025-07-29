@@ -281,18 +281,56 @@ export interface Database {
           team_id: string
           worker_id: string
           joined_at: string
+          left_at: string | null
         }
         Insert: {
           id?: string
           team_id: string
           worker_id: string
           joined_at?: string
+          left_at?: string | null
         }
         Update: {
           id?: string
           team_id?: string
           worker_id?: string
           joined_at?: string
+          left_at?: string | null
+        }
+      }
+      order_workers: {
+        Row: {
+          id: string
+          order_id: string
+          worker_id: string | null
+          team_id: string | null
+          role: string | null
+          started_at: string
+          finished_at: string | null
+          customer_rating: number | null
+          performance_score: number | null
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          worker_id?: string | null
+          team_id?: string | null
+          role?: string | null
+          started_at?: string
+          finished_at?: string | null
+          customer_rating?: number | null
+          performance_score?: number | null
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          worker_id?: string | null
+          team_id?: string | null
+          role?: string | null
+          started_at?: string
+          finished_at?: string | null
+          customer_rating?: number | null
+          performance_score?: number | null
         }
       }
       orders: {

@@ -17,8 +17,11 @@ export type TeamMember = Database['public']['Tables']['team_members']['Row']
 export type Order = Database['public']['Tables']['orders']['Row']
 export type OrderItem = Database['public']['Tables']['order_items']['Row']
 export type OrderStatusLog = Database['public']['Tables']['order_status_logs']['Row']
+export type OrderWorker = Database['public']['Tables']['order_workers']['Row']
 export type Route = Database['public']['Tables']['routes']['Row']
 export type RouteOrder = Database['public']['Tables']['route_orders']['Row']
+export type OrderWorkerInsert = Database['public']['Tables']['order_workers']['Insert']
+export type OrderWorkerUpdate = Database['public']['Tables']['order_workers']['Update']
 export type ExpenseCategory = Database['public']['Tables']['expense_categories']['Row']
 export type Expense = Database['public']['Tables']['expenses']['Row']
 export type DailyReport = Database['public']['Tables']['daily_reports']['Row']
@@ -156,6 +159,10 @@ export interface TeamMemberWithWorker extends TeamMember {
   worker?: Worker
 }
 
+export interface OrderWorkerWithWorker extends OrderWorker {
+  worker?: Worker
+}
+
 export interface OrderWithDetails extends Order {
   customer?: Customer
   customer_name?: string
@@ -163,6 +170,7 @@ export interface OrderWithDetails extends Order {
   team?: TeamWithMembers
   team_name?: string
   items?: OrderItemWithService[]
+  workers?: OrderWorkerWithWorker[]
   status_logs?: OrderStatusLog[]
   route_info?: {
     route_id: string

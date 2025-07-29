@@ -554,3 +554,231 @@ COMMENT ON COLUMN public.customers.referral_source
 -- (اختياري) فهرس بحث سريع على رقم الهاتف الإضافي
 CREATE INDEX IF NOT EXISTS idx_customers_extra_phone
   ON public.customers (extra_phone);
+
+
+
+
+
+  /* =========================================================
+= 0) إضافة left_at إلى team_members (إن لزم)             =
+========================================================= */
+ALTER TABLE team_members
+  ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
+
+/* ---------------------------------------------------------
+   Trigger يمنع DELETE حقيقى ويحوّله إلى Update left_at
+--------------------------------------------------------- */
+CREATE OR REPLACE FUNCTION soft_delete_team_member()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+BEGIN
+  -- تحديث وقت المغادرة
+  UPDATE team_members SET left_at = NOW()
+  WHERE id = OLD.id;
+  RETURN NULL;          -- إلغاء عملية الحذف
+END;
+$$;
+
+DROP TRIGGER IF EXISTS team_member_soft_delete ON team_members;
+CREATE TRIGGER team_member_soft_delete
+BEFORE DELETE ON team_members
+FOR EACH ROW EXECUTE FUNCTION soft_delete_team_member();
+
+/* =========================================================
+= 1) إنشاء جدول order_workers (نواة HR)                  =
+========================================================= */
+CREATE TABLE IF NOT EXISTS order_workers (
+    -- مفتاح أساسى مستقل لتفادى أى تعارض مع NULL
+    id              UUID            DEFAULT gen_random_uuid() PRIMARY KEY,
+    order_id        UUID NOT NULL   REFERENCES orders(id)  ON DELETE CASCADE,
+    worker_id       UUID NOT NULL   REFERENCES workers(id) ON DELETE RESTRICT,
+    team_id         UUID            REFERENCES teams(id),
+    role            VARCHAR(20)     DEFAULT 'member',
+    started_at      TIMESTAMPTZ     NOT NULL,
+    finished_at     TIMESTAMPTZ,
+    customer_rating SMALLINT        CHECK (customer_rating BETWEEN 1 AND 5),
+    performance_score NUMERIC(5,2)
+);
+
+-- فهارس / قيود تفرد
+CREATE UNIQUE INDEX IF NOT EXISTS ux_order_worker
+  ON order_workers(order_id, worker_id);
+
+CREATE INDEX IF NOT EXISTS idx_ow_worker     ON order_workers(worker_id);
+CREATE INDEX IF NOT EXISTS idx_ow_started    ON order_workers(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ow_finished   ON order_workers(finished_at DESC);
+
+/* =========================================================
+= 2) دوال مزامنة مشاركة العمال                           =
+========================================================= */
+CREATE OR REPLACE FUNCTION populate_order_workers(p_order UUID, p_time TIMESTAMPTZ)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM order_workers WHERE order_id = p_order;
+
+  INSERT INTO order_workers (order_id, worker_id, team_id, role, started_at)
+  SELECT o.id,
+         tm.worker_id,
+         o.team_id,
+         CASE WHEN tm.worker_id = t.leader_id THEN 'leader' ELSE 'member' END,
+         p_time
+  FROM orders o
+  JOIN team_members tm ON tm.team_id = o.team_id
+  JOIN teams t         ON t.id = o.team_id
+  WHERE o.id = p_order
+    AND (tm.left_at IS NULL OR tm.left_at >  p_time)
+  ON CONFLICT DO NOTHING;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION close_order_workers(p_order UUID, p_time TIMESTAMPTZ)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE order_workers
+  SET finished_at     = p_time,
+      customer_rating = o.customer_rating
+  FROM orders o
+  WHERE order_workers.order_id = p_order
+    AND o.id = p_order
+    AND order_workers.finished_at IS NULL;
+END;
+$$;
+
+/* =========================================================
+= 3) تريجر على order_status_logs فى حالتى in_progress/completed =
+========================================================= */
+CREATE OR REPLACE FUNCTION trg_ow_status_log()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status = 'in_progress' THEN
+      PERFORM populate_order_workers(NEW.order_id, NEW.created_at);
+  ELSIF NEW.status = 'completed' THEN
+      PERFORM close_order_workers(NEW.order_id, NEW.created_at);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS order_workers_sync ON order_status_logs;
+CREATE TRIGGER order_workers_sync
+AFTER INSERT ON order_status_logs
+FOR EACH ROW EXECUTE FUNCTION trg_ow_status_log();
+
+/* =========================================================
+= 4) تريجر عند تحديث left_at لأحد أعضاء الفريق            =
+========================================================= */
+CREATE OR REPLACE FUNCTION trg_ow_team_member_left()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE order_workers
+  SET finished_at = COALESCE(NEW.left_at, NOW())
+  WHERE worker_id  = NEW.worker_id
+    AND finished_at IS NULL
+    AND started_at <= COALESCE(NEW.left_at, NOW());
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS ow_member_left ON team_members;
+CREATE TRIGGER ow_member_left
+AFTER UPDATE OF left_at ON team_members
+FOR EACH ROW EXECUTE FUNCTION trg_ow_team_member_left();
+
+
+/* =========================================================
+= سياسات RLS لجدول order_workers (بدون IF NOT EXISTS)    =
+========================================================= */
+
+/* 1) احذف السياسات إن كانت موجودة لتجنُّب الخطأ عند إعادة التشغيل */
+DROP POLICY IF EXISTS ow_select      ON order_workers;
+DROP POLICY IF EXISTS ow_service_manage ON order_workers;
+
+/* 2) فعّل RLS (لن يُكرَّر إذا كان مفعَّلاً مسبقاً) */
+ALTER TABLE order_workers ENABLE ROW LEVEL SECURITY;
+
+/* 3) أعد إنشاء السياسات */
+CREATE POLICY ow_select
+  ON order_workers
+  FOR SELECT
+  USING (TRUE);
+
+CREATE POLICY ow_service_manage
+  ON order_workers
+  FOR ALL
+  TO service_role
+  USING (TRUE)
+  WITH CHECK (TRUE);
+
+/* 4) صلاحيات القراءة */
+GRANT SELECT ON order_workers TO authenticated, anon;
+
+
+
+/*═════════════════════════════════════════════════════════
+=  سياسات مكمِّلة بدون المساس بالمنطق أو الهيكل          =
+═════════════════════════════════════════════════════════*/
+
+------------------------------------------------------------
+-- 1) INSERT policy  (يعمل مع التريجر وأدوارك الإدارية)
+------------------------------------------------------------
+DROP POLICY IF EXISTS ow_insert_by_actor_or_admin ON public.order_workers;
+
+CREATE POLICY ow_insert_by_actor_or_admin
+ON public.order_workers
+FOR INSERT
+TO authenticated
+WITH CHECK (
+        /* ① أدوار الإدارة */
+        EXISTS (
+          SELECT 1
+          FROM   public.users  u
+          JOIN   public.roles  r ON r.id = u.role_id
+          WHERE  u.id = auth.uid()
+            AND  r.name IN ('manager','operations_supervisor','receptionist')
+        )
+     OR /* ② العامل أو القائد ضمن الفريق وقت التنفيذ */
+        EXISTS (
+          SELECT 1
+          FROM   public.team_members tm
+          WHERE  tm.team_id   = order_workers.team_id
+            AND  tm.worker_id = (
+                    SELECT w.id
+                    FROM   public.workers w
+                    WHERE  w.user_id = auth.uid()
+                  )
+            AND  (tm.left_at IS NULL OR tm.left_at > order_workers.started_at)
+        )
+);
+
+------------------------------------------------------------
+-- 2) UPDATE policy  (يغطّى finished_at / customer_rating)
+------------------------------------------------------------
+DROP POLICY IF EXISTS ow_update_by_actor_or_admin ON public.order_workers;
+
+CREATE POLICY ow_update_by_actor_or_admin
+ON public.order_workers
+FOR UPDATE
+TO authenticated
+USING (
+        /* يقرأ إذا كان إدارياً… */
+        EXISTS (
+          SELECT 1
+          FROM   public.users u
+          JOIN   public.roles r ON r.id = u.role_id
+          WHERE  u.id = auth.uid()
+            AND  r.name IN ('manager','operations_supervisor','receptionist')
+        )
+     OR /* …أو هو نفس العامل */
+        order_workers.worker_id = (
+          SELECT w.id
+          FROM   public.workers w
+          WHERE  w.user_id = auth.uid()
+        )
+)
+WITH CHECK (TRUE);   -- يسمح بالتعديل طالما اجتاز شرط القراءة
+
+------------------------------------------------------------
+-- 3) (اختياري) فهرس يسرّع الشرط الثانى إذا لم يكن موجوداً
+------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_tm_team_worker
+  ON public.team_members(team_id, worker_id);

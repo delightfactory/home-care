@@ -190,7 +190,7 @@ export class OrdersAPI {
       if (!orderData) return undefined;
 
       // Load detailed data in parallel for better performance
-      const [itemsResult, statusLogsResult, teamDetailsResult, customerResult] = await Promise.all([
+      const [itemsResult, statusLogsResult, workersResult, teamDetailsResult, customerResult] = await Promise.all([
         // Load order items
         supabase
           .from('order_items')
@@ -210,6 +210,14 @@ export class OrdersAPI {
           .eq('order_id', id)
           .order('created_at', { ascending: false }),
         
+        // Load order workers with worker details
+        supabase
+          .from('order_workers')
+          .select(`
+            *,
+            worker:workers(*)
+          `)
+          .eq('order_id', id),
         // Load team details if team exists
         orderData.team_id ? supabase
           .from('teams')
@@ -233,6 +241,7 @@ export class OrdersAPI {
 
       if (itemsResult.error) throw itemsResult.error;
       if (statusLogsResult.error) throw statusLogsResult.error;
+      if (workersResult.error) throw workersResult.error;
       if (teamDetailsResult.error) throw teamDetailsResult.error;
       if (customerResult.error) throw customerResult.error;
 
@@ -242,6 +251,7 @@ export class OrdersAPI {
         customer: customerResult.data || null,
         items: itemsResult.data || [],
         status_logs: statusLogsResult.data || [],
+        workers: workersResult.data || [],
         team: teamDetailsResult.data || null
       };
 

@@ -385,6 +385,17 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                         {order.team ? order.team.name : 'غير محدد'}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between p-2 rounded bg-green-25 border border-green-100 hover:bg-white transition-colors">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-green-500" />
+                        <span className="font-semibold text-gray-700">العمال:</span>
+                      </div>
+                      <span className="text-gray-900">
+                        {order.workers && order.workers.length > 0 ?
+                          order.workers.map((ow) => ow.worker?.name || ow.worker_id).join('، ') :
+                          'غير متوفر'}
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between p-2 rounded bg-white border border-green-100 hover:bg-green-25 transition-colors">
                       <span className="font-semibold text-gray-700">تاريخ الإنشاء:</span>
                       <span className="text-gray-900">{formatDate(order.created_at)}</span>
