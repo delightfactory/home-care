@@ -782,3 +782,42 @@ WITH CHECK (TRUE);   -- يسمح بالتعديل طالما اجتاز شرط �
 ------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_tm_team_worker
   ON public.team_members(team_id, worker_id);
+
+/* =========================================================
+= 5) تريجر مزامنة تقييم العميل إلى order_workers        =
+========================================================= */
+
+CREATE OR REPLACE FUNCTION sync_order_rating()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- نفّذ فقط إذا تغيّر التقييم أو الملاحظات
+  IF NEW.customer_rating IS DISTINCT FROM OLD.customer_rating
+     OR NEW.customer_feedback IS DISTINCT FROM OLD.customer_feedback THEN
+
+     UPDATE order_workers
+     SET customer_rating = NEW.customer_rating
+     WHERE order_id = NEW.id;
+
+     -- TODO: يمكن لاحقاً حساب الأداء performance_score هنا
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- احذف التريجر إن وُجد مسبقاً لتجنب التعارض عند إعادة النشر
+DROP TRIGGER IF EXISTS order_rating_sync ON orders;
+
+CREATE TRIGGER order_rating_sync
+AFTER UPDATE OF customer_rating, customer_feedback ON orders
+FOR EACH ROW
+WHEN (pg_trigger_depth() = 0)
+EXECUTE FUNCTION sync_order_rating();
+
+-- (اختياري) امنح صلاحية تنفيذ الدالة للمستخدمين المصادق عليهم
+GRANT EXECUTE ON FUNCTION sync_order_rating() TO authenticated;
+
