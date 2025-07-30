@@ -196,7 +196,7 @@ export class WorkersAPI {
         .from('workers')
         .select(`
           *,
-          team_members:team_members(team_id)
+          team_members:team_members(team_id,left_at)
         `)
         .eq('status', 'active')
         .order('name')
@@ -204,8 +204,9 @@ export class WorkersAPI {
       if (error) throw error
 
       // Filter workers who are not in any team or can be assigned to multiple teams
-      return (data || []).filter(worker => 
-        !worker.team_members || worker.team_members.length === 0
+      return (data || []).filter(worker =>
+        !worker.team_members ||
+        worker.team_members.every((m: any) => m.left_at !== null)
       )
     } catch (error) {
       throw new Error(handleSupabaseError(error))
