@@ -385,7 +385,7 @@ const OperationsPage: React.FC = () => {
                   </div>
                   <div class="text-right">
                     <h2 class="text-lg font-bold">HOME CARE </h2>
-                    <p class="text-sm opacity-90">خدمات التنظيف والرعاية المنزلية</p>
+                    <p class="text-sm opacity-90">care about your hom</p>
                   </div>
                 </div>
                 <div class="text-left">

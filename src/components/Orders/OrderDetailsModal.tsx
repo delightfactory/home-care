@@ -299,7 +299,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                     </div>
                     <div className="text-right">
                       <h2 className="text-lg font-bold">HOME CARE </h2>
-                      <p className="text-sm opacity-90">خدمات التنظيف والرعاية المنزلية</p>
+                      <p className="text-sm opacity-90">care about your hom</p>
                     </div>
                   </div>
                   <div className="text-left">
