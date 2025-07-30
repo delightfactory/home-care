@@ -55,7 +55,8 @@ export class WorkersAPI {
           worker_id,
           team:teams(id, name, leader_id, is_active)
         `)
-        .in('worker_id', workerIds);
+        .in('worker_id', workerIds)
+        .is('left_at', null);
 
       // Create team lookup map
       const teamMap = new Map();
@@ -287,7 +288,8 @@ export class TeamsAPI {
             team_id,
             worker:workers(id, name, phone, status, rating)
           `)
-          .in('team_id', teamIds),
+          .in('team_id', teamIds)
+           .is('left_at', null),
         
         // Get team leaders
         supabase
@@ -360,9 +362,12 @@ export class TeamsAPI {
       if (error) throw error
       if (!data) throw new Error('الفريق غير موجود')
 
+      const activeMembers = (data.members || []).filter((m: any) => !m.left_at);
+
       return {
         ...data,
-        member_count: data.members?.length || 0,
+        members: activeMembers,
+        member_count: activeMembers.length,
         status: data.is_active ? 'active' : 'inactive'
       }
     } catch (error) {
@@ -497,7 +502,10 @@ export class TeamsAPI {
     try {
       const { error } = await supabase
         .from('team_members')
-        .upsert({ team_id: teamId, worker_id: workerId }, { ignoreDuplicates: true })
+        .upsert(
+          { team_id: teamId, worker_id: workerId, left_at: null },
+          { onConflict: 'team_id,worker_id', ignoreDuplicates: false }
+        )
 
       if (error) throw error
 

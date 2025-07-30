@@ -105,8 +105,14 @@ export class RoutesAPI {
 
       if (error) throw error
 
+      const sanitized = (data || []).map(route => {
+        if (route.team && route.team.members) {
+          route.team.members = route.team.members.filter((m: any) => !m.left_at);
+        }
+        return route;
+      });
       return {
-        data: data || [],
+        data: sanitized,
         total: count || 0,
         page,
         limit,
@@ -148,6 +154,9 @@ export class RoutesAPI {
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
+      if (data && data.team && data.team.members) {
+        data.team.members = data.team.members.filter((m: any) => !m.left_at);
+      }
       return data
     } catch (error) {
       throw new Error(handleSupabaseError(error))

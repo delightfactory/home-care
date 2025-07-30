@@ -252,7 +252,12 @@ export class OrdersAPI {
         items: itemsResult.data || [],
         status_logs: statusLogsResult.data || [],
         workers: workersResult.data || [],
-        team: teamDetailsResult.data || null
+        team: teamDetailsResult.data
+          ? {
+              ...teamDetailsResult.data,
+              members: (teamDetailsResult.data.members || []).filter((m: any) => !m.left_at)
+            }
+          : null
       };
 
       return orderWithDetails;
