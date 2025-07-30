@@ -18,12 +18,22 @@ import {
 } from 'lucide-react'
 import { clsx } from '../../lib/clsx'
 
+import { usePermissions } from '../../hooks/usePermissions'
+import { LucideIcon } from 'lucide-react'
+
+interface NavigationItem {
+  name: string
+  href: string
+  icon: LucideIcon
+  adminOnly?: boolean
+}
+
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
 }
 
-const navigation = [
+const navigation: NavigationItem[] = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home },
   { name: 'العملاء', href: '/customers', icon: Users },
   { name: 'الخدمات', href: '/services', icon: Wrench },
@@ -35,11 +45,13 @@ const navigation = [
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3 },
   { name: 'الأدوار', href: '/roles', icon: Shield },
-  { name: 'النسخ الاحتياطية', href: '/backups', icon: DownloadCloud },
+  { name: 'النسخ الاحتياطية', href: '/backups', icon: DownloadCloud, adminOnly: true },
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { isAdmin } = usePermissions()
+  const filteredNav = navigation.filter(item => !item.adminOnly || isAdmin())
   return (
     <>
       {/* Desktop Sidebar */}
@@ -51,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </div>
         <nav className="mt-6 px-4">
           <ul role="list" className="space-y-2">
-            {navigation.map((item, index) => (
+            {filteredNav.map((item, index) => (
               <li key={item.name} style={{ animationDelay: `${index * 50}ms` }}>
                 <NavLink
                   to={item.href}
@@ -99,7 +111,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </div>
         <nav className="mt-6">
           <ul role="list" className="space-y-2">
-            {navigation.map((item, index) => (
+            {filteredNav.map((item, index) => (
               <li key={item.name} style={{ animationDelay: `${index * 50}ms` }}>
                 <NavLink
                   to={item.href}
