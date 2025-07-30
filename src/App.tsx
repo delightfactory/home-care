@@ -32,6 +32,7 @@ const ExpensesPage = React.lazy(() => import('./pages/Expenses/ExpensesPage'))
 const OperationsPage = React.lazy(() => import('./pages/Operations/OperationsPage'))
 const ReportsPage = React.lazy(() => import('./pages/Reports/ReportsPage'))
 const SettingsPage = React.lazy(() => import('./pages/Settings/SettingsPage'))
+const BackupsPage = React.lazy(() => import('./pages/Backups/BackupsPage'))
 const RolesPage = React.lazy(() => import('./pages/Admin/RolesPage'))
 
 // Protected Route Component
@@ -120,6 +121,14 @@ const AppRoutes: React.FC = () => {
         <Route path="operations" element={<OperationsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+<Route 
+  path="backups" 
+  element={
+    <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+      <BackupsPage />
+    </AdminGuard>
+  }
+/>
         <Route 
           path="roles" 
           element={

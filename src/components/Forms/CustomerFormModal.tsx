@@ -92,8 +92,8 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'رقم الهاتف مطلوب'
-    } else if (!/^[0-9+\-\s()]+$/.test(formData.phone)) {
-      newErrors.phone = 'رقم الهاتف غير صحيح'
+    } else if (!/^01[0-2,5]\d{8}$/.test(formData.phone)) {
+      newErrors.phone = 'رقم الهاتف يجب أن يتكون من 11 رقم ويبدأ بـ 01 (مثل 010xxxxxxxx)'
     }
 
     if (!formData.address.trim()) {

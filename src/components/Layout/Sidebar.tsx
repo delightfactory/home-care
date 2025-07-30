@@ -10,6 +10,7 @@ import {
   Map, 
   Receipt, 
   Activity,
+  DownloadCloud,
   BarChart3, 
   Shield,
   Settings,
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3 },
   { name: 'الأدوار', href: '/roles', icon: Shield },
+  { name: 'النسخ الاحتياطية', href: '/backups', icon: DownloadCloud },
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ]
 
