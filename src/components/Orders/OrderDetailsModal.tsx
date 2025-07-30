@@ -63,8 +63,26 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
          .mobile-export .text-lg {
            font-size: 1.125rem !important;
          }
+         .mobile-export .text-2xl {
+           font-size: 1.5rem !important;
+         }
         .mobile-export .p-4 {
           padding: 0.75rem !important;
+        }
+        .mobile-export .p-6 {
+          padding: 1rem !important;
+        }
+        .mobile-export .w-12 {
+          width: 2.5rem !important;
+        }
+        .mobile-export .h-12 {
+          height: 2.5rem !important;
+        }
+        .mobile-export .w-8 {
+          width: 1.5rem !important;
+        }
+        .mobile-export .h-8 {
+          height: 1.5rem !important;
         }
         .mobile-export .gap-4 {
           gap: 0.75rem !important;
@@ -253,13 +271,57 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
 
           {/* Printable Content */}
           <div ref={printRef} className="bg-white">
-            {/* Compact Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 text-center">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <FileText className="w-6 h-6" />
-                <h1 className="text-xl font-bold">تفاصيل الطلب رقم: {order.order_number}</h1>
+            {/* Enhanced Header with Company Logo */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 relative overflow-hidden">
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16"></div>
+                <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-12 translate-y-12"></div>
               </div>
-              <p className="text-sm opacity-90">تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</p>
+              
+              {/* Header Content */}
+              <div className="relative z-10">
+                {/* Company Logo and Info */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                      <img 
+                        src="/icons/icon-192x192.png" 
+                        alt="شعار الشركة" 
+                        className="w-8 h-8 object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <FileText className="w-8 h-8 text-blue-600 hidden" />
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-lg font-bold">HOME CARE </h2>
+                      <p className="text-sm opacity-90">خدمات التنظيف والرعاية المنزلية</p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm opacity-90">تاريخ الطباعة</p>
+                    <p className="text-base font-semibold">{new Date().toLocaleDateString('ar-EG')}</p>
+                  </div>
+                </div>
+                
+                {/* Order Title */}
+                <div className="text-center border-t border-white/20 pt-4">
+                  <div className="flex items-center justify-center gap-3 mb-2">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <h1 className="text-2xl font-bold">تفاصيل الطلب رقم: {order.order_number}</h1>
+                  </div>
+                  <div className="flex items-center justify-center gap-4 text-sm opacity-90">
+                    <span>📞 للاستفسار: 01122594454</span>
+                    <span>🌐 www.homecare.com</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="p-4 space-y-4">

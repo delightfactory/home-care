@@ -40,15 +40,8 @@ export const formatDateTime = (date: Date | string): string => {
 }
 
 export const formatCurrency = (amount: number): string => {
-  // استخدم التنسيق المصري مع استبدال الرمز الافتراضي باختصار ج.م
-  return new Intl.NumberFormat('ar-EG', {
-    style: 'currency',
-    currency: 'EGP',
-    currencyDisplay: 'name' // حتى لا يظهر الرمز £ بل كلمة جنيه
-  })
-    .format(amount)
-    .replace('جنيه مصري', 'ج.م')
-    .replace('Egyptian pound', 'ج.م')
+  // تنسيق الأرقام مع فاصلة الآلاف فقط
+  return new Intl.NumberFormat('ar-EG').format(amount)
 }
 
 export const formatTime = (time: string): string => {

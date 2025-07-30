@@ -359,12 +359,57 @@ const OperationsPage: React.FC = () => {
       // Use the same template structure from OrderDetailsModal
       tempContainer.innerHTML = `
         <div class="bg-white mobile-export">
-          <!-- Compact Header -->
-          <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 text-center">
-            <div class="flex items-center justify-center gap-3 mb-2">
-              <h1 class="text-xl font-bold">تفاصيل الطلب رقم: ${order.order_number || 'غير محدد'}</h1>
+          <!-- Enhanced Header with Company Logo -->
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 relative overflow-hidden">
+            <!-- Background Pattern -->
+            <div class="absolute inset-0 opacity-10">
+              <div class="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16"></div>
+              <div class="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-12 translate-y-12"></div>
             </div>
-            <p class="text-sm opacity-90">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+            
+            <!-- Header Content -->
+            <div class="relative z-10">
+              <!-- Company Logo and Info -->
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                    <img 
+                      src="/icons/icon-192x192.png" 
+                      alt="شعار الشركة" 
+                      class="w-8 h-8 object-contain"
+                      onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"
+                    />
+                    <svg class="w-8 h-8 text-blue-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                  <div class="text-right">
+                    <h2 class="text-lg font-bold">HOME CARE </h2>
+                    <p class="text-sm opacity-90">خدمات التنظيف والرعاية المنزلية</p>
+                  </div>
+                </div>
+                <div class="text-left">
+                  <p class="text-sm opacity-90">تاريخ الطباعة</p>
+                  <p class="text-base font-semibold">${new Date().toLocaleDateString('ar-EG')}</p>
+                </div>
+              </div>
+              
+              <!-- Order Title -->
+              <div class="text-center border-t border-white/20 pt-4">
+                <div class="flex items-center justify-center gap-3 mb-2">
+                  <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                  <h1 class="text-2xl font-bold">تفاصيل الطلب رقم: ${order.order_number || 'غير محدد'}</h1>
+                </div>
+                <div class="flex items-center justify-center gap-4 text-sm opacity-90">
+                  <span>📞 للاستفسار: 01122594454</span>
+                  <span>🌐 www.homecare.com</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="p-4 space-y-4">
