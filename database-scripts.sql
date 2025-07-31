@@ -832,7 +832,7 @@ GRANT EXECUTE ON FUNCTION sync_order_rating() TO authenticated;
 
 create or replace function calculate_worker_bonuses(
     p_month       date     default date_trunc('month', current_date),
-    p_min_daily   numeric  default 300,
+    p_min_daily   numeric  default 375,
     p_commission  numeric  default 0.15
 )
 returns table (
