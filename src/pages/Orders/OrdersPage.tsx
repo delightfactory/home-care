@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw, Star } from 'lucide-react'
+import { ExportButton } from '../../components/UI'
+import { exportToExcel } from '../../utils/exportExcel'
 import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
@@ -18,6 +20,45 @@ import SearchResultsInfo from '../../components/Orders/SearchResultsInfo'
 import { eventBus } from '../../utils/EventBus'
 
 const OrdersPage: React.FC = () => {
+  // تصدير الطلبات إلى ملف إكسل
+  const handleExport = async () => {
+    try {
+      toast.loading('جاري تجهيز الملف...', { id: 'export' })
+
+      const limit = 200 // حجم الصفحة أثناء التصدير
+      let page = 1
+      let all: any[] = []
+      while (true) {
+        const res = await EnhancedAPI.getOrders(filters, page, limit, true, false)
+        all = all.concat(res.data)
+        if (page >= res.total_pages) break
+        page++
+      }
+
+      const arabicOrders = all.map((o: any) => ({
+        'رقم الطلب': o.id,
+        'التاريخ': o.created_at ? new Date(o.created_at).toLocaleDateString('ar-EG') : '-',
+        'اسم العميل': o.customer?.name ?? '-',
+        'الهاتف': o.customer?.phone ?? '-',
+        'العنوان': o.customer?.address ?? '-',
+        'الحالة': o.status ?? '-',
+        'إجمالي المبلغ': o.total_amount ?? '-',
+        'فريق التنفيذ': o.team?.name ?? o.team_name ?? '-',
+        'العمال': o.workers && o.workers.length ? o.workers.map((w: any) => w.worker?.name || w.worker_id).join('، ') : '-',
+      }))
+
+      if (!arabicOrders.length) {
+        toast.error('لا توجد بيانات للتصدير', { id: 'export' })
+        return
+      }
+
+      const fileName = `طلبات_${new Date().toISOString().slice(0,10)}.xlsx`
+      await exportToExcel(arabicOrders, fileName, 'الطلبات')
+      toast.success('تم تصدير الملف بنجاح', { id: 'export' })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'فشل تصدير الملف', { id: 'export' })
+    }
+  }
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFormModal, setShowFormModal] = useState(false)
@@ -338,6 +379,7 @@ const OrdersPage: React.FC = () => {
           <p className="text-gray-600 mt-2">إدارة طلبات العملاء وتتبع حالتها</p>
         </div>
         <div className="flex space-x-3 space-x-reverse">
+          <ExportButton onClick={handleExport} disabled={filteredOrders.length===0} />
           <button 
             onClick={handleRefresh}
             disabled={refreshing}

@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Users, UserCheck, UserX, ShoppingCart, RefreshCw } from 'lucide-react'
+import { ExportButton } from '../../components/UI'
+import { exportToExcel } from '../../utils/exportExcel'
 import EnhancedAPI from '../../api/enhanced-api'
 import { CustomerWithOrders } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -11,6 +13,42 @@ import { eventBus } from '../../utils/EventBus'
 import { useCustomers, useCustomerCounts } from '../../hooks/useEnhancedAPI'
 
 const CustomersPage: React.FC = () => {
+  // تصدير العملاء إلى ملف إكسل
+  const handleExport = async () => {
+    try {
+      toast.loading('جاري تجهيز الملف...', { id: 'export' })
+
+      const limit = 200 // حجم الصفحة أثناء التصدير، أقل لتجنب طول رابط Supabase
+      let page = 1
+      let all: any[] = []
+      while (true) {
+        const res = await EnhancedAPI.getCustomers(filters, page, limit, false)
+        all = all.concat(res.data)
+        if (page >= res.total_pages) break
+        page++
+      }
+
+      if (!all.length) {
+        toast.error('لا توجد بيانات للتصدير', { id: 'export' })
+        return
+      }
+
+      const arabicCustomers = all.map((c: any) => ({
+        'الاسم': c.name,
+        'رقم الهاتف': c.phone,
+        'المنطقة': c.area ?? '-',
+        'عدد الطلبات': c.total_orders ?? 0,
+        'حالة العميل': c.is_active ? 'نشط' : 'موقوف',
+        'تاريخ التسجيل': c.created_at ? new Date(c.created_at).toLocaleDateString('ar-EG') : '-',
+      }))
+
+      const fileName = `عملاء_كامل_${new Date().toISOString().slice(0, 10)}.xlsx`
+      await exportToExcel(arabicCustomers, fileName, 'العملاء')
+      toast.success('تم إنشاء الملف بنجاح', { id: 'export' })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'فشل تصدير الملف', { id: 'export' })
+    }
+  }
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [showFormModal, setShowFormModal] = useState(false)
@@ -201,6 +239,8 @@ const CustomersPage: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3 sm:space-x-reverse">
+            <ExportButton onClick={handleExport} disabled={filteredCustomers.length===0} className="w-full sm:w-auto" />
+
             <button 
               onClick={handleRefresh}
               disabled={refreshing}

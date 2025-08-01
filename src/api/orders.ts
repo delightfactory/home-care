@@ -111,8 +111,17 @@ export class OrdersAPI {
             service:services(id, name, name_ar, price, unit, estimated_duration)
           `)
           .in('order_id', orderIds);
+
+        // Load order workers with their basic info
+        const { data: orderWorkers } = await supabase
+          .from('order_workers')
+          .select(`
+            *,
+            worker:workers(id, name)
+          `)
+          .in('order_id', orderIds);
         
-        // Attach items to orders
+        // Attach items and workers to orders
         ordersWithDetails = orders.map(order => ({
           ...order,
           customer: order.customer_id ? {
@@ -122,7 +131,8 @@ export class OrdersAPI {
             area: (order as any).customer_area || null
           } : null,
           confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending',
-          items: items?.filter(item => item.order_id === order.id) || []
+          items: items?.filter(item => item.order_id === order.id) || [],
+          workers: orderWorkers?.filter(ow => ow.order_id === order.id) || []
         }));
       }
 

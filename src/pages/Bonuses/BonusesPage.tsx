@@ -3,10 +3,30 @@ import { useBonuses } from '../../hooks/useBonuses'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import { formatCurrency } from '../../api'
 import { RefreshCw, Award, TrendingUp, Users, Calendar, Star, AlertTriangle, DollarSign } from 'lucide-react'
+import { ExportButton } from '../../components/UI'
+import { exportToExcel } from '../../utils/exportExcel'
 import toast from 'react-hot-toast'
 import { useWorkers } from '../../hooks/useEnhancedAPI'
 
 const BonusesPage: React.FC = () => {
+  // تصدير البيانات إلى إكسل
+  const handleExport = async () => {
+    try {
+      const arabicData = bonuses.map((b: any) => ({
+        'العامل': getWorkerName(b.worker_id),
+        'أيام العمل': b.days_worked,
+        'إجمالي المساهمة': b.total_contribution,
+        'الصافي': b.net,
+        'الحافز النهائي': b.final_bonus,
+        'التقييم': b.rating,
+        'طلبات بدون تقييم': b.unrated_orders
+      }));
+      const fileName = `حوافز_${month}.xlsx`;
+      await exportToExcel(arabicData, fileName, 'حوافز');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'فشل تصدير الملف');
+    }
+  }
   // الشهر الافتراضي: الشهر الحالي
   const today = new Date()
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -81,6 +101,7 @@ const BonusesPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+              <ExportButton onClick={handleExport} disabled={loading || bonuses.length===0} />
               <button
                 onClick={refresh}
                 disabled={loading}
