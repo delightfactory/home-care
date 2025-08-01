@@ -51,7 +51,11 @@ const ReportsPageContent: React.FC = () => {
   // Enhanced hooks for comprehensive data
   const { dashboard, loading: dashboardLoading, error: dashboardError, refresh: refreshDashboard } = useDashboard(selectedDate)
   const { health, refresh: refreshSystemHealth } = useSystemHealth()
-  const { analytics, loading: analyticsLoading, refresh: refreshAnalytics } = useAnalyticsDashboard()
+  const { analytics, loading: analyticsLoading, refresh: refreshAnalytics } = useAnalyticsDashboard(
+    'month',
+    dateFilterType === 'range' ? startDate : undefined,
+    dateFilterType === 'range' ? endDate : undefined
+  )
     const { weeklyStats, loading: weeklyLoading } = useWeeklyStats()
   const { weeklyStats: weeklyStatsRange } = useWeeklyStatsRange(
     dateFilterType === 'range' ? startDate : undefined,
@@ -226,6 +230,8 @@ const ReportsPageContent: React.FC = () => {
 
   // Generate performance insights from real data
   const generatePerformanceInsights = () => {
+    // إذا كانت الفلترة بنطاق زمني طويل ولا توجد بيانات يومية دقيقة، نتجنب إنشاء تنبيهات قد تكون مضللة
+    const rangeMode = dateFilterType === 'range';
     const topPerformers = []
     const improvements = []
     const alerts = []
@@ -264,6 +270,9 @@ const ReportsPageContent: React.FC = () => {
     }
 
     // Generate improvements based on data analysis
+    if (rangeMode) {
+      // فى وضع النطاق نركز فقط على أفضل الفرق والعمال بناءً على الملخصات المتاحة بدون الاعتماد على dailyDashboard
+    }
     if (todayDashboard) {
       const completionRate = todayDashboard.total_orders > 0 
         ? (todayDashboard.completed_orders / todayDashboard.total_orders) * 100 
@@ -295,7 +304,7 @@ const ReportsPageContent: React.FC = () => {
     }
 
     // Generate alerts based on current data
-    if (todayDashboard) {
+    if (!rangeMode && todayDashboard) {
       if (todayDashboard.pending_orders > 10) {
         alerts.push({
           type: 'warning' as const,

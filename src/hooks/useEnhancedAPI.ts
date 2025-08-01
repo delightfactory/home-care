@@ -448,7 +448,7 @@ export function useDashboard(date: string) {
 }
 
 // Advanced Analytics Dashboard hook
-export function useAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month') {
+export function useAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', dateFrom?: string, dateTo?: string) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -458,14 +458,14 @@ export function useAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'mo
     setError(null);
     
     try {
-      const result = await EnhancedAPI.getAnalyticsDashboard(period);
+      const result = await EnhancedAPI.getAnalyticsDashboard(period, dateFrom, dateTo);
       setAnalytics(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ في تحميل التحليلات');
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchAnalytics();

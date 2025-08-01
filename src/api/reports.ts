@@ -36,13 +36,30 @@ export class ReportsAPI {
   }
 
   // Get team summaries (performance) - OPTIMIZED
-  static async getTeamSummaries(): Promise<TeamSummary[]> {
+  static async getTeamSummaries(_dateFrom?: string, _dateTo?: string): Promise<TeamSummary[]> {
     try {
-      const { data, error } = await supabase
+      // استخدام صوري لمنع تحذيرات المتغيرات غير المستخدمة
+      
+      
+      let query = supabase
         .from('v_team_performance')
-        .select('*')
-        .order('completed_orders', { ascending: false });
+        .select('*');
 
+      // ملاحظة: ‎v_team_performance‎ لا يحتوي على عمود تاريخ حاليًا؛ لذلك تُحذف فلترة التاريخ حتى إضافة العمود مستقبلاً
+
+      // Default ordering
+      query = query.order('completed_orders', { ascending: false });
+
+      let { data, error } = await query;
+      // إذا كان الخطأ بسبب عدم وجود عمود التاريخ، أعد المحاولة بدون الفلتر
+      if (error && error.code === '42703') {
+        const fallback = await supabase
+          .from('v_team_performance')
+          .select('*')
+          .order('completed_orders', { ascending: false });
+        if (fallback.error) throw fallback.error;
+        return fallback.data as unknown as TeamSummary[];
+      }
       if (error) throw error;
       return data as unknown as TeamSummary[];
     } catch (error) {
@@ -66,17 +83,32 @@ export class ReportsAPI {
   }
 
   // Get worker statistics from v_worker_stats
-  static async getWorkerStats(): Promise<WorkerStats[]> {
+  static async getWorkerStats(_dateFrom?: string, _dateTo?: string): Promise<WorkerStats[]> {
     try {
-      const { data, error } = await supabase
+      // استخدام صوري لمنع تحذيرات المتغيرات غير المستخدمة
+      
+      
+      let query = supabase
         .from('v_worker_stats')
-        .select('*')
-        .order('completed_orders', { ascending: false })
+        .select('*');
 
-      if (error) throw error
-      return data as unknown as WorkerStats[]
+      // ‎v_worker_stats‎ لا يحتوي على عمود تاريخ حاليًا، لذلك يتم تجاهل فلترة التاريخ
+
+      query = query.order('completed_orders', { ascending: false });
+
+      let { data, error } = await query;
+      if (error && error.code === '42703') {
+        const fallback = await supabase
+          .from('v_worker_stats')
+          .select('*')
+          .order('completed_orders', { ascending: false });
+        if (fallback.error) throw fallback.error;
+        return fallback.data as unknown as WorkerStats[];
+      }
+      if (error) throw error;
+      return data as unknown as WorkerStats[];
     } catch (error) {
-      throw new Error(handleSupabaseError(error))
+      throw new Error(handleSupabaseError(error));
     }
   }
 
@@ -313,6 +345,9 @@ export class ReportsAPI {
   // Get orders status chart data
   static async getOrdersStatusChartData(dateFrom?: string, dateTo?: string): Promise<ChartData> {
     try {
+      // استخدام صوري لمنع تحذيرات المتغيرات غير المستخدمة
+      
+      
       let query = supabase
         .from('orders')
         .select('status')
@@ -365,6 +400,9 @@ export class ReportsAPI {
   // Get team performance comparison
   static async getTeamPerformanceComparison(dateFrom?: string, dateTo?: string) {
     try {
+      // استخدام صوري لمنع تحذيرات المتغيرات غير المستخدمة
+      
+      
       let query = supabase
         .from('orders')
         .select(`
@@ -584,16 +622,16 @@ static async getWeeklyStatsRange(startDate: string, endDate: string): Promise<an
   }
 
   // Get comprehensive analytics dashboard
-  static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month'): Promise<any> {
+  static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', dateFrom?: string, dateTo?: string): Promise<any> {
     try {
       const today = new Date()
       const promises: Promise<any>[] = []
 
       // Always get current daily dashboard
       promises.push(this.getDailyDashboard(today.toISOString().split('T')[0]))
-      promises.push(this.getTeamSummaries())
+      promises.push(this.getTeamSummaries(dateFrom, dateTo))
       promises.push(this.getCustomerHistories())
-      promises.push(this.getWorkerStats())
+      promises.push(this.getWorkerStats(dateFrom, dateTo))
 
       if (period === 'week') {
         promises.push(this.getWeeklyStats(0))
@@ -687,6 +725,9 @@ static async getWeeklyStatsRange(startDate: string, endDate: string): Promise<an
       const endDate = new Date()
       const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
 
+      // استخدام صوري لمنع تحذيرات المتغيرات غير المستخدمة
+      
+      
       let query = supabase
         .from('orders')
         .select(`

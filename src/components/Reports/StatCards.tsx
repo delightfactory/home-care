@@ -222,9 +222,26 @@ interface WorkerPerformanceCardProps {
 }
 
 export const WorkerPerformanceCard: React.FC<WorkerPerformanceCardProps> = ({ worker, className = '' }) => {
-  const getEfficiencyColor = (efficiency: number) => {
-    if (efficiency >= 90) return 'text-green-600 bg-green-100'
-    if (efficiency >= 70) return 'text-yellow-600 bg-yellow-100'
+  // احسب الكفاءة إذا لم يتم تمريرها أو كانت غير صالحة
+  const computedEfficiency =
+    typeof worker.efficiency === 'number' && !isNaN(worker.efficiency)
+      ? worker.efficiency
+      : worker.totalOrders > 0
+      ? (worker.completedOrders / worker.totalOrders) * 100
+      : undefined;
+
+  const efficiencyValue = computedEfficiency ?? 0;
+
+  const displayEfficiency =
+    computedEfficiency !== undefined ? `${efficiencyValue.toFixed(1)}% كفاءة` : 'غير متاح';
+
+  const safeAverageRating =
+    typeof worker.averageRating === 'number' && !isNaN(worker.averageRating)
+      ? worker.averageRating
+      : undefined;
+  const getEfficiencyColor = (efficiency: number | undefined) => {
+    if (efficiency !== undefined && efficiency >= 90) return 'text-green-600 bg-green-100'
+    if (efficiency !== undefined && efficiency >= 70) return 'text-yellow-600 bg-yellow-100'
     return 'text-red-600 bg-red-100'
   }
   
@@ -233,7 +250,7 @@ export const WorkerPerformanceCard: React.FC<WorkerPerformanceCardProps> = ({ wo
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{worker.name}</h3>
         <div className={`px-2 py-1 rounded-full text-xs font-medium ${getEfficiencyColor(worker.efficiency)} flex-shrink-0 text-center`}>
-          {worker.efficiency.toFixed(1)}% كفاءة
+          {displayEfficiency}
         </div>
       </div>
       
@@ -248,7 +265,7 @@ export const WorkerPerformanceCard: React.FC<WorkerPerformanceCardProps> = ({ wo
         </div>
         <div className="text-center">
           <p className="text-xs sm:text-sm text-gray-600">التقييم</p>
-          <p className="text-base sm:text-lg font-bold text-yellow-600">{worker.averageRating.toFixed(1)}</p>
+          <p className="text-base sm:text-lg font-bold text-yellow-600">{safeAverageRating !== undefined ? safeAverageRating.toFixed(1) : '—'}</p>
         </div>
       </div>
       

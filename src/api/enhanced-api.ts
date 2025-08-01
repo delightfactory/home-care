@@ -863,8 +863,8 @@ export class EnhancedAPI {
   }
 
   // Get comprehensive analytics dashboard
-  static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', useCache = true) {
-    const cacheKey = `enhanced:analytics:${period}`;
+  static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', dateFrom?: string, dateTo?: string, useCache = true) {
+    const cacheKey = `enhanced:analytics:${period}:${dateFrom ?? ''}:${dateTo ?? ''}`;
     
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -874,7 +874,7 @@ export class EnhancedAPI {
     return performanceMonitor.monitorQuery(
       'enhanced.reports.getAnalytics',
       async () => {
-        const result = await ReportsAPI.getAnalyticsDashboard(period);
+        const result = await ReportsAPI.getAnalyticsDashboard(period, dateFrom, dateTo);
         
         if (useCache) {
           CacheManager.set(cacheKey, result, 900000); // 15 minutes
