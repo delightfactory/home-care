@@ -179,6 +179,22 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
     }
   }
 
+  // تنسيق التاريخ مع الوقت بشكل مفصل
+  const formatDateTime = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
   const formatTime = (timeStr: string) => {
     try {
       const [hours, minutes] = timeStr.split(':')
@@ -608,7 +624,11 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                               log.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>{getStatusText(log.status)}</span>
-                            <span className="text-xs text-gray-500">{formatDate(log.created_at)}</span>
+                            <div className="text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                                <span>{(log as any).created_by_user?.full_name || 'غير معروف'}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span dir="ltr">{formatDateTime(log.created_at)}</span>
+                              </div>
                           </div>
                           {log.notes && (
                             <p className="text-gray-600 text-xs leading-relaxed">{log.notes}</p>
