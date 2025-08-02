@@ -170,7 +170,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
       size="xl"
       headerGradient="from-blue-600 via-purple-600 to-indigo-700"
     >
-      <div className="bg-white w-full max-w-4xl rounded-lg p-6 overflow-y-auto max-h-[90vh]">
+      <div className="bg-white w-full max-w-4xl rounded-lg p-6 overflow-y-auto max-h-[90vh] pb-28">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">إدارة طلبات خط السير: {route.name}</h2>
@@ -271,7 +271,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
 
         
         {/* Actions */}
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 bg-white sticky bottom-0 left-0 right-0 z-10">
           <button className="btn-secondary" onClick={onClose} disabled={saving}>
             إلغاء
           </button>

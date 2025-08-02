@@ -221,7 +221,7 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 bg-white sticky bottom-0 left-0 right-0 z-10">
                 <button
                   type="button"
                   onClick={onClose}
