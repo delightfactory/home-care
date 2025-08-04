@@ -1061,3 +1061,244 @@ $$;
 
 -- الصلاحيات (كما هى)
 grant execute on function calculate_worker_bonuses(date,numeric,numeric) to anon, authenticated;
+
+
+
+
+
+
+
+
+/* =========================================================
+   FUNCTION: populate_order_workers
+   ---------------------------------------------------------
+   - تُزامن أعضاء الفريق مع جدول order_workers
+   - يتحقق من أن العامل:
+       - انضم قبل أو فى لحظة p_time
+       - لم يترك الفريق قبل p_time
+   - يمنع التكرار بفضل ON CONFLICT DO NOTHING + القيد الفريد
+   - يُستخدم بواسطة التريجر order_workers_sync
+   ========================================================= */
+CREATE OR REPLACE FUNCTION populate_order_workers (
+  p_order UUID,
+  p_time  TIMESTAMPTZ        -- يمرَّر من التريجر
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- تنظيف أى روابط سابقة للحفاظ على الدقة
+  DELETE FROM order_workers
+  WHERE  order_id = p_order;
+
+  -- إدراج أعضاء الفريق النشطين فى لحظة p_time
+  INSERT INTO order_workers (
+    order_id,
+    worker_id,
+    team_id,
+    role,
+    started_at
+  )
+  SELECT  o.id,
+          tm.worker_id,
+          o.team_id,
+          CASE
+            WHEN tm.worker_id = t.leader_id THEN 'leader'
+            ELSE 'member'
+          END           AS role,
+          p_time        AS started_at
+  FROM    orders o
+  JOIN    team_members tm ON tm.team_id = o.team_id
+  JOIN    teams        t  ON t.id = o.team_id
+  WHERE   o.id = p_order
+    AND   tm.joined_at <= p_time                      -- ✅ العامل كان قد انضم بالفعل
+    AND  (tm.left_at IS NULL OR tm.left_at > p_time)  -- ✅ ولم يغادر بعد
+  ON CONFLICT DO NOTHING;                             -- يحترم القيد الفريد
+END;
+$$;
+
+
+
+/* =========================================================
+   TRIGGER FUNCTION: trg_ow_status_log
+   ---------------------------------------------------------
+   - عند تغيير حالة الطلب إلى in_progress:
+       - يستخدم scheduled_date كمرجع زمنى لإسناد العمال
+         (احتياطياً يستبدلها بـ NEW.created_at إذا لم تكن متاحة)
+   - عند completed: يستدعى close_order_workers للحفظ النهائى
+   ========================================================= */
+CREATE OR REPLACE FUNCTION trg_ow_status_log()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_ref_time TIMESTAMPTZ;
+BEGIN
+  IF NEW.status = 'in_progress' THEN
+      SELECT COALESCE(scheduled_date, NEW.created_at)
+        INTO v_ref_time
+        FROM orders
+        WHERE id = NEW.order_id;
+
+      PERFORM populate_order_workers(NEW.order_id, v_ref_time);
+
+  ELSIF NEW.status = 'completed' THEN
+      PERFORM close_order_workers(NEW.order_id, NEW.created_at);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- إعادة إنشاء التريجر لربطه بالدالة المُحدَّثة
+DROP TRIGGER IF EXISTS order_workers_sync ON order_status_logs;
+CREATE TRIGGER order_workers_sync
+AFTER INSERT ON order_status_logs
+FOR EACH ROW EXECUTE FUNCTION trg_ow_status_log();
+
+
+
+
+
+
+CREATE OR REPLACE FUNCTION trg_ow_status_log()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_ref_time TIMESTAMPTZ;
+BEGIN
+  IF NEW.status = 'in_progress' THEN
+      SELECT LEAST(scheduled_date, NEW.created_at)   -- التحسين هنا
+        INTO v_ref_time
+        FROM orders
+        WHERE id = NEW.order_id;
+
+      PERFORM populate_order_workers(NEW.order_id, v_ref_time);
+
+  ELSIF NEW.status = 'completed' THEN
+      PERFORM close_order_workers(NEW.order_id, NEW.created_at);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS order_workers_sync ON order_status_logs;
+CREATE TRIGGER order_workers_sync
+AFTER INSERT ON order_status_logs
+FOR EACH ROW EXECUTE FUNCTION trg_ow_status_log();
+
+
+
+
+
+
+/* =========================================================
+   TRIGGER FUNCTION: trg_ow_status_log (نسخة نهائية)
+   ========================================================= */
+CREATE OR REPLACE FUNCTION trg_ow_status_log()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status = 'in_progress' THEN
+      /* تمرير لحظة البدء الفعلية فقط */
+      PERFORM populate_order_workers(
+               NEW.order_id,
+               NEW.created_at          -- المرجع الوحيد
+             );
+
+  ELSIF NEW.status = 'completed' THEN
+      PERFORM close_order_workers(NEW.order_id, NEW.created_at);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS order_workers_sync ON order_status_logs;
+CREATE TRIGGER order_workers_sync
+AFTER INSERT ON order_status_logs
+FOR EACH ROW EXECUTE FUNCTION trg_ow_status_log();
+
+
+
+
+
+
+/* =========================================================
+   FUNCTION: resync_order_workers  (الإصدار المُحسَّن)
+   ---------------------------------------------------------
+   - يُعيد ملء order_workers لطلب واحد
+   - يَضمن إدراج العمال الذين:
+       - انضمّوا قبل v_time
+       - ولم يغادروا قبل v_time
+   - يحافظ على التقييمات و finished_at
+   ========================================================= */
+CREATE OR REPLACE FUNCTION resync_order_workers(p_order UUID)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_time TIMESTAMPTZ;
+BEGIN
+  /* 1) تحديد لحظة التنفيذ الفعلية (أول in_progress) */
+  SELECT created_at
+    INTO v_time
+    FROM order_status_logs
+   WHERE order_id = p_order
+     AND status    = 'in_progress'
+   ORDER BY created_at
+   LIMIT 1;
+
+  IF v_time IS NULL THEN           -- الطلب لم يبدأ بعد
+     RETURN;
+  END IF;
+
+  /* 2) حفظ النسخة القديمة */
+  DROP TABLE IF EXISTS _old;
+  CREATE TEMP TABLE _old ON COMMIT DROP AS
+  SELECT *
+  FROM   order_workers
+  WHERE  order_id = p_order;
+
+  /* 3) ملء العمال المؤهّلين وقت التنفيذ */
+  PERFORM populate_order_workers(p_order, v_time);
+
+  /* 4) استرجاع التقييمات والأعمدة للصفوف المشتركة */
+  UPDATE order_workers ow
+  SET    customer_rating  = old.customer_rating,
+         performance_score = old.performance_score,
+         finished_at       = old.finished_at
+  FROM   _old old
+  WHERE  ow.order_id  = old.order_id
+    AND  ow.worker_id = old.worker_id;
+
+  /* 5) إعادة الصفوف القديمة إذا كان العامل ما زال عضواً وقت v_time */
+  INSERT INTO order_workers (
+      order_id, worker_id, team_id, role,
+      started_at, finished_at,
+      customer_rating, performance_score
+  )
+  SELECT old.order_id,
+         old.worker_id,
+         old.team_id,
+         old.role,
+         old.started_at,
+         old.finished_at,
+         old.customer_rating,
+         old.performance_score
+  FROM   _old old
+  JOIN   team_members tm
+         ON  tm.team_id   = old.team_id
+         AND tm.worker_id = old.worker_id
+         AND tm.joined_at <= v_time
+         AND (tm.left_at IS NULL OR tm.left_at > v_time)
+  LEFT   JOIN order_workers ow
+         ON  ow.order_id  = old.order_id
+        AND ow.worker_id = old.worker_id
+  WHERE  ow.id IS NULL;     -- صف غير موجود حالياً
+END;
+$$;

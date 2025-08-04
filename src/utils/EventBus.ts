@@ -1,5 +1,7 @@
-// Simple global event bus using EventTarget (light-weight and performant)
-// يوفر حافلة أحداث عالمية لتنسيق التحديثات بين الأجزاء المختلفة من التطبيق
+// -------------------------------------------------
+// Global-singleton EventBus to avoid duplicate copies
+// after Vite/Rollup code-splitting in production.
+// -------------------------------------------------
 
 class EventBus {
   private emitter: EventTarget
@@ -8,10 +10,9 @@ class EventBus {
   constructor () {
     this.emitter = new EventTarget()
 
-    // Support cross-tab communication (if browser supports BroadcastChannel)
+    // Cross-tab communication via BroadcastChannel
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       this.channel = new BroadcastChannel('global_event_bus')
-      // Relay incoming messages to local listeners
       this.channel.onmessage = (e) => {
         const { event, detail } = e.data || {}
         if (typeof event === 'string') {
@@ -21,26 +22,24 @@ class EventBus {
     }
   }
 
-  emit <T = any> (event: string, detail?: T) {
-    // Emit to local listeners
+  emit<T = any> (event: string, detail?: T) {
     this.emitter.dispatchEvent(new CustomEvent(event, { detail }))
-    // Broadcast to other tabs if supported
-    if (this.channel) {
-      this.channel.postMessage({ event, detail })
-    }
+    this.channel?.postMessage({ event, detail })
   }
 
   on<T = any> (event: string, listener: (detail: T) => void) {
-    const handler = (e: Event) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      listener((e as CustomEvent<any>).detail as T)
-    }
+    const handler = (e: Event) => listener((e as CustomEvent).detail as T)
     this.emitter.addEventListener(event, handler)
     return () => this.emitter.removeEventListener(event, handler)
   }
 }
 
-// Singleton instance – import { eventBus } from '@/utils/EventBus'
-export const eventBus = new EventBus()
+// 🔑 Global singleton key
+const GLOBAL_KEY = '__global_event_bus__' as const
+
+// ⬇️ Create or reuse singleton instance
+export const eventBus: EventBus =
+  (window as any)[GLOBAL_KEY] ||
+  ((window as any)[GLOBAL_KEY] = new EventBus())
 
 export type CacheClearedPayload = { pattern?: string }
