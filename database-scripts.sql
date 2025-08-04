@@ -874,7 +874,7 @@ worker_shares as (
     join orders o               on o.id = ow.order_id
     join params p               on o.scheduled_date between p.month_start and p.month_end
     join workers_per_order wpo  on wpo.order_id = o.id
-    where o.status <> 'cancelled'              -- استبعاد الملغاة
+    where o.status = 'completed'               -- احتساب الطلبات المكتملة فقط
 ),
 monthly as (
     select
@@ -918,4 +918,146 @@ order by final_bonus desc nulls last;
 $$;
 
 -- الصلاحيات (عدِّل الأدوار حسب احتياجك)
+grant execute on function calculate_worker_bonuses(date,numeric,numeric) to anon, authenticated;
+
+
+
+
+
+
+
+
+
+
+-- 1-ب) أنشئ الدالة المُحسَّنة بالاسم الأصلى
+CREATE OR REPLACE FUNCTION close_order_workers(
+    p_order UUID,
+    p_time  TIMESTAMPTZ
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  /* تأكَّد أولاً من إضافة كل العمال النشطين قبل الإغلاق */
+  PERFORM populate_order_workers(p_order, p_time);
+
+  /* أغلِق جميع الصفوف المفتوحة واكتب تقييم العميل */
+  UPDATE order_workers
+  SET finished_at     = p_time,
+      customer_rating = o.customer_rating
+  FROM orders o
+  WHERE order_workers.order_id = p_order
+    AND o.id = p_order
+    AND order_workers.finished_at IS NULL;
+END;
+$$;
+
+-- 1-ج) الإبقاء على صلاحيات التنفيذ كما هى
+GRANT EXECUTE ON FUNCTION close_order_workers(uuid, timestamptz)
+      TO anon, authenticated, service_role;
+
+COMMIT;
+
+
+
+
+
+
+
+
+
+
+-- =============================================================
+-- دالة RPC: calculate_worker_bonuses (إصدار 3 – إصلاح شرط الحالة)
+-- =============================================================
+create or replace function calculate_worker_bonuses(
+    p_month       date     default date_trunc('month', current_date),
+    p_min_daily   numeric  default 375,
+    p_commission  numeric  default 0.15
+)
+returns table (
+    worker_id             uuid,
+    month                 date,
+    days_worked           integer,
+    monthly_contribution  numeric,
+    monthly_min           numeric,
+    net_above_min         numeric,
+    base_bonus            numeric,
+    avg_rating            numeric,
+    rating_factor         numeric,
+    final_bonus           numeric,
+    unrated_orders        integer
+)
+language sql
+security definer
+stable
+as $$
+with params as (
+    select  p_month::date                                              as month_start,
+            (p_month + interval '1 month' - interval '1 day')::date    as month_end,
+            p_min_daily::numeric                                       as min_daily,
+            p_commission::numeric                                      as commission
+),
+workers_per_order as (
+    select  ow.order_id,
+            count(*) as n_workers
+    from    order_workers ow
+    group by ow.order_id
+),
+worker_shares as (
+    select
+        ow.worker_id,
+        o.id                         as order_id,
+        o.scheduled_date             as work_day,
+        (o.total_amount / wpo.n_workers)::numeric(12,2) as share,
+        ow.customer_rating           as rating          -- قد تكون NULL
+    from        order_workers ow
+    join        orders o              on o.id = ow.order_id
+    join        params p              on o.scheduled_date between p.month_start and p.month_end
+    join        workers_per_order wpo on wpo.order_id = o.id
+    where       o.status = 'completed'                 -- *** أهم تعديل: احتساب الطلبات المُكتملة فقط ***
+),
+monthly as (
+    select
+        ws.worker_id,
+        p.month_start                                     as month,
+        count(distinct ws.work_day)                       as days_worked,
+        sum(ws.share)                                     as monthly_contribution,
+        avg(ws.rating)::numeric(3,2)                      as avg_rating,
+        count(*) filter (where ws.rating is null)         as unrated_orders,
+        p.min_daily,
+        p.commission
+    from        worker_shares ws
+    cross join  params p
+    group by    ws.worker_id, p.month_start, p.min_daily, p.commission
+)
+select
+    m.worker_id,
+    m.month,
+    m.days_worked,
+    m.monthly_contribution,
+    m.min_daily * m.days_worked                           as monthly_min,
+    greatest(m.monthly_contribution - (m.min_daily * m.days_worked), 0)      as net_above_min,
+    greatest(m.monthly_contribution - (m.min_daily * m.days_worked), 0)
+        * m.commission                                    as base_bonus,
+    m.avg_rating,
+    case
+        when m.avg_rating is null or m.avg_rating < 3 then 0
+        else least(m.avg_rating / 5, 1)
+    end                                                   as rating_factor,
+    round(
+        greatest(m.monthly_contribution - (m.min_daily * m.days_worked), 0)
+        * m.commission
+        * case
+            when m.avg_rating is null or m.avg_rating < 3 then 0
+            else least(m.avg_rating / 5, 1)
+          end
+      , 2)                                                as final_bonus,
+    m.unrated_orders
+from    monthly m
+order by final_bonus desc nulls last;
+$$;
+
+-- الصلاحيات (كما هى)
 grant execute on function calculate_worker_bonuses(date,numeric,numeric) to anon, authenticated;

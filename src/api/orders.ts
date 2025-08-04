@@ -29,7 +29,7 @@ export class OrdersAPI {
       let query = supabase
         .from('v_orders_summary')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
+        .order('scheduled_date', { ascending: false })
         .range(offset, offset + limit - 1);
 
       // Apply filters using indexed columns
