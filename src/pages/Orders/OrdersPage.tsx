@@ -3,6 +3,7 @@ import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw, Star } from '
 import { ExportButton } from '../../components/UI'
 import { exportToExcel } from '../../utils/exportExcel'
 import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
+import ConfirmationStatusPickerModal from '../../components/UI/ConfirmationStatusPickerModal'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedAPI from '../../api/enhanced-api'
 import { OrderStatus, ConfirmationStatus } from '../../types'
@@ -72,6 +73,10 @@ const OrdersPage: React.FC = () => {
   // حالة تأكيد تغيير الحالة
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
+  // حالة اختيار تأكيد العميل
+  const [showConfirmationPicker, setShowConfirmationPicker] = useState(false)
+  const [confirmationLoading, setConfirmationLoading] = useState(false)
+  const [selectedConfirmationOrder, setSelectedConfirmationOrder] = useState<OrderWithDetails | null>(null)
   const [targetOrder, setTargetOrder] = useState<OrderWithDetails | null>(null)
   const [targetStatus, setTargetStatus] = useState<OrderStatus | null>(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -251,29 +256,41 @@ const OrdersPage: React.FC = () => {
     )
   }
 
-  const handleConfirmationChange = async (order: OrderWithDetails) => {
-    // دورة الحالات: pending -> confirmed -> declined -> pending
-    const nextMap: Record<ConfirmationStatus, ConfirmationStatus> = {
-      pending: 'confirmed',
-      confirmed: 'declined',
-      declined: 'pending'
-    } as any;
+  const handleConfirmationChange = (order: OrderWithDetails) => {
+    // فتح مودال اختيار الحالة بدل التبديل التلقائي
+    setSelectedConfirmationOrder(order)
+  setShowConfirmationPicker(true)
+}
 
-    const nextStatus = nextMap[order.confirmation_status as ConfirmationStatus] || 'confirmed';
-    try {
-      toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
-      const response = await EnhancedAPI.updateOrderConfirmationStatus(order.id, nextStatus, undefined, user?.id)
-      if (response.success) {
-        toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
-        refresh()
-      } else {
-        throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
-      }
-    } catch (error) {
-      toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
-      console.error('Confirmation status update error:', error)
+// تحديث حالة التأكيد بعد اختيار المستخدم
+const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
+  if (!selectedConfirmationOrder) return
+  try {
+    setConfirmationLoading(true)
+    toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
+    const response = await EnhancedAPI.updateOrderConfirmationStatus(
+      selectedConfirmationOrder.id,
+      status,
+      undefined,
+      user?.id
+    )
+    if (response.success) {
+      toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
+      refresh()
+      setShowConfirmationPicker(false)
+      setSelectedConfirmationOrder(null)
+    } else {
+      throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
     }
+  } catch (error) {
+    toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
+    console.error('Confirmation status update error:', error)
+  } finally {
+    setConfirmationLoading(false)
   }
+}
+
+
 
   const promptStatusChange = (order: OrderWithDetails, status: OrderStatus) => {
     // إلغاء الطلب يحتفظ بنموذج خاص
@@ -487,7 +504,7 @@ const OrdersPage: React.FC = () => {
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="text"
-            placeholder="البحث عن طلب برقم الطلب أو اسم العميل..."
+            placeholder="البحث عن طلب برقم الطلب أو اسم العميل أو رقم الهاتف..."
             className="input pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -787,6 +804,19 @@ const OrdersPage: React.FC = () => {
       />
 
       {/* Delete Confirmation Modal */}
+      <ConfirmationStatusPickerModal
+        isOpen={showConfirmationPicker}
+        onClose={() => {
+          setShowConfirmationPicker(false)
+          setSelectedConfirmationOrder(null)
+        }}
+        onConfirm={handleConfirmStatusUpdate}
+        loading={confirmationLoading}
+        currentStatus={selectedConfirmationOrder?.confirmation_status as ConfirmationStatus}
+        customerName={selectedConfirmationOrder?.customer_name || undefined}
+        customerArea={selectedConfirmationOrder?.customer?.area || undefined}
+      />
+
       <DeleteConfirmModal
         isOpen={showDeleteModal}
         onClose={() => {

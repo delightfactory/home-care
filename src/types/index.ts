@@ -450,6 +450,7 @@ export interface ExpenseFilters {
   team_id?: string
   amount_min?: number
   amount_max?: number
+  search?: string
 }
 
 // Notification types

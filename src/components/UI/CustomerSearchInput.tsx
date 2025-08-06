@@ -13,6 +13,7 @@ interface CustomerSearchInputProps {
   placeholder?: string
   required?: boolean
   className?: string
+  readOnly?: boolean
 }
 
 const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
@@ -23,7 +24,8 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
   disabled = false,
   placeholder = "ابحث عن عميل بالاسم أو رقم الهاتف...",
   required = false,
-  className = ''
+  className = '',
+  readOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [customers, setCustomers] = useState<CustomerWithOrders[]>([])
@@ -89,6 +91,13 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
       clearTimeout(searchTimeoutRef.current)
     }
 
+    // Don't search if readOnly is enabled
+    if (readOnly) {
+      setCustomers([])
+      setIsOpen(false)
+      return
+    }
+
     if (searchTerm.length >= 2) {
       searchTimeoutRef.current = setTimeout(async () => {
         setLoading(true)
@@ -114,7 +123,7 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [searchTerm])
+  }, [searchTerm, readOnly])
 
   // Handle click outside
   useEffect(() => {
@@ -134,6 +143,11 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
   }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Prevent changes if readOnly is enabled
+    if (readOnly) {
+      return
+    }
+    
     const newValue = e.target.value
     setSearchTerm(newValue)
     
@@ -197,6 +211,11 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
   }
 
   const handleFocus = () => {
+    // Don't open dropdown if readOnly is enabled
+    if (readOnly) {
+      return
+    }
+    
     if (searchTerm.length >= 2 && customers.length > 0) {
       setIsOpen(true)
     } else if (searchTerm.length === 0 && recentSearches.length > 0) {
@@ -228,8 +247,9 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholder={placeholder}
+          placeholder={readOnly ? "" : placeholder}
           disabled={disabled}
+          readOnly={readOnly}
           className={`
             w-full pl-10 pr-10 py-3 border-2 rounded-xl transition-all duration-200
             focus:ring-4 focus:ring-primary-100 focus:border-primary-500
@@ -237,19 +257,22 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
             ${error ? 'border-red-500 focus:ring-red-100 focus:border-red-500' : 'border-gray-200'}
             ${selectedCustomer ? 'border-green-500 focus:ring-green-100 focus:border-green-500' : ''}
             ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}
+            ${readOnly ? 'bg-gray-50 cursor-default focus:ring-0 focus:border-gray-300' : ''}
           `}
         />
         
         {/* Search Icon */}
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          {loading ? (
-            <div className="animate-spin">
-              <LoadingSpinner size="small" />
-            </div>
-          ) : (
-            <Search className="h-4 w-4 text-gray-400" />
-          )}
-        </div>
+        {!readOnly && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            {loading ? (
+              <div className="animate-spin">
+                <LoadingSpinner size="small" />
+              </div>
+            ) : (
+              <Search className="h-4 w-4 text-gray-400" />
+            )}
+          </div>
+        )}
         
         {/* Status Icon */}
         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -261,7 +284,7 @@ const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
         </div>
         
         {/* Clear Button */}
-        {selectedCustomer && !disabled && (
+        {selectedCustomer && !disabled && !readOnly && (
           <button
             type="button"
             onClick={handleClear}

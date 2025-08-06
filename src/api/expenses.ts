@@ -89,11 +89,15 @@ export class ExpensesAPI {
       }
 
       if (filters?.date_from) {
-        query = query.gte('created_at', filters.date_from);
+        // إضافة الوقت لبداية اليوم
+        const dateFrom = filters.date_from.includes('T') ? filters.date_from : `${filters.date_from}T00:00:00.000Z`;
+        query = query.gte('created_at', dateFrom);
       }
 
       if (filters?.date_to) {
-        query = query.lte('created_at', filters.date_to);
+        // إضافة الوقت لنهاية اليوم
+        const dateTo = filters.date_to.includes('T') ? filters.date_to : `${filters.date_to}T23:59:59.999Z`;
+        query = query.lte('created_at', dateTo);
       }
 
       if (filters?.amount_min) {
@@ -102,6 +106,10 @@ export class ExpensesAPI {
 
       if (filters?.amount_max) {
         query = query.lte('amount', filters.amount_max);
+      }
+
+      if (filters?.search) {
+        query = query.or(`description.ilike.%${filters.search}%`);
       }
 
       const { data: expenses, error, count } = await query;

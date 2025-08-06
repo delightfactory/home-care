@@ -58,7 +58,7 @@ export class OrdersAPI {
       }
 
       if (filters?.search) {
-        query = query.or(`order_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%`);
+        query = query.or(`order_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,customer_phone.ilike.%${filters.search}%`);
       }
 
       const { data: orders, error, count } = await query;

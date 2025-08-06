@@ -346,15 +346,17 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                 <label className="label label-required text-gray-700 font-medium">
                   العميل
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowCustomerModal(true)}
-                  className="flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                  disabled={loading}
-                >
-                  <UserPlus className="h-4 w-4 ml-1" />
-                  إضافة عميل جديد
-                </button>
+                {mode === 'create' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomerModal(true)}
+                    className="flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    disabled={loading}
+                  >
+                    <UserPlus className="h-4 w-4 ml-1" />
+                    إضافة عميل جديد
+                  </button>
+                )}
               </div>
               <CustomerSearchInput
                 value={formData.customer_id}
@@ -369,6 +371,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                 onBlur={() => setTouched(prev => ({ ...prev, customer_id: true }))}
                 error={touched.customer_id ? errors.customer_id : undefined}
                 disabled={loading}
+                readOnly={mode === 'edit'}
                 required
               />
             </div>

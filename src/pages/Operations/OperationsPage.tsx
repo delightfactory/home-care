@@ -39,11 +39,13 @@ import {
 } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
+import ConfirmationStatusPickerModal from '../../components/UI/ConfirmationStatusPickerModal'
 import { 
   RouteWithOrders, 
   ExpenseWithDetails, 
   OrderWithDetails,
-  WorkerWithTeam 
+  WorkerWithTeam,
+  ConfirmationStatus 
 } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import { useAuth } from '../../contexts/AuthContext'
@@ -121,6 +123,10 @@ const OperationsPage: React.FC = () => {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
+  // حالات اختيار تأكيد العميل
+  const [showConfirmationPicker, setShowConfirmationPicker] = useState(false)
+  const [confirmationLoading, setConfirmationLoading] = useState(false)
+  const [selectedConfirmationOrder, setSelectedConfirmationOrder] = useState<OrderWithDetails | null>(null)
 
   const { user } = useAuth()
 
@@ -295,27 +301,36 @@ const OperationsPage: React.FC = () => {
     );
   };
 
-  const handleConfirmationChange = async (order: OrderWithDetails) => {
-    // دورة الحالات: pending -> confirmed -> declined -> pending
-    const nextMap: Record<string, 'pending' | 'confirmed' | 'declined'> = {
-      pending: 'confirmed',
-      confirmed: 'declined',
-      declined: 'pending'
-    };
+  const handleConfirmationChange = (order: OrderWithDetails) => {
+    setSelectedConfirmationOrder(order)
+    setShowConfirmationPicker(true)
+  };
 
-    const nextStatus = nextMap[order.confirmation_status as string] || 'confirmed';
+  const handleConfirmStatusUpdate = async (newStatus: ConfirmationStatus) => {
+    if (!selectedConfirmationOrder) return;
+
+    setConfirmationLoading(true);
     try {
-      toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
-      const response = await EnhancedAPI.updateOrderConfirmationStatus(order.id, nextStatus, undefined, undefined)
+      const response = await EnhancedAPI.updateOrderConfirmationStatus(
+        selectedConfirmationOrder.id,
+        newStatus,
+        undefined,
+        undefined
+      );
+      
       if (response.success) {
-        toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
+        toast.success('تم تحديث حالة التأكيد بنجاح');
+        setShowConfirmationPicker(false);
+        setSelectedConfirmationOrder(null);
         // EventBus will handle the refresh automatically via orders:changed event
       } else {
-        throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
+        throw new Error(response.error || 'فشل في تحديث حالة التأكيد');
       }
     } catch (error) {
-      toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
-      console.error('Confirmation status update error:', error)
+      toast.error('حدث خطأ في تحديث حالة التأكيد');
+      console.error('Confirmation status update error:', error);
+    } finally {
+      setConfirmationLoading(false);
     }
   }
 
@@ -1930,6 +1945,20 @@ const OperationsPage: React.FC = () => {
         loading={confirmLoading}
         orderNumber={targetOrder?.order_number}
         newStatusLabel={targetStatus ? getOrderStatusText(targetStatus) : ''}
+      />
+
+      {/* Confirmation Status Picker Modal */}
+      <ConfirmationStatusPickerModal
+        isOpen={showConfirmationPicker}
+        onClose={() => {
+          setShowConfirmationPicker(false)
+          setSelectedConfirmationOrder(null)
+        }}
+        onConfirm={handleConfirmStatusUpdate}
+        loading={confirmationLoading}
+        currentStatus={selectedConfirmationOrder?.confirmation_status as ConfirmationStatus}
+        customerName={selectedConfirmationOrder?.customer_name}
+        customerArea={selectedConfirmationOrder?.customer?.area || undefined}
       />
       
       {/* Hidden Order Export Template */}

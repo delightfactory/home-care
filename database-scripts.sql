@@ -1299,6 +1299,33 @@ BEGIN
   LEFT   JOIN order_workers ow
          ON  ow.order_id  = old.order_id
         AND ow.worker_id = old.worker_id
-  WHERE  ow.id IS NULL;     -- صف غير موجود حالياً
+   WHERE  ow.id IS NULL;     -- صف غير موجود حالياً
 END;
 $$;
+
+/* =========================================================
+   TRIGGER FUNCTION: trg_set_order_status_created_by
+   ---------------------------------------------------------
+   يملأ تلقائياً created_by بـ auth.uid() إذا تُرك NULL
+   ========================================================= */
+CREATE OR REPLACE FUNCTION trg_set_order_status_created_by()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF NEW.created_by IS NULL THEN
+    NEW.created_by := auth.uid();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+/* ربط التريجر بالجدول */
+DROP TRIGGER IF EXISTS order_status_set_created_by ON order_status_logs;
+CREATE TRIGGER order_status_set_created_by
+BEFORE INSERT ON order_status_logs
+FOR EACH ROW EXECUTE FUNCTION trg_set_order_status_created_by();
+
+/* منح صلاحية التنفيذ لدور authenticated */
+GRANT EXECUTE ON FUNCTION trg_set_order_status_created_by() TO authenticated;

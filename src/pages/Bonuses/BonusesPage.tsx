@@ -15,10 +15,13 @@ const BonusesPage: React.FC = () => {
       const arabicData = bonuses.map((b: any) => ({
         'العامل': getWorkerName(b.worker_id),
         'أيام العمل': b.days_worked,
-        'إجمالي المساهمة': b.total_contribution,
-        'الصافي': b.net,
+        'إجمالي المساهمة': b.monthly_contribution,
+        'الحد الأدنى': b.monthly_min,
+        'الصافي': b.net_above_min,
+        'الحافز الأساسي': b.base_bonus,
+        'التقييم': b.avg_rating ?? '—',
+        'عامل التقييم': (b.rating_factor * 100).toFixed(0) + '%',
         'الحافز النهائي': b.final_bonus,
-        'التقييم': b.rating,
         'طلبات بدون تقييم': b.unrated_orders
       }));
       const fileName = `حوافز_${month}.xlsx`;

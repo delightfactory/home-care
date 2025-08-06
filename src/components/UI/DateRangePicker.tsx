@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Calendar, X } from 'lucide-react'
 import DateTimePicker from './DateTimePicker'
+import { toLocalDateISO } from '../../api'
 
 interface DateRangePickerProps {
   startDate?: string
@@ -134,7 +135,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   const handlePresetSelect = (preset: string) => {
     const today = new Date()
-    const todayStr = today.toISOString().split('T')[0]
+    const todayStr = toLocalDateISO(today)
     
     switch (preset) {
       case 'today':
@@ -144,7 +145,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
       case 'yesterday':
         const yesterday = new Date(today)
         yesterday.setDate(yesterday.getDate() - 1)
-        const yesterdayStr = yesterday.toISOString().split('T')[0]
+        const yesterdayStr = toLocalDateISO(yesterday)
         onStartDateChange(yesterdayStr)
         onEndDateChange(yesterdayStr)
         break
@@ -156,8 +157,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
         const endOfWeek = new Date(startOfWeek)
         endOfWeek.setDate(startOfWeek.getDate() + 6)
         const endDate = endOfWeek > today ? today : endOfWeek
-        onStartDateChange(startOfWeek.toISOString().split('T')[0])
-        onEndDateChange(endDate.toISOString().split('T')[0])
+        onStartDateChange(toLocalDateISO(startOfWeek))
+        onEndDateChange(toLocalDateISO(endDate))
         break
       }
       case 'lastWeek': {
@@ -170,31 +171,31 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
         lastWeekStart.setDate(startOfCurrentWeek.getDate() - 7)
         const lastWeekEnd = new Date(lastWeekStart)
         lastWeekEnd.setDate(lastWeekStart.getDate() + 6)
-        onStartDateChange(lastWeekStart.toISOString().split('T')[0])
-        onEndDateChange(lastWeekEnd.toISOString().split('T')[0])
+        onStartDateChange(toLocalDateISO(lastWeekStart))
+        onEndDateChange(toLocalDateISO(lastWeekEnd))
         break
       }
       case 'thisMonth':
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-        onStartDateChange(startOfMonth.toISOString().split('T')[0])
+        onStartDateChange(toLocalDateISO(startOfMonth))
         onEndDateChange(todayStr)
         break
       case 'lastMonth':
         const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
         const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
-        onStartDateChange(lastMonthStart.toISOString().split('T')[0])
-        onEndDateChange(lastMonthEnd.toISOString().split('T')[0])
+        onStartDateChange(toLocalDateISO(lastMonthStart))
+        onEndDateChange(toLocalDateISO(lastMonthEnd))
         break
       case 'last30Days':
         const thirtyDaysAgo = new Date(today)
         thirtyDaysAgo.setDate(today.getDate() - 30)
-        onStartDateChange(thirtyDaysAgo.toISOString().split('T')[0])
+        onStartDateChange(toLocalDateISO(thirtyDaysAgo))
         onEndDateChange(todayStr)
         break
       case 'last90Days':
         const ninetyDaysAgo = new Date(today)
         ninetyDaysAgo.setDate(today.getDate() - 90)
-        onStartDateChange(ninetyDaysAgo.toISOString().split('T')[0])
+        onStartDateChange(toLocalDateISO(ninetyDaysAgo))
         onEndDateChange(todayStr)
         break
     }
@@ -233,6 +234,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
           readOnly
           disabled={disabled}
           onClick={() => !disabled && setIsOpen(true)}
+          onMouseDown={e => e.stopPropagation()}
+          onFocus={e => e.stopPropagation()}
           className={`
             w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl
             focus:ring-2 focus:ring-primary-500 focus:border-transparent

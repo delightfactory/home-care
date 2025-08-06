@@ -1,27 +1,43 @@
-import React, { useState } from 'react'
-import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, Filter, DollarSign, TrendingUp, Clock, FileText, Activity } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, DollarSign, TrendingUp, Clock, FileText, Activity } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
 import { eventBus } from '../../utils/EventBus'
-import { ExpenseWithCategory, ExpenseFilters } from '../../types'
+import { ExpenseWithCategory } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import ExpenseFormModal from '../../components/Forms/ExpenseFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
-import { useExpenses, useSystemHealth, useExpenseCounts } from '../../hooks/useEnhancedAPI'
+import { useExpenses, useSystemHealth, useExpenseCounts, useFilteredExpenseStats } from '../../hooks/useEnhancedAPI'
+import ExpensesFilterBar, { ExpensesFiltersUI } from '../../components/Expenses/ExpensesFilterBar'
+import { ExportButton } from '../../components/UI'
+import { exportToExcel } from '../../utils/exportExcel'
 
 const ExpensesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [filters, setFilters] = useState<ExpenseFilters>({})
+  const [uiFilters, setUiFilters] = useState<ExpensesFiltersUI>({ status: [], categoryId: '', dateFrom: '', dateTo: '', teamId: '', amountMin: '', amountMax: '' })
+
+  // Enhanced API filters with optimized performance
+  const apiFilters = useMemo(() => ({
+    status: uiFilters.status.length ? uiFilters.status : undefined,
+    category_id: uiFilters.categoryId || undefined,
+    date_from: uiFilters.dateFrom || undefined,
+    date_to: uiFilters.dateTo || undefined,
+    team_id: uiFilters.teamId || undefined,
+    amount_min: uiFilters.amountMin ? parseFloat(uiFilters.amountMin) : undefined,
+    amount_max: uiFilters.amountMax ? parseFloat(uiFilters.amountMax) : undefined,
+    search: searchTerm || undefined
+  }), [uiFilters, searchTerm])
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedExpense, setSelectedExpense] = useState<ExpenseWithCategory | undefined>()
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const { user } = useAuth()
 
   // Use optimized hooks for data fetching
-  const { data: expenses, loading, error, refresh, loadMore, hasMore } = useExpenses(filters)
+  const { data: expenses, loading, error, refresh, loadMore, hasMore, pagination } = useExpenses(apiFilters, 1, 50, true)
   // Listen for global expenses changes
   React.useEffect(() => {
     const unsub = eventBus.on('expenses:changed', () => {
@@ -31,9 +47,26 @@ const ExpensesPage: React.FC = () => {
   }, [refresh])
   // Real-time aggregate counts
   const { counts } = useExpenseCounts()
+  // Filtered statistics for current view
+  const { stats: filteredStats } = useFilteredExpenseStats(apiFilters)
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
   const { health } = useSystemHealth()
+
+  // Infinite scroll observer for automatic loading
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loading || loadingMore) return;
+    
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+        handleLoadMore();
+      }
+    }, { threshold: 0.1 });
+    
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, expenses?.length]);
 
   // Show error state if needed
   if (error) {
@@ -120,22 +153,56 @@ const ExpensesPage: React.FC = () => {
 
 
 
-  // Infinite scroll for large datasets
-  React.useEffect(() => {
-    if (expenses.length < 100) return;
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore && !loadingMore) {
-        handleLoadMore();
+  // Load more handler for manual pagination
+
+
+  const handleExport = async () => {
+    try {
+      setExporting(true)
+      toast.loading('جاري تجهيز الملف...', { id: 'export' })
+
+      const limit = 200
+      let page = 1
+      let all: any[] = []
+      while (true) {
+        const res = await EnhancedAPI.getExpenses(apiFilters, page, limit, true, false)
+        all = all.concat(res.data)
+        if (page >= (res as any).total_pages) break
+        page++
       }
-    }, { threshold: 0.1 });
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [expenses.length, hasMore, loadingMore]);
+
+      const statusTextMap: Record<string, string> = {
+        pending: 'معلق',
+        approved: 'موافق عليه',
+        rejected: 'مرفوض'
+      }
+
+      const arabicExpenses = all.map((e: any) => ({
+        'الوصف': e.description,
+        'الفئة': e.category?.name_ar ?? '-',
+        'المبلغ': e.amount,
+        'التاريخ': e.created_at ? new Date(e.created_at).toLocaleDateString('ar-EG') : '-',
+        'الحالة': statusTextMap[e.status] ?? e.status,
+        'تم الإدخال بواسطة': e.created_by_user?.full_name ?? '-'
+      }))
+
+      if (!arabicExpenses.length) {
+        toast.error('لا توجد بيانات للتصدير', { id: 'export' })
+        return
+      }
+
+      const fileName = `مصروفات_${new Date().toISOString().slice(0,10)}.xlsx`
+      await exportToExcel(arabicExpenses, fileName, 'المصروفات')
+      toast.success('تم تصدير الملف بنجاح', { id: 'export' })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'فشل تصدير الملف', { id: 'export' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const handleLoadMore = async () => {
-    if (!hasMore) return;
+    if (!hasMore || loadingMore) return;
     setLoadingMore(true);
     try {
       await loadMore();
@@ -146,7 +213,8 @@ const ExpensesPage: React.FC = () => {
     }
   }
 
-  if (loading) {
+  // إظهار مؤشر التحميل بالحجم الكامل فقط أثناء التحميل الأولي (عند عدم وجود بيانات بعد)
+  if (loading && (!expenses || expenses.length === 0)) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل المصروفات..." />
@@ -160,10 +228,10 @@ const ExpensesPage: React.FC = () => {
     expense.category?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || []
 
-  // Calculate statistics
-  const totalAmount = expenses?.reduce((sum: number, expense: any) => sum + expense.amount, 0) || 0
-  const pendingExpenses = expenses?.filter((e: any) => e.status === 'pending').length || 0
-  const approvedExpenses = expenses?.filter((e: any) => e.status === 'approved').length || 0
+  // Calculate statistics - use filtered stats if available, fallback to current page data
+  const totalAmount = filteredStats?.totalAmount || expenses?.reduce((sum: number, expense: any) => sum + expense.amount, 0) || 0
+  const pendingExpenses = filteredStats?.pendingCount || expenses?.filter((e: any) => e.status === 'pending').length || 0
+  const approvedExpenses = filteredStats?.approvedCount || expenses?.filter((e: any) => e.status === 'approved').length || 0
 
   return (
     <div className="space-y-6">
@@ -175,8 +243,10 @@ const ExpensesPage: React.FC = () => {
           </h1>
           <p className="text-gray-600 mt-1">إدارة مصروفات الشركة والموافقة عليها</p>
         </div>
-        <button 
-          onClick={() => {
+        <div className="flex items-center gap-2">
+          <ExportButton onClick={handleExport} disabled={exporting || loading || !(expenses && expenses.length)} />
+          <button 
+            onClick={() => {
             setSelectedExpense(undefined)
             setFormMode('create')
             setShowFormModal(true)
@@ -187,6 +257,13 @@ const ExpensesPage: React.FC = () => {
           إضافة مصروف جديد
         </button>
       </div>
+      </div>
+
+        {/* Filter Bar */}
+      <ExpensesFilterBar
+        filters={uiFilters}
+        onFiltersChange={(changes) => setUiFilters(prev => ({ ...prev, ...changes }))}
+      />
 
       {/* System Health Indicator */}
       {health && (
@@ -217,7 +294,7 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">إجمالي المصروفات</p>
-              <p className="text-2xl font-bold">{counts?.total ?? expenses?.length ?? 0}</p>
+              <p className="text-2xl font-bold">{filteredStats?.totalCount ?? counts?.total ?? expenses?.length ?? 0}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <FileText className="h-6 w-6" />
@@ -241,7 +318,7 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm font-medium">في الانتظار</p>
-              <p className="text-2xl font-bold">{counts?.pending ?? pendingExpenses}</p>
+              <p className="text-2xl font-bold">{filteredStats?.pendingCount ?? counts?.pending ?? pendingExpenses}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <Clock className="h-6 w-6" />
@@ -253,7 +330,7 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm font-medium">موافق عليها</p>
-              <p className="text-2xl font-bold">{counts?.approved ?? approvedExpenses}</p>
+              <p className="text-2xl font-bold">{filteredStats?.approvedCount ?? counts?.approved ?? approvedExpenses}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <TrendingUp className="h-6 w-6" />
@@ -262,51 +339,13 @@ const ExpensesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="card-compact">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <Filter className="text-gray-500" />
-            <select
-              value={filters.category_id || ''}
-              onChange={(e)=>setFilters(prev=>{ const f={...prev, category_id:e.target.value||undefined}; return f })}
-              className="input-field focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-            >
-              <option value="">كل الفئات</option>
-              {/* TODO: Add categories hook when available */}
-            </select>
-          </div>
-          <div>
-            <select
-              value={filters.team_id||''}
-              onChange={(e)=>setFilters(prev=>({...prev, team_id:e.target.value||undefined}))}
-              className="input-field focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-            >
-              <option value="">كل الفرق</option>
-              {/* TODO: Add teams hook when available */}
-            </select>
-          </div>
-          <div>
-            <select
-              value={filters.status?.[0]||''}
-              onChange={(e)=>setFilters(prev=>({...prev, status:e.target.value? [e.target.value as any]:undefined}))}
-              className="input-field focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-            >
-              <option value="">كل الحالات</option>
-              <option value="pending">معلق</option>
-              <option value="approved">موافق</option>
-              <option value="rejected">مرفوض</option>
-            </select>
-          </div>
-          <div>
-            <button onClick={() => refresh()} className="btn-secondary hover:scale-105 transition-all duration-200">تصفية</button>
-          </div>
-        </div>
+      {/* البحث */}
+      <div className="card-compact p-4">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <input
             type="text"
-            placeholder="البحث في المصروفات..."
+            placeholder="ابحث في المصروفات..."
             className="input pr-10 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -345,7 +384,7 @@ const ExpensesPage: React.FC = () => {
                       <span className="font-medium">{expense.description}</span>
                     </div>
                   </td>
-                  <td className="table-cell">{expense.category?.name}</td>
+                  <td className="table-cell">{expense.category?.name_ar}</td>
                   <td className="table-cell font-semibold">{expense.amount} ج.م</td>
                   <td className="table-cell">
                     {new Date(expense.created_at).toLocaleDateString('ar-AE')}
@@ -399,15 +438,35 @@ const ExpensesPage: React.FC = () => {
               ))}
             </tbody>
           </table>
-            {/* Sentinel for infinite scroll */}
-            <div ref={sentinelRef} />
           
-          {filteredExpenses.length === 0 && (
+          {filteredExpenses.length === 0 && !loading && (
             <div className="text-center py-8">
-              <p className="text-gray-500">لا توجد مصروفات مطابقة للبحث</p>
+              <p className="text-gray-500">
+                {searchTerm ? 'لا توجد مصروفات مطابقة للبحث' : 'لا توجد مصروفات'}
+              </p>
+            </div>
+          )}
+          
+          {/* Loading more indicator */}
+          {loadingMore && filteredExpenses.length > 0 && (
+            <div className="text-center py-4">
+              <LoadingSpinner size="small" text="جاري تحميل المزيد..." />
+            </div>
+          )}
+          
+          {/* Load more button */}
+          {hasMore && !loadingMore && filteredExpenses.length > 0 && (
+            <div className="text-center py-4">
+              <button 
+                onClick={handleLoadMore}
+                className="btn-secondary"
+              >
+                تحميل المزيد ({pagination?.total ? `${pagination.total - filteredExpenses.length} متبقي` : ''})
+              </button>
             </div>
           )}
         </div>
+        <div ref={sentinelRef} />
       </div>
 
       {/* Expense Form Modal */}

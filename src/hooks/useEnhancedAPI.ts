@@ -786,6 +786,61 @@ export function useExpenseCounts(refreshInterval = 60000) {
   return { counts, loading, error, refresh: fetchCounts };
 }
 
+// Hook to get filtered expense statistics
+export function useFilteredExpenseStats(filters?: ExpenseFilters) {
+  const [stats, setStats] = useState<{
+    totalAmount: number;
+    totalCount: number;
+    pendingCount: number;
+    approvedCount: number;
+    rejectedCount: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // جلب جميع المصروفات مع الفلاتر المطبقة
+      const result = await EnhancedAPI.getExpenses(filters, 1, 10000); // حد عالي لجلب جميع البيانات
+      const expenses = result.data;
+      
+      const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const totalCount = expenses.length;
+      const pendingCount = expenses.filter(e => e.status === 'pending').length;
+      const approvedCount = expenses.filter(e => e.status === 'approved').length;
+      const rejectedCount = expenses.filter(e => e.status === 'rejected').length;
+      
+      setStats({
+        totalAmount,
+        totalCount,
+        pendingCount,
+        approvedCount,
+        rejectedCount
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
+    } finally {
+      setLoading(false);
+    }
+  }, [JSON.stringify(filters)]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Listen to expenses:changed events for real-time updates
+  useEffect(() => {
+    const off = eventBus.on('expenses:changed', () => {
+      fetchStats();
+    });
+    return off;
+  }, [fetchStats]);
+
+  return { stats, loading, error, refresh: fetchStats };
+}
+
 export function useCacheManager() {
   const [cacheStats, setCacheStats] = useState<any>(null);
 
