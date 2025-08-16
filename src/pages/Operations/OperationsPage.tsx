@@ -343,6 +343,7 @@ const OperationsPage: React.FC = () => {
 ` +
       `👤 العميل: ${order.customer?.name || 'غير محدد'}\n` +
       `📞 الهاتف: ${order.customer?.phone || 'غير محدد'}\n` +
+      (order.customer?.extra_phone ? `📞 هاتف إضافي: ${order.customer.extra_phone}\n` : '') +
       `📍 العنوان: ${order.customer?.address || 'غير محدد'}\n` +
       `🏘️ المنطقة: ${order.customer?.area || 'غير محدد'}\n\n` +
       `📅 التاريخ: ${new Date(order.scheduled_date).toLocaleDateString('ar-EG')}\n` +

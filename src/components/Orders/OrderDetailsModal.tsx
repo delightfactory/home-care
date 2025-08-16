@@ -350,16 +350,23 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                     <h2 className="text-lg font-bold text-gray-800">بيانات العميل</h2>
                   </div>
                   <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2 p-2 rounded bg-white border border-blue-100 hover:bg-blue-25 transition-colors">
+                        <User className="w-4 h-4 text-blue-500" />
+                        <span className="font-semibold text-gray-700">الاسم:</span>
+                        <span className="text-gray-900">{order.customer?.name || 'غير محدد'}</span>
+                      </div>
                     <div className="flex items-center gap-2 p-2 rounded bg-white border border-blue-100 hover:bg-blue-25 transition-colors">
-                      <User className="w-4 h-4 text-blue-500" />
-                      <span className="font-semibold text-gray-700">الاسم:</span>
-                      <span className="text-gray-900">{order.customer?.name || 'غير محدد'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded bg-blue-25 border border-blue-100 hover:bg-white transition-colors">
                       <Phone className="w-4 h-4 text-blue-500" />
                       <span className="font-semibold text-gray-700">الهاتف:</span>
                       <span className="text-gray-900">{order.customer?.phone || 'غير محدد'}</span>
                     </div>
+                    {order.customer?.extra_phone && (
+                      <div className="flex items-center gap-2 p-2 rounded bg-blue-25 border border-blue-100 hover:bg-white transition-colors">
+                        <Phone className="w-4 h-4 text-blue-500" />
+                        <span className="font-semibold text-gray-700">هاتف إضافي:</span>
+                        <span className="text-gray-900">{order.customer.extra_phone}</span>
+                      </div>
+                    )}
                     <div className="flex items-start gap-2 p-2 rounded bg-white border border-blue-100 hover:bg-blue-25 transition-colors">
                       <MapPin className="w-4 h-4 text-blue-500 mt-0.5" />
                       <span className="font-semibold text-gray-700">العنوان:</span>
