@@ -58,7 +58,7 @@ export class OrdersAPI {
       }
 
       if (filters?.search) {
-        query = query.or(`order_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,customer_phone.ilike.%${filters.search}%`);
+        query = query.or(`order_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,customer_phone.ilike.%${filters.search}%,customer_extra_phone.ilike.%${filters.search}%`);
       }
 
       const { data: orders, error, count } = await query;
@@ -94,7 +94,8 @@ export class OrdersAPI {
           id: order.customer_id,
           name: order.customer_name,
           phone: order.customer_phone,
-          area: (order as any).customer_area || null
+          area: (order as any).customer_area || null,
+          extra_phone: (order as any).customer_extra_phone || null
         } : null,
         confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending'
       }));
@@ -128,7 +129,8 @@ export class OrdersAPI {
             id: order.customer_id,
             name: order.customer_name,
             phone: order.customer_phone,
-            area: (order as any).customer_area || null
+            area: (order as any).customer_area || null,
+          extra_phone: (order as any).customer_extra_phone || null
           } : null,
           confirmation_status: confirmationMap[order.id] || (order as any).confirmation_status || 'pending',
           items: items?.filter(item => item.order_id === order.id) || [],
