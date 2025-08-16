@@ -1239,6 +1239,10 @@ export class EnhancedAPI {
           RoutesAPI.addOrderToRoute(routeId, orderId, sequenceOrder, estimatedArrivalTime, estimatedCompletionTime)
         ) as ApiResponse<RouteOrder>;
 
+        if (!result.success) {
+          throw new Error(result.error || 'فشل إضافة الطلب إلى خط السير');
+        }
+
         // Invalidate related caches
         this.clearCache('enhanced:routes');
         this.clearCache(`enhanced:route:${routeId}`);

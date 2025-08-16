@@ -239,30 +239,56 @@ export class RoutesAPI {
 
   // Add order to route
   static async addOrderToRoute(
-    routeId: string, 
-    orderId: string, 
-    sequenceOrder: number,
+    routeId: string,
+    orderId: string,
+    sequenceOrder?: number,
     estimatedArrivalTime?: string,
     estimatedCompletionTime?: string
   ): Promise<ApiResponse<RouteOrder>> {
     try {
-      const routeOrderData: RouteOrderInsert = {
+      // احصل على أعلى قيمة حالية للتسلسل لاستعمالها فى حال التعارض
+      const { data: maxRow, error: maxSeqErr } = await supabase
+        .from('route_orders')
+        .select('sequence_order')
+        .eq('route_id', routeId)
+        .order('sequence_order', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (maxSeqErr) throw maxSeqErr
+      const nextSeq = (maxRow?.sequence_order ?? 0) + 1
+
+      let seq = sequenceOrder ?? nextSeq
+
+      const insertData: RouteOrderInsert = {
         route_id: routeId,
         order_id: orderId,
-        sequence_order: sequenceOrder,
+        sequence_order: seq,
         estimated_arrival_time: estimatedArrivalTime,
         estimated_completion_time: estimatedCompletionTime
       }
 
-      const { data, error } = await supabase
+      // محاولة الإدراج الأولية
+      let { data, error } = await supabase
         .from('route_orders')
-        .insert(routeOrderData)
+        .insert(insertData)
         .select()
         .single()
 
+      // فى حال تعارض UNIQUE على (route_id, sequence_order) أعد المحاولة بتسلسل جديد
+      if (error && (error as any).code === '23505') {
+        seq = nextSeq
+        const retryData = { ...insertData, sequence_order: seq }
+        ;({ data, error } = await supabase
+          .from('route_orders')
+          .insert(retryData)
+          .select()
+          .single())
+      }
+
       if (error) throw error
 
-      // Update order status to scheduled
+      // تحديث حالة الطلب إلى مجدول
       await supabase
         .from('orders')
         .update({ status: 'scheduled' })
