@@ -1329,3 +1329,36 @@ FOR EACH ROW EXECUTE FUNCTION trg_set_order_status_created_by();
 
 /* منح صلاحية التنفيذ لدور authenticated */
 GRANT EXECUTE ON FUNCTION trg_set_order_status_created_by() TO authenticated;
+
+
+
+
+
+
+-- =========================================================
+-- FIXED close_order_workers  (نفس التوقيع – بلا استدعاء حذف)
+-- =========================================================
+CREATE OR REPLACE FUNCTION public.close_order_workers(
+    p_order uuid,
+    p_time  timestamp with time zone
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  ----------------------------------------------------------------
+  -- أغلِق جميع الصفوف المفتوحة واكتب تقييم العميل
+  ----------------------------------------------------------------
+  UPDATE order_workers
+  SET    finished_at     = p_time,
+         customer_rating = o.customer_rating
+  FROM   orders o
+  WHERE  order_workers.order_id = p_order
+    AND  o.id                  = p_order
+    AND  order_workers.finished_at IS NULL;
+END;
+$function$;
+
+-- (إعادة) منح الصلاحيات إن كانت موجودة سابقاً
+GRANT EXECUTE ON FUNCTION public.close_order_workers(uuid, timestamp with time zone)
+       TO anon, authenticated, service_role;
