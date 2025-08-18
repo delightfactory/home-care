@@ -15,7 +15,8 @@ import {
   BarChart3, 
   Shield,
   Settings,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react'
 import { clsx } from '../../lib/clsx'
 
@@ -45,6 +46,7 @@ const navigation: NavigationItem[] = [
   { name: 'المصروفات', href: '/expenses', icon: Receipt },
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3 },
+  { name: 'استبيانات العملاء', href: '/surveys', icon: MessageSquare, adminOnly: true },
   { name: 'حوافز العمال', href: '/bonuses', icon: Coins, adminOnly: true },
   { name: 'الأدوار', href: '/roles', icon: Shield },
   { name: 'النسخ الاحتياطية', href: '/backups', icon: DownloadCloud, adminOnly: true },

@@ -35,6 +35,8 @@ const SettingsPage = React.lazy(() => import('./pages/Settings/SettingsPage'))
 const BackupsPage = React.lazy(() => import('./pages/Backups/BackupsPage'))
 const RolesPage = React.lazy(() => import('./pages/Admin/RolesPage'))
 const BonusesPage = React.lazy(() => import('./pages/Bonuses/BonusesPage'))
+const SurveyFormPage = React.lazy(() => import('./pages/Survey/SurveyFormPage'))
+const SurveysPage = React.lazy(() => import('./pages/Surveys/SurveysPage'))
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -101,6 +103,12 @@ const AppRoutes: React.FC = () => {
         }
       />
 
+      {/* Public Survey Route (accessible without auth) */}
+      <Route
+        path="/survey/:token"
+        element={<SurveyFormPage />}
+      />
+
       {/* Protected Routes */}
       <Route
         path="/"
@@ -122,6 +130,14 @@ const AppRoutes: React.FC = () => {
         <Route path="operations" element={<OperationsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route 
+          path="surveys" 
+          element={
+            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+              <SurveysPage />
+            </AdminGuard>
+          }
+        />
+        <Route 
           path="bonuses" 
           element={
             <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
@@ -130,14 +146,14 @@ const AppRoutes: React.FC = () => {
           } 
         />
         <Route path="settings" element={<SettingsPage />} />
-<Route 
-  path="backups" 
-  element={
-    <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
-      <BackupsPage />
-    </AdminGuard>
-  }
-/>
+        <Route 
+          path="backups" 
+          element={
+            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+              <BackupsPage />
+            </AdminGuard>
+          }
+        />
         <Route 
           path="roles" 
           element={

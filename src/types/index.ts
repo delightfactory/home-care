@@ -58,6 +58,11 @@ export type TeamPerformanceUpdate = Database['public']['Tables']['team_performan
 export type RouteUpdate = Database['public']['Tables']['routes']['Update']
 export type RouteOrderUpdate = Database['public']['Tables']['route_orders']['Update']
 export type OrderStatusLogUpdate = Database['public']['Tables']['order_status_logs']['Update']
+
+// Survey types
+export type CustomerSurvey = Database['public']['Tables']['customer_surveys']['Row']
+export type CustomerSurveyInsert = Database['public']['Tables']['customer_surveys']['Insert']
+export type CustomerSurveyUpdate = Database['public']['Tables']['customer_surveys']['Update']
 export type TeamMemberUpdate = Database['public']['Tables']['team_members']['Update']
 export type SystemSettingUpdate = Database['public']['Tables']['system_settings']['Update']
 
@@ -191,6 +196,10 @@ export interface RouteWithOrders extends Route {
   team?: TeamWithMembers
   orders?: OrderWithDetails[]
   route_orders?: RouteOrderWithOrder[]
+}
+
+export interface SurveyWithOrder extends CustomerSurvey {
+  order?: (Order & { customer?: Customer | null }) | null
 }
 
 export interface ExpenseWithDetails extends Expense {

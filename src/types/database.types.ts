@@ -64,6 +64,65 @@ export interface Database {
 
         }
       }
+      customer_surveys: {
+        Row: {
+          id: string
+          order_id: string
+          survey_token: string
+          service_quality_rating: number | null
+          staff_professionalism_rating: number | null
+          punctuality_rating: number | null
+          cleanliness_rating: number | null
+          value_for_money_rating: number | null
+          overall_rating: number | null
+          customer_feedback: string | null
+          would_recommend: boolean | null
+          improvement_suggestions: string | null
+          submitted_at: string | null
+          ip_address: string | null
+          user_agent: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          survey_token: string
+          service_quality_rating?: number | null
+          staff_professionalism_rating?: number | null
+          punctuality_rating?: number | null
+          cleanliness_rating?: number | null
+          value_for_money_rating?: number | null
+          overall_rating?: number | null
+          customer_feedback?: string | null
+          would_recommend?: boolean | null
+          improvement_suggestions?: string | null
+          submitted_at?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          survey_token?: string
+          service_quality_rating?: number | null
+          staff_professionalism_rating?: number | null
+          punctuality_rating?: number | null
+          cleanliness_rating?: number | null
+          value_for_money_rating?: number | null
+          overall_rating?: number | null
+          customer_feedback?: string | null
+          would_recommend?: boolean | null
+          improvement_suggestions?: string | null
+          submitted_at?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
       customers: {
         Row: {
           id: string

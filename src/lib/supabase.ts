@@ -10,7 +10,34 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// -- Dynamic survey token header to comply with RLS policies for public access
+let __surveyTokenHeader: string | null = null
+
+export const setSurveyTokenHeader = (token?: string | null) => {
+  __surveyTokenHeader = token || null
+}
+
+export async function withSurveyTokenHeader<T> (token: string, fn: () => Promise<T>): Promise<T> {
+  const prev = __surveyTokenHeader
+  __surveyTokenHeader = token
+  try {
+    return await fn()
+  } finally {
+    __surveyTokenHeader = prev
+  }
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  global: {
+    // Inject custom headers (survey-token) into every REST request when set
+    fetch: (input: any, init?: any) => {
+      const headers = new Headers(init?.headers || {})
+      if (__surveyTokenHeader) {
+        headers.set('survey-token', __surveyTokenHeader)
+      }
+      return fetch(input as any, { ...init, headers })
+    }
+  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,

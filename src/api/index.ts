@@ -9,6 +9,7 @@ export { ExpensesAPI } from './expenses'
 export { ReportsAPI } from './reports'
 export { RoutesAPI } from './routes'
 export { SettingsAPI } from './settings'
+export { SurveysAPI } from './surveys'
 
 // Re-export Supabase client and utilities
 export { supabase, handleSupabaseError, generateOrderNumber, calculateTransportCost } from '../lib/supabase'

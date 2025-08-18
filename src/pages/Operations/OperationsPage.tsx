@@ -68,6 +68,8 @@ import AssignOrdersModal from '../../components/Forms/AssignOrdersModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedRouteHeader from '../../components/Operations/EnhancedRouteHeader'
+import { SurveysAPI } from '../../api'
+import { buildSurveyUrl, buildWhatsAppSurveyMessage, generateSurveyToken, openWhatsAppTo } from '../../utils/survey'
 
 interface ExpandedSections {
   [routeId: string]: boolean
@@ -111,6 +113,7 @@ const OperationsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<{type: string, id: string, name: string} | null>(null)
   const [loading, setLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [sendingSurvey, setSendingSurvey] = useState(false)
   const orderExportRef = useRef<HTMLDivElement>(null)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   
@@ -496,8 +499,8 @@ const OperationsPage: React.FC = () => {
             <div class="border border-orange-200 rounded-lg p-4 bg-orange-50">
               <h2 class="text-lg font-bold text-gray-800 mb-3">الخدمات المطلوبة</h2>
               <div class="space-y-1 text-sm">
-                ${order.items?.map((item, index) => `
-                <div class="flex items-center justify-between p-2 rounded ${index % 2 === 0 ? 'bg-white' : 'bg-orange-25'} border border-orange-100">
+                ${order.items?.map(item => `
+                <div class="flex items-center justify-between p-2 rounded ${item.quantity % 2 === 0 ? 'bg-white' : 'bg-orange-25'} border border-orange-100">
                   <span class="text-gray-900">${item.service?.name_ar || 'خدمة'}</span>
                   <span class="font-semibold text-gray-700">الكمية: ${item.quantity || 1}</span>
                 </div>
@@ -750,6 +753,66 @@ const OperationsPage: React.FC = () => {
       toast.error('حدث خطأ في تصدير الطلب')
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  // إرسال رابط استبيان رضا العميل عبر واتساب (للرقم الأساسي والهاتف الإضافي)
+  const sendSurveyLink = async (order: OrderWithDetails) => {
+    try {
+      const primary = order.customer?.phone
+      const extra = order.customer?.extra_phone
+      if (!primary && !extra) {
+        toast.error('لا يوجد رقم هاتف لإرسال الاستبيان')
+        return
+      }
+      
+      setSendingSurvey(true)
+      
+      // 1) جلب الاستبيان إن وُجد لهذا الطلب
+      const res = await SurveysAPI.getSurveyByOrder(order.id)
+      if (!res.success) {
+        throw new Error(res.error || 'تعذر جلب بيانات الاستبيان')
+      }
+      
+      // 2) تحديد / إنشاء التوكن
+      let token: string
+      if (res.data) {
+        if (res.data.submitted_at) {
+          toast.error('تم إرسال هذا الاستبيان مسبقاً وتمت الإجابة عليه')
+          return
+        }
+        token = res.data.survey_token
+      } else {
+        const newToken = generateSurveyToken(32)
+        const createRes = await SurveysAPI.createSurvey({
+          order_id: order.id,
+          survey_token: newToken
+        })
+        if (!createRes.success || !createRes.data) {
+          throw new Error(createRes.error || 'تعذر إنشاء الاستبيان')
+        }
+        token = createRes.data.survey_token
+      }
+      
+      // 3) بناء الرابط والرسالة
+      const url = buildSurveyUrl(token)
+      const message = buildWhatsAppSurveyMessage({
+        orderNumber: (order as any).order_number?.toString?.() || undefined,
+        customerName: order.customer?.name || undefined,
+        url
+      })
+      
+      // 4) فتح واتساب للأرقام المتاحة (بدون تكرار)
+      const numbers = [primary, extra].filter(Boolean) as string[]
+      const unique = Array.from(new Set(numbers))
+      unique.forEach((num) => openWhatsAppTo(num, message))
+      
+      toast.success('تم فتح واتساب لإرسال رابط الاستبيان')
+    } catch (error) {
+      console.error('sendSurveyLink error:', error)
+      toast.error(error instanceof Error ? error.message : 'حدث خطأ أثناء تجهيز رابط الاستبيان')
+    } finally {
+      setSendingSurvey(false)
     }
   }
 
@@ -1627,6 +1690,21 @@ const OperationsPage: React.FC = () => {
                                       <Send className="h-3.5 w-3.5" />
                                     )}
                                   </button>
+                                  {routeOrder.order.status === 'completed' && !routeOrder.order.customer_rating && (
+                                    <button
+                                      onClick={() => sendSurveyLink(routeOrder.order)}
+                                      disabled={sendingSurvey}
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-full transition-colors flex-shrink-0 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                                      title="إرسال الاستبيان"
+                                    >
+                                      {sendingSurvey ? (
+                                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <MessageSquare className="h-3.5 w-3.5" />
+                                      )}
+                                      <span className="hidden sm:inline text-xs font-medium">إرسال الاستبيان</span>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
