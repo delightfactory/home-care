@@ -31,14 +31,14 @@ const StarRating: React.FC<{
   }
 
   return (
-    <div className="space-y-4 p-5 bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 rounded-2xl border border-blue-100/50 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-base font-bold text-gray-800 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-blue-600" />
-          {label}
+    <div className="space-y-3 p-4 sm:p-5 bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 rounded-2xl border border-blue-100/50 shadow-lg hover:shadow-xl transition-all duration-300 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <span className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+          <span className="truncate">{label}</span>
         </span>
         {value > 0 && (
-          <span className={`text-sm px-4 py-2 rounded-full font-bold transition-all duration-300 transform hover:scale-105 ${
+          <span className={`text-xs sm:text-sm px-3 py-1 sm:px-4 sm:py-2 rounded-full font-bold transition-all duration-300 transform hover:scale-105 self-start sm:self-auto ${
             getRatingColor(value)
           }`}>
             {getRatingText(value)}
@@ -47,34 +47,34 @@ const StarRating: React.FC<{
       </div>
       
       {/* Rating Labels */}
-      <div className="flex items-center justify-between text-xs text-gray-600 px-2">
+      <div className="flex items-center justify-between text-xs text-gray-600 px-1 sm:px-2">
         <span className="flex items-center gap-1">
-          <ThumbsDown className="w-3 h-3 text-red-500" />
+          <ThumbsDown className="w-3 h-3 text-red-500 flex-shrink-0" />
           <span className="font-medium">ضعيف</span>
         </span>
         <span className="flex items-center gap-1">
-          <ThumbsUp className="w-3 h-3 text-green-500" />
+          <ThumbsUp className="w-3 h-3 text-green-500 flex-shrink-0" />
           <span className="font-medium">ممتاز</span>
         </span>
       </div>
       
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-1 sm:gap-2 overflow-hidden">
         {[1,2,3,4,5].map((n) => {
           const active = n <= (hover || value)
           return (
-            <div key={n} className="flex flex-col items-center gap-1">
+            <div key={n} className="flex flex-col items-center gap-1 min-w-0">
               <button
                 type="button"
                 onClick={() => onChange(n)}
                 onMouseEnter={() => setHover(n)}
                 onMouseLeave={() => setHover(0)}
-                className={`p-3 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                className={`p-2 sm:p-3 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 flex-shrink-0 ${
                   active 
                     ? 'text-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 shadow-lg border-2 border-yellow-300' 
                     : 'text-gray-300 border-2 border-transparent'
                 }`}
               >
-                <Star className={`w-8 h-8 transition-colors duration-200 ${active ? 'fill-current' : ''}`} />
+                <Star className={`w-6 h-6 sm:w-8 sm:h-8 transition-colors duration-200 ${active ? 'fill-current' : ''}`} />
               </button>
               <span className={`text-xs font-medium transition-colors duration-200 ${
                 (hover || value) === n ? 'text-blue-600' : 'text-gray-400'
@@ -89,7 +89,7 @@ const StarRating: React.FC<{
       {/* Current Rating Display */}
       {(hover || value) > 0 && (
         <div className="text-center">
-          <span className={`inline-block px-4 py-2 rounded-full text-sm font-bold transition-colors duration-200 ${
+          <span className={`inline-block px-3 py-1 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-colors duration-200 ${
             getRatingColor(hover || value)
           }`}>
             {getRatingText(hover || value)} ({hover || value}/5)
@@ -239,7 +239,7 @@ const SurveyFormPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-4 sm:py-8 px-2 sm:px-4 relative overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-32 h-32 bg-blue-200/30 rounded-full blur-xl"></div>
@@ -247,19 +247,19 @@ const SurveyFormPage: React.FC = () => {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-100/20 rounded-full blur-3xl"></div>
       </div>
       
-      <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-3xl border border-blue-200/50 shadow-2xl overflow-hidden relative z-10">
+      <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl border border-blue-200/50 shadow-2xl overflow-hidden relative z-10">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 sm:px-8 py-4 sm:py-6 text-white relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10"></div>
-          <div className="relative z-10 flex items-center justify-between">
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
             {/* Company Logo and Name */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 shadow-lg">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 shadow-lg flex-shrink-0">
                 <img 
                   src="/icons/icon-192x192.png" 
                   alt="HOME CARE" 
-                  className="w-10 h-10 object-contain"
+                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
@@ -267,34 +267,34 @@ const SurveyFormPage: React.FC = () => {
                     if (fallback) fallback.style.display = 'flex';
                   }}
                 />
-                <Award className="w-8 h-8 text-white drop-shadow-lg hidden" />
+                <Award className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg hidden" />
               </div>
               <div className="text-right">
-                <h1 className="text-xl font-bold drop-shadow-lg">HOME CARE</h1>
-                <p className="text-blue-100 text-sm">استبيان رضا العملاء</p>
+                <h1 className="text-lg sm:text-xl font-bold drop-shadow-lg">HOME CARE</h1>
+                <p className="text-blue-100 text-xs sm:text-sm">استبيان رضا العملاء</p>
               </div>
             </div>
             
             {/* Trust Badge */}
-            <div className="hidden md:flex items-center gap-2 text-blue-200 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm">
-              <Heart className="w-4 h-4" />
-              <span className="text-sm font-medium">رأيكم يهمنا</span>
+            <div className="flex sm:hidden md:flex items-center gap-2 text-blue-200 bg-white/10 px-3 py-1 sm:px-4 sm:py-2 rounded-full backdrop-blur-sm self-start">
+              <Heart className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium">رأيكم يهمنا</span>
             </div>
           </div>
         </div>
         
         {/* Progress Bar */}
-        <div className="px-10 py-8 bg-gradient-to-r from-gray-50/80 via-blue-50/80 to-indigo-50/80 border-b border-blue-100/50 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-white" />
+        <div className="px-4 sm:px-10 py-6 sm:py-8 bg-gradient-to-r from-gray-50/80 via-blue-50/80 to-indigo-50/80 border-b border-blue-100/50 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
+            <span className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-2">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
               </div>
-              مدى إكمال الاستبيان
+              <span className="truncate">مدى إكمال الاستبيان</span>
             </span>
-            <span className="text-lg font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">{progress}%</span>
+            <span className="text-base sm:text-lg font-bold text-blue-600 bg-blue-100 px-2 py-1 sm:px-3 sm:py-1 rounded-full self-start sm:self-auto">{progress}%</span>
           </div>
-          <div className="w-full bg-gray-200/80 rounded-full h-4 overflow-hidden shadow-inner">
+          <div className="w-full bg-gray-200/80 rounded-full h-3 sm:h-4 overflow-hidden shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full transition-all duration-700 ease-out shadow-lg relative"
               style={{ width: `${progress}%` }}
@@ -302,33 +302,33 @@ const SurveyFormPage: React.FC = () => {
               <div className="absolute inset-0 bg-white/20 rounded-full"></div>
             </div>
           </div>
-          <div className="mt-3 text-sm text-gray-600 text-center">
+          <div className="mt-3 text-xs sm:text-sm text-gray-600 text-center">
             {progress < 30 ? 'ابدأ بتقييم الخدمات' : progress < 70 ? 'أكمل التقييمات المتبقية' : progress < 100 ? 'أوشكت على الانتهاء!' : 'مكتمل بالكامل!'}
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-10">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-10 space-y-8 sm:space-y-10">
           {/* Rating Section */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Star className="w-6 h-6 text-white" />
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center gap-2 sm:gap-3 mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                تقييم جودة الخدمة
+                <span className="text-center">تقييم جودة الخدمة</span>
               </h2>
-              <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto">
+              <p className="text-gray-600 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto px-2">
                 يرجى تقييم كل جانب من جوانب الخدمة المقدمة لكم
               </p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
               <StarRating label="جودة الخدمة" value={serviceQuality} onChange={setServiceQuality} />
               <StarRating label="احترافية الفريق" value={professionalism} onChange={setProfessionalism} />
               <StarRating label="الالتزام بالوقت" value={punctuality} onChange={setPunctuality} />
               <StarRating label="النظافة" value={cleanliness} onChange={setCleanliness} />
               <StarRating label="القيمة مقابل المال" value={valueForMoney} onChange={setValueForMoney} />
               <div className="lg:col-span-2">
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl border-2 border-amber-200">
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 sm:p-6 rounded-2xl border-2 border-amber-200">
                   <StarRating label="التقييم العام (إلزامي)" value={overall} onChange={setOverall} />
                 </div>
               </div>
@@ -336,34 +336,34 @@ const SurveyFormPage: React.FC = () => {
           </div>
 
           {/* Feedback Section */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <MessageSquare className="w-6 h-6 text-white" />
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center gap-2 sm:gap-3 mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                شاركونا تعليقاتكم
+                <span className="text-center">شاركونا تعليقاتكم</span>
               </h2>
-              <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto">
+              <p className="text-gray-600 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto px-2">
                 نحن نقدر آراءكم وتعليقاتكم البناءة لتحسين خدماتنا
               </p>
             </div>
             
-            <div className="bg-gradient-to-br from-green-50/50 to-teal-50/50 p-8 rounded-2xl border border-green-200/50">
-              <label className="text-lg font-bold text-gray-800 flex items-center gap-3 mb-4">
-                <MessageSquare className="w-6 h-6 text-green-600" /> 
-                تعليقكم عن التجربة
+            <div className="bg-gradient-to-br from-green-50/50 to-teal-50/50 p-4 sm:p-8 rounded-2xl border border-green-200/50">
+              <label className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2 sm:gap-3 mb-4">
+                <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" /> 
+                <span className="truncate">تعليقكم عن التجربة</span>
               </label>
               <div className="relative">
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  rows={5}
-                  className="w-full p-6 border-2 border-green-200 rounded-2xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-300 resize-none bg-white/80 backdrop-blur-sm text-lg leading-relaxed"
+                  rows={4}
+                  className="w-full p-4 sm:p-6 border-2 border-green-200 rounded-2xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-300 resize-none bg-white/80 backdrop-blur-sm text-base sm:text-lg leading-relaxed"
                   placeholder="شاركنا رأيك عن تجربتك معنا... كيف كانت الخدمة؟ ما الذي أعجبك؟ هل هناك شيء يمكننا تحسينه؟"
                   maxLength={500}
                 />
-                <div className="absolute bottom-4 left-4 text-sm text-gray-500 bg-white/90 px-3 py-1 rounded-full border border-gray-200">
+                <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 text-xs sm:text-sm text-gray-500 bg-white/90 px-2 py-1 sm:px-3 sm:py-1 rounded-full border border-gray-200">
                   {feedback.length}/500 حرف
                 </div>
               </div>
@@ -371,50 +371,50 @@ const SurveyFormPage: React.FC = () => {
           </div>
 
           {/* Recommendation Section */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Heart className="w-6 h-6 text-white" />
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center gap-2 sm:gap-3 mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                التوصية
+                <span className="text-center">التوصية</span>
               </h2>
-              <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto">
+              <p className="text-gray-600 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto px-2">
                 هل توصي بخدماتنا لأصدقائك وعائلتك؟
               </p>
             </div>
-            <div className="bg-gradient-to-br from-rose-50/50 to-pink-50/50 p-8 rounded-2xl border border-rose-200/50">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <label className={`group px-8 py-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 text-center font-bold text-lg ${
+            <div className="bg-gradient-to-br from-rose-50/50 to-pink-50/50 p-4 sm:p-8 rounded-2xl border border-rose-200/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <label className={`group px-4 py-4 sm:px-8 sm:py-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 text-center font-bold text-base sm:text-lg ${
                   recommend === true 
                     ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400 text-green-700 shadow-xl transform scale-105 ring-4 ring-green-100' 
                     : 'border-gray-200 hover:border-green-300 hover:bg-green-50 hover:shadow-lg hover:scale-102 bg-white/80'
                 }`}>
                   <input type="radio" name="recommend" className="hidden" onChange={() => setRecommend(true)} />
-                  <div className="flex flex-col items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  <div className="flex flex-col items-center gap-2 sm:gap-3">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
                       recommend === true ? 'bg-green-500 text-white' : 'bg-green-100 text-green-600 group-hover:bg-green-200'
                     }`}>
-                      <ThumbsUp className="w-6 h-6" />
+                      <ThumbsUp className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span>نعم، بالتأكيد</span>
-                    <span className="text-sm text-gray-600 font-normal">سأوصي بكم للآخرين</span>
+                    <span className="truncate">نعم، بالتأكيد</span>
+                    <span className="text-xs sm:text-sm text-gray-600 font-normal text-center">سأوصي بكم للآخرين</span>
                   </div>
                 </label>
-                <label className={`group px-8 py-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 text-center font-bold text-lg ${
+                <label className={`group px-4 py-4 sm:px-8 sm:py-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 text-center font-bold text-base sm:text-lg ${
                   recommend === false 
                     ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-400 text-red-700 shadow-xl transform scale-105 ring-4 ring-red-100' 
                     : 'border-gray-200 hover:border-red-300 hover:bg-red-50 hover:shadow-lg hover:scale-102 bg-white/80'
                 }`}>
                   <input type="radio" name="recommend" className="hidden" onChange={() => setRecommend(false)} />
-                  <div className="flex flex-col items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  <div className="flex flex-col items-center gap-2 sm:gap-3">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
                       recommend === false ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600 group-hover:bg-red-200'
                     }`}>
-                      <ThumbsDown className="w-6 h-6" />
+                      <ThumbsDown className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span>لا، للأسف</span>
-                    <span className="text-sm text-gray-600 font-normal">لن أوصي بكم حالياً</span>
+                    <span className="truncate">لا، للأسف</span>
+                    <span className="text-xs sm:text-sm text-gray-600 font-normal text-center">لن أوصي بكم حالياً</span>
                   </div>
                 </label>
               </div>
@@ -422,30 +422,30 @@ const SurveyFormPage: React.FC = () => {
           </div>
 
           {/* Improvements Section */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-6 h-6 text-white" />
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center justify-center gap-2 sm:gap-3 mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                مقترحات التحسين
+                <span className="text-center">مقترحات التحسين</span>
               </h2>
-              <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto">
+              <p className="text-gray-600 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto px-2">
                 شاركنا أفكارك ومقترحاتك القيمة لتطوير خدماتنا
               </p>
             </div>
-            <div className="bg-gradient-to-br from-yellow-50/50 to-orange-50/50 p-8 rounded-2xl border border-yellow-200/50">
+            <div className="bg-gradient-to-br from-yellow-50/50 to-orange-50/50 p-4 sm:p-8 rounded-2xl border border-yellow-200/50">
               <div className="relative">
                 <textarea
                   value={improvements}
                   onChange={(e) => setImprovements(e.target.value)}
                   placeholder="نحن نقدر آراءكم ومقترحاتكم... شاركونا أفكاركم لتحسين خدماتنا وتطويرها بما يلبي احتياجاتكم بشكل أفضل"
-                  className="w-full p-6 border-2 border-gray-200 rounded-2xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-all duration-300 resize-none bg-white/80 backdrop-blur-sm placeholder-gray-500 text-lg leading-relaxed shadow-lg hover:shadow-xl"
-                  rows={6}
+                  className="w-full p-4 sm:p-6 border-2 border-gray-200 rounded-2xl focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-all duration-300 resize-none bg-white/80 backdrop-blur-sm placeholder-gray-500 text-base sm:text-lg leading-relaxed shadow-lg hover:shadow-xl"
+                  rows={5}
                   maxLength={500}
                 />
-                <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                  <div className={`text-sm px-3 py-1 rounded-full backdrop-blur-sm font-medium ${
+                <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-2">
+                  <div className={`text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1 rounded-full backdrop-blur-sm font-medium ${
                     improvements.length > 450 ? 'bg-red-100 text-red-700' :
                     improvements.length > 300 ? 'bg-yellow-100 text-yellow-700' :
                     'bg-gray-100 text-gray-600'
@@ -458,18 +458,18 @@ const SurveyFormPage: React.FC = () => {
           </div>
 
           {/* Submit Section */}
-          <div className="pt-12">
-            <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 p-8 rounded-2xl border border-blue-200/50">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">شكراً لوقتكم الثمين</h3>
-                <p className="text-gray-600">تقييمكم يساعدنا على تقديم خدمة أفضل</p>
+          <div className="pt-8 sm:pt-12">
+            <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 p-4 sm:p-8 rounded-2xl border border-blue-200/50">
+              <div className="text-center mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">شكراً لوقتكم الثمين</h3>
+                <p className="text-sm sm:text-base text-gray-600">تقييمكم يساعدنا على تقديم خدمة أفضل</p>
               </div>
               
               {overall === 0 && (
-                <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl text-amber-700 text-center font-medium shadow-lg">
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl text-amber-700 text-center font-medium shadow-lg">
                   <div className="flex items-center justify-center gap-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    يرجى إضافة التقييم العام قبل إرسال الاستبيان
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="text-sm sm:text-base">يرجى إضافة التقييم العام قبل إرسال الاستبيان</span>
                   </div>
                 </div>
               )}
@@ -477,30 +477,30 @@ const SurveyFormPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting || overall === 0}
-                className={`w-full py-6 px-8 rounded-2xl font-bold text-xl transition-all duration-300 transform shadow-xl ${
+                className={`w-full py-4 sm:py-6 px-6 sm:px-8 rounded-2xl font-bold text-lg sm:text-xl transition-all duration-300 transform shadow-xl ${
                   submitting || overall === 0
                     ? 'bg-gray-400 cursor-not-allowed text-white'
                     : 'bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white hover:shadow-2xl hover:scale-105 active:scale-95 ring-4 ring-blue-100 hover:ring-blue-200'
                 }`}
               >
                 {submitting ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 border-3 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                     <span>جاري الإرسال...</span>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                      <Send className="w-5 h-5" />
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <span>إرسال التقييم</span>
                   </div>
                 )}
               </button>
               
-              <div className="mt-4 text-center text-sm text-gray-500">
+              <div className="mt-3 sm:mt-4 text-center text-xs sm:text-sm text-gray-500">
                 <div className="flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" />
                   <span>بياناتكم محمية ومؤمنة</span>
                 </div>
               </div>

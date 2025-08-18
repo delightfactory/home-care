@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './hooks/useAuth'
@@ -170,6 +170,21 @@ const AppRoutes: React.FC = () => {
   )
 }
 
+// PWA UI wrapper to hide InstallPrompt on survey route
+const PWAUI: React.FC = () => {
+  const location = useLocation();
+  const { user, session } = useAuth();
+  const isSurveyRoute = location.pathname.startsWith('/survey/');
+  const isAuthenticated = Boolean(session && user);
+  return (
+    <>
+      <OfflineManager />
+      {isAuthenticated && !isSurveyRoute && <InstallPrompt />}
+      <UpdateNotification />
+    </>
+  );
+};
+
 // Main App Component
 const App: React.FC = () => {
   useEffect(() => {
@@ -185,9 +200,7 @@ const App: React.FC = () => {
           <RoutePersistence />
           
           {/* PWA Components */}
-          <OfflineManager />
-          <InstallPrompt />
-          <UpdateNotification />
+          <PWAUI />
           
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
             <AppRoutes />
