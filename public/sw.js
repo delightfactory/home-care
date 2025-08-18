@@ -1,7 +1,7 @@
 // Service Worker for Home Cleaning Management PWA
-const CACHE_NAME = 'home-cleaning-v1.0.0';
-const STATIC_CACHE_NAME = 'static-v1.0.0';
-const DYNAMIC_CACHE_NAME = 'dynamic-v1.0.0';
+const CACHE_NAME = 'home-cleaning-v1.0.1';
+const STATIC_CACHE_NAME = 'static-v1.0.1';
+const DYNAMIC_CACHE_NAME = 'dynamic-v1.0.1';
 
 // Files to cache immediately
 const STATIC_FILES = [

@@ -47,7 +47,7 @@ export default defineConfig({
   },
   // PWA specific configurations
   publicDir: 'public',
-  base: './',
+  base: '/',
   // Enable HTTPS for PWA features in development
   preview: {
     port: 3000,

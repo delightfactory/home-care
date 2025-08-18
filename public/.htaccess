@@ -94,7 +94,6 @@ ExpiresDefault "access plus 2 days"
     # Force HTTPS (uncomment if needed)
     # RewriteCond %{HTTPS} off
     # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-RewriteRule . /index.html [L]
 </IfModule>
 
 # MIME Types
