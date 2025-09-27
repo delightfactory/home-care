@@ -68,7 +68,7 @@ import AssignOrdersModal from '../../components/Forms/AssignOrdersModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import SmartModal from '../../components/UI/SmartModal'
 import EnhancedRouteHeader from '../../components/Operations/EnhancedRouteHeader'
-import { SurveysAPI } from '../../api'
+import { SurveysAPI, OrdersAPI } from '../../api'
 import { buildSurveyUrl, buildWhatsAppSurveyMessage, generateSurveyToken, openWhatsAppTo } from '../../utils/survey'
 
 interface ExpandedSections {
@@ -339,27 +339,41 @@ const OperationsPage: React.FC = () => {
 
 
 
-  // Copy order details as formatted text
-  const copyOrderDetails = (order: OrderWithDetails, teamName?: string) => {
-    const orderDetails = `🏠 تفاصيل الطلب رقم: ${order.order_number}
+  // Copy order details as formatted text (ensures including notes by fetching details if missing)
+  const copyOrderDetails = async (order: OrderWithDetails, teamName?: string) => {
+    try {
+      let richOrder: OrderWithDetails = order
+      // If notes are not loaded in the current list item, fetch full order details
+      if (!order.notes || (typeof order.notes === 'string' && order.notes.trim() === '')) {
+        const fresh = await OrdersAPI.getOrderById(order.id)
+        if (fresh) {
+          richOrder = { ...richOrder, ...fresh }
+        }
+      }
+
+      const orderDetails = `🏠 تفاصيل الطلب رقم: ${richOrder.order_number}
 
 ` +
-      `👤 العميل: ${order.customer?.name || 'غير محدد'}\n` +
-      `📞 الهاتف: ${order.customer?.phone || 'غير محدد'}\n` +
-      (order.customer?.extra_phone ? `📞 هاتف إضافي: ${order.customer.extra_phone}\n` : '') +
-      `📍 العنوان: ${order.customer?.address || 'غير محدد'}\n` +
-      `🏘️ المنطقة: ${order.customer?.area || 'غير محدد'}\n\n` +
-      `📅 التاريخ: ${new Date(order.scheduled_date).toLocaleDateString('ar-EG')}\n` +
-      `⏰ الوقت: ${order.scheduled_time}\n` +
-      `💰 المبلغ: ${order.total_amount} ج.م\n` +
-      `📊 الحالة: ${getStatusText(order.status)}\n` +
-      `✅ التأكيد: ${getConfirmationStatusText(order.confirmation_status || 'pending')}\n` +
-      `👥 الفريق: ${teamName || 'غير محدد'}\n\n` +
-      `📝 الخدمات:\n${order.items?.map(item => `• ${item.service?.name_ar || 'خدمة'} (${item.quantity || 1})`).join('\n') || 'لا توجد خدمات'}\n\n` +
-      `📋 ملاحظات: ${order.notes || 'لا توجد ملاحظات'}`
+        `👤 العميل: ${richOrder.customer?.name || 'غير محدد'}\n` +
+        `📞 الهاتف: ${richOrder.customer?.phone || 'غير محدد'}\n` +
+        (richOrder.customer?.extra_phone ? `📞 هاتف إضافي: ${richOrder.customer.extra_phone}\n` : '') +
+        `📍 العنوان: ${richOrder.customer?.address || 'غير محدد'}\n` +
+        `🏘️ المنطقة: ${richOrder.customer?.area || 'غير محدد'}\n\n` +
+        `📅 التاريخ: ${new Date(richOrder.scheduled_date).toLocaleDateString('ar-EG')}\n` +
+        `⏰ الوقت: ${richOrder.scheduled_time}\n` +
+        `💰 المبلغ: ${richOrder.total_amount} ج.م\n` +
+        `📊 الحالة: ${getStatusText(richOrder.status)}\n` +
+        `✅ التأكيد: ${getConfirmationStatusText(richOrder.confirmation_status || 'pending')}\n` +
+        `👥 الفريق: ${teamName || 'غير محدد'}\n\n` +
+        `📝 الخدمات:\n${richOrder.items?.map(item => `• ${item.service?.name_ar || 'خدمة'} (${item.quantity || 1})`).join('\n') || 'لا توجد خدمات'}\n\n` +
+        `📋 ملاحظات: ${(richOrder.notes && richOrder.notes.trim()) ? richOrder.notes : 'لا توجد ملاحظات'}`
 
-    navigator.clipboard.writeText(orderDetails)
-    toast.success('تم نسخ تفاصيل الطلب')
+      await navigator.clipboard.writeText(orderDetails)
+      toast.success('تم نسخ تفاصيل الطلب')
+    } catch (error) {
+      console.error('Copy order details error:', error)
+      toast.error('تعذر نسخ تفاصيل الطلب')
+    }
   }
 
   // Export order as image using existing template from OrderDetailsModal
