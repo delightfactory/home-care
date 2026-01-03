@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw, Star } from 'lucide-react'
 import { ExportButton } from '../../components/UI'
+import { AdminGuard } from '../../hooks/usePermissions'
 import { exportToExcel } from '../../utils/exportExcel'
 import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
 import ConfirmationStatusPickerModal from '../../components/UI/ConfirmationStatusPickerModal'
@@ -53,7 +54,7 @@ const OrdersPage: React.FC = () => {
         return
       }
 
-      const fileName = `طلبات_${new Date().toISOString().slice(0,10)}.xlsx`
+      const fileName = `طلبات_${new Date().toISOString().slice(0, 10)}.xlsx`
       await exportToExcel(arabicOrders, fileName, 'الطلبات')
       toast.success('تم تصدير الملف بنجاح', { id: 'export' })
     } catch (err) {
@@ -105,14 +106,14 @@ const OrdersPage: React.FC = () => {
     search: searchTerm || undefined
   }), [filtersUI, searchTerm])
 
-  const { 
-    data: orders, 
-    loading: isLoading, 
-    error, 
+  const {
+    data: orders,
+    loading: isLoading,
+    error,
     pagination,
     refresh,
     loadMore,
-    hasMore 
+    hasMore
   } = useOrders(filters, 1, 20, true)
   // Sentinel for infinite scroll
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
@@ -160,7 +161,7 @@ const OrdersPage: React.FC = () => {
   const { health } = useSystemHealth()
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return
-    
+
     setDeleteLoading(true)
     try {
       toast.loading('جاري حذف الطلب...', { id: 'delete' })
@@ -189,7 +190,7 @@ const OrdersPage: React.FC = () => {
       completed: 'status-completed',
       cancelled: 'status-cancelled'
     }
-    
+
     const statusTexts = {
       pending: 'معلق',
       scheduled: 'مجدول',
@@ -242,9 +243,8 @@ const OrdersPage: React.FC = () => {
       stars.push(
         <Star
           key={i}
-          className={`h-3 w-3 ${
-            rating && i <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-          }`}
+          className={`h-3 w-3 ${rating && i <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+            }`}
         />
       )
     }
@@ -259,36 +259,36 @@ const OrdersPage: React.FC = () => {
   const handleConfirmationChange = (order: OrderWithDetails) => {
     // فتح مودال اختيار الحالة بدل التبديل التلقائي
     setSelectedConfirmationOrder(order)
-  setShowConfirmationPicker(true)
-}
-
-// تحديث حالة التأكيد بعد اختيار المستخدم
-const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
-  if (!selectedConfirmationOrder) return
-  try {
-    setConfirmationLoading(true)
-    toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
-    const response = await EnhancedAPI.updateOrderConfirmationStatus(
-      selectedConfirmationOrder.id,
-      status,
-      undefined,
-      user?.id
-    )
-    if (response.success) {
-      toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
-      refresh()
-      setShowConfirmationPicker(false)
-      setSelectedConfirmationOrder(null)
-    } else {
-      throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
-    }
-  } catch (error) {
-    toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
-    console.error('Confirmation status update error:', error)
-  } finally {
-    setConfirmationLoading(false)
+    setShowConfirmationPicker(true)
   }
-}
+
+  // تحديث حالة التأكيد بعد اختيار المستخدم
+  const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
+    if (!selectedConfirmationOrder) return
+    try {
+      setConfirmationLoading(true)
+      toast.loading('جاري تحديث حالة التأكيد...', { id: 'confirmStatus' })
+      const response = await EnhancedAPI.updateOrderConfirmationStatus(
+        selectedConfirmationOrder.id,
+        status,
+        undefined,
+        user?.id
+      )
+      if (response.success) {
+        toast.success('تم تحديث حالة التأكيد', { id: 'confirmStatus' })
+        refresh()
+        setShowConfirmationPicker(false)
+        setSelectedConfirmationOrder(null)
+      } else {
+        throw new Error(response.error || 'فشل في تحديث حالة التأكيد')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ في تحديث حالة التأكيد', { id: 'confirmStatus' })
+      console.error('Confirmation status update error:', error)
+    } finally {
+      setConfirmationLoading(false)
+    }
+  }
 
 
 
@@ -368,7 +368,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <p className="text-red-600">حدث خطأ في تحميل الطلبات: {error}</p>
-        <button 
+        <button
           onClick={handleRefresh}
           className="btn-primary"
           disabled={refreshing}
@@ -396,8 +396,10 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
           <p className="text-gray-600 mt-2">إدارة طلبات العملاء وتتبع حالتها</p>
         </div>
         <div className="flex space-x-3 space-x-reverse">
-          <ExportButton onClick={handleExport} disabled={filteredOrders.length===0} />
-          <button 
+          <AdminGuard>
+            <ExportButton onClick={handleExport} disabled={filteredOrders.length === 0} />
+          </AdminGuard>
+          <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -406,7 +408,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
             <RefreshCw className={`h-5 w-5 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
             تحديث
           </button>
-          <button 
+          <button
             onClick={() => {
               setSelectedOrder(undefined)
               setFormMode('create')
@@ -476,9 +478,8 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
         <div className="card-compact bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse">
-              <div className={`w-3 h-3 rounded-full ${
-                health.database.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div className={`w-3 h-3 rounded-full ${health.database.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
               <span className="text-sm text-gray-600">
                 قاعدة البيانات: {health.database.response_time_ms}ms
               </span>
@@ -543,11 +544,10 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
             </thead>
             <tbody className="table-body">
               {filteredOrders.map((order, index) => (
-                <tr key={order.id} className={`table-row transition-colors duration-200 ${
-                  index % 2 === 0 
-                    ? 'bg-white hover:bg-blue-50/40' 
-                    : 'bg-gray-50/80 hover:bg-blue-50/60'
-                }`}>
+                <tr key={order.id} className={`table-row transition-colors duration-200 ${index % 2 === 0
+                  ? 'bg-white hover:bg-blue-50/40'
+                  : 'bg-gray-50/80 hover:bg-blue-50/60'
+                  }`}>
                   <td className="table-cell font-medium text-xs px-2 py-2">{order.order_number}</td>
                   <td className="table-cell px-2 py-2">{getRatingDisplay(order.customer_rating)}</td>
                   <td className="table-cell text-xs px-2 py-2" title={`${order.customer_name || 'غير محدد'}${order.customer?.area ? ' - ' + order.customer.area : ''}`}>
@@ -576,7 +576,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
                   <td className="table-cell px-2 py-2">
                     <div className="flex space-x-1 space-x-reverse justify-start min-w-[120px]">
                       {/* الأزرار الأساسية - تظهر دائماً */}
-                      <button 
+                      <button
                         onClick={() => {
                           setDetailsOrderId(order.id)
                           setShowDetailsModal(true)
@@ -586,7 +586,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedOrder(order)
                           setFormMode('edit')
@@ -597,7 +597,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
                       >
                         <Edit className="h-3.5 w-3.5" />
                       </button>
-                      
+
                       {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
                       {order.status === 'pending' || order.status === 'scheduled' ? (
                         <button
@@ -644,7 +644,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
               ))}
             </tbody>
           </table>
-          
+
           {filteredOrders.length === 0 && !isLoading && (
             <div className="text-center py-8">
               <p className="text-gray-500">
@@ -652,18 +652,18 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
               </p>
             </div>
           )}
-          
+
           {/* Loading more indicator */}
           {isLoading && filteredOrders.length > 0 && (
             <div className="text-center py-4">
               <LoadingSpinner size="small" text="جاري تحميل المزيد..." />
             </div>
           )}
-          
+
           {/* Load more button */}
           {hasMore && !isLoading && filteredOrders.length > 0 && (
             <div className="text-center py-4">
-              <button 
+              <button
                 onClick={handleLoadMore}
                 className="btn-secondary"
               >
@@ -672,7 +672,7 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
             </div>
           )}
         </div>
-      <div ref={sentinelRef} />
+        <div ref={sentinelRef} />
       </div>
 
       {/* Order Details Modal */}
@@ -707,10 +707,10 @@ const handleConfirmStatusUpdate = async (status: ConfirmationStatus) => {
           setRatingOrderId(undefined)
         }}
         onSuccess={() => {
-           // مسح كاش الطلبات لضمان تحديث التقييم الظاهر فوراً
-           EnhancedAPI.clearCache('enhanced:orders')
-           refresh()
-         }}
+          // مسح كاش الطلبات لضمان تحديث التقييم الظاهر فوراً
+          EnhancedAPI.clearCache('enhanced:orders')
+          refresh()
+        }}
         orderId={ratingOrderId || ''}
         orderNumber={filteredOrders.find(o => o.id === ratingOrderId)?.order_number}
         customerName={filteredOrders.find(o => o.id === ratingOrderId)?.customer_name}

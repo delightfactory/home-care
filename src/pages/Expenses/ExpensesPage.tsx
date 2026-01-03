@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { useExpenses, useSystemHealth, useExpenseCounts, useFilteredExpenseStats } from '../../hooks/useEnhancedAPI'
 import ExpensesFilterBar, { ExpensesFiltersUI } from '../../components/Expenses/ExpensesFilterBar'
 import { ExportButton } from '../../components/UI'
+import { AdminGuard } from '../../hooks/usePermissions'
 import { exportToExcel } from '../../utils/exportExcel'
 
 const ExpensesPage: React.FC = () => {
@@ -57,13 +58,13 @@ const ExpensesPage: React.FC = () => {
   React.useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore || loading || loadingMore) return;
-    
+
     const observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
         handleLoadMore();
       }
     }, { threshold: 0.1 });
-    
+
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, expenses?.length]);
@@ -108,7 +109,7 @@ const ExpensesPage: React.FC = () => {
 
   const handleDeleteExpense = async () => {
     if (!selectedExpense) return
-    
+
     setDeleteLoading(true)
     try {
       const result = await EnhancedAPI.deleteExpense(selectedExpense.id)
@@ -137,7 +138,7 @@ const ExpensesPage: React.FC = () => {
       approved: 'status-approved',
       rejected: 'status-rejected'
     }
-    
+
     const statusTexts = {
       pending: 'معلق',
       approved: 'موافق عليه',
@@ -191,7 +192,7 @@ const ExpensesPage: React.FC = () => {
         return
       }
 
-      const fileName = `مصروفات_${new Date().toISOString().slice(0,10)}.xlsx`
+      const fileName = `مصروفات_${new Date().toISOString().slice(0, 10)}.xlsx`
       await exportToExcel(arabicExpenses, fileName, 'المصروفات')
       toast.success('تم تصدير الملف بنجاح', { id: 'export' })
     } catch (err) {
@@ -223,7 +224,7 @@ const ExpensesPage: React.FC = () => {
   }
 
   // Filter expenses based on search term
-  const filteredExpenses = expenses?.filter((expense: any) => 
+  const filteredExpenses = expenses?.filter((expense: any) =>
     expense.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.category?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || []
@@ -244,22 +245,24 @@ const ExpensesPage: React.FC = () => {
           <p className="text-gray-600 mt-1">إدارة مصروفات الشركة والموافقة عليها</p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportButton onClick={handleExport} disabled={exporting || loading || !(expenses && expenses.length)} />
-          <button 
+          <AdminGuard>
+            <ExportButton onClick={handleExport} disabled={exporting || loading || !(expenses && expenses.length)} />
+          </AdminGuard>
+          <button
             onClick={() => {
-            setSelectedExpense(undefined)
-            setFormMode('create')
-            setShowFormModal(true)
-          }}
-          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-        >
-          <Plus className="h-5 w-5 ml-2" />
-          إضافة مصروف جديد
-        </button>
-      </div>
+              setSelectedExpense(undefined)
+              setFormMode('create')
+              setShowFormModal(true)
+            }}
+            className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <Plus className="h-5 w-5 ml-2" />
+            إضافة مصروف جديد
+          </button>
+        </div>
       </div>
 
-        {/* Filter Bar */}
+      {/* Filter Bar */}
       <ExpensesFilterBar
         filters={uiFilters}
         onFiltersChange={(changes) => setUiFilters(prev => ({ ...prev, ...changes }))}
@@ -271,9 +274,8 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse">
               <Activity className="h-5 w-5 text-gray-600" />
-              <div className={`w-3 h-3 rounded-full ${
-                health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div className={`w-3 h-3 rounded-full ${health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
               <span className="text-sm text-gray-600">
                 قاعدة البيانات: {health.database?.response_time_ms || 0}ms
               </span>
@@ -393,7 +395,7 @@ const ExpensesPage: React.FC = () => {
                   <td className="table-cell">{expense.created_by_user?.full_name || 'غير محدد'}</td>
                   <td className="table-cell">
                     <div className="flex space-x-2 space-x-reverse">
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedExpense(expense)
                           setFormMode('edit')
@@ -404,7 +406,7 @@ const ExpensesPage: React.FC = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedExpense(expense)
                           setShowDeleteModal(true)
@@ -438,7 +440,7 @@ const ExpensesPage: React.FC = () => {
               ))}
             </tbody>
           </table>
-          
+
           {filteredExpenses.length === 0 && !loading && (
             <div className="text-center py-8">
               <p className="text-gray-500">
@@ -446,18 +448,18 @@ const ExpensesPage: React.FC = () => {
               </p>
             </div>
           )}
-          
+
           {/* Loading more indicator */}
           {loadingMore && filteredExpenses.length > 0 && (
             <div className="text-center py-4">
               <LoadingSpinner size="small" text="جاري تحميل المزيد..." />
             </div>
           )}
-          
+
           {/* Load more button */}
           {hasMore && !loadingMore && filteredExpenses.length > 0 && (
             <div className="text-center py-4">
-              <button 
+              <button
                 onClick={handleLoadMore}
                 className="btn-secondary"
               >

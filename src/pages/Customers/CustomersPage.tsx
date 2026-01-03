@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Users, UserCheck, UserX, ShoppingCart, RefreshCw } from 'lucide-react'
 import { ExportButton } from '../../components/UI'
+import { AdminGuard } from '../../hooks/usePermissions'
 import { exportToExcel } from '../../utils/exportExcel'
 import EnhancedAPI from '../../api/enhanced-api'
 import { CustomerWithOrders } from '../../types'
@@ -75,10 +76,10 @@ const CustomersPage: React.FC = () => {
   }, [statusFilter, searchTerm])
 
   // Fetch paginated customers
-  const { 
-    data: customers, 
-    loading, 
-    error, 
+  const {
+    data: customers,
+    loading,
+    error,
     pagination,
     refresh,
     loadMore,
@@ -147,7 +148,7 @@ const CustomersPage: React.FC = () => {
 
   const handleDeleteCustomer = async () => {
     if (!selectedCustomer) return
-    
+
     setDeleteLoading(true)
     try {
       toast.loading('جاري حذف العميل...', { id: 'delete' })
@@ -192,7 +193,7 @@ const CustomersPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <p className="text-red-600">حدث خطأ في تحميل العملاء: {error}</p>
-        <button 
+        <button
           onClick={handleRefresh}
           className="btn-primary"
           disabled={refreshing}
@@ -239,9 +240,11 @@ const CustomersPage: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3 sm:space-x-reverse">
-            <ExportButton onClick={handleExport} disabled={filteredCustomers.length===0} className="w-full sm:w-auto" />
+            <AdminGuard>
+              <ExportButton onClick={handleExport} disabled={filteredCustomers.length === 0} className="w-full sm:w-auto" />
+            </AdminGuard>
 
-            <button 
+            <button
               onClick={handleRefresh}
               disabled={refreshing}
               className="btn-secondary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl w-full sm:w-auto flex items-center justify-center"
@@ -250,7 +253,7 @@ const CustomersPage: React.FC = () => {
               <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="text-sm sm:text-base">تحديث</span>
             </button>
-            <button 
+            <button
               onClick={() => {
                 setSelectedCustomer(undefined)
                 setFormMode('create')
@@ -352,7 +355,7 @@ const CustomersPage: React.FC = () => {
               />
             </div>
           </div>
-          
+
           {/* Status Filter Section */}
           <div className="lg:w-64">
             <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
@@ -377,7 +380,7 @@ const CustomersPage: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Results Summary */}
         <div className="mt-6 pt-4 border-t border-blue-200">
           <div className="flex flex-wrap items-center gap-4">
@@ -387,13 +390,13 @@ const CustomersPage: React.FC = () => {
               <span className="mr-2 font-bold text-blue-600 text-lg">{filteredCustomers.length}</span>
               <span className="text-sm text-gray-600">عميل</span>
             </div>
-            
+
             {searchTerm && (
               <div className="flex items-center bg-green-100 rounded-lg px-3 py-2 shadow-sm">
                 <span className="text-sm text-green-700">البحث عن: "{searchTerm}"</span>
               </div>
             )}
-            
+
             {statusFilter !== 'all' && (
               <div className="flex items-center bg-purple-100 rounded-lg px-3 py-2 shadow-sm">
                 <span className="text-sm text-purple-700">
@@ -401,7 +404,7 @@ const CustomersPage: React.FC = () => {
                 </span>
               </div>
             )}
-            
+
             {(searchTerm || statusFilter !== 'all') && (
               <button
                 onClick={() => {
@@ -439,26 +442,26 @@ const CustomersPage: React.FC = () => {
               {filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="table-row">
                   <td className="table-cell font-medium">
-                      <button onClick={() => { setDetailsCustomerId(customer.id); setShowDetailsModal(true) }} className="text-blue-600 hover:underline">
-                        {customer.name}
-                      </button>
-                    </td>
+                    <button onClick={() => { setDetailsCustomerId(customer.id); setShowDetailsModal(true) }} className="text-blue-600 hover:underline">
+                      {customer.name}
+                    </button>
+                  </td>
                   <td className="table-cell">{customer.phone}</td>
                   <td className="table-cell">{customer.area || 'غير محدد'}</td>
                   <td className="table-cell">{customer.total_orders || 0}</td>
-                   <td className="table-cell">
-                     {customer.is_active ? (
-                       <span className="badge badge-success animate-pulse">نشط</span>
-                     ) : (
-                       <span className="badge badge-gray">موقوف</span>
-                     )}
-                   </td>
+                  <td className="table-cell">
+                    {customer.is_active ? (
+                      <span className="badge badge-success animate-pulse">نشط</span>
+                    ) : (
+                      <span className="badge badge-gray">موقوف</span>
+                    )}
+                  </td>
                   <td className="table-cell">
                     {new Date(customer.created_at).toLocaleDateString('ar-AE')}
                   </td>
                   <td className="table-cell">
                     <div className="flex space-x-2 space-x-reverse">
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedCustomer(customer)
                           setFormMode('edit')
@@ -471,16 +474,15 @@ const CustomersPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleToggleActive(customer)}
-                        className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md ${
-                          customer.is_active 
-                            ? 'text-yellow-600 hover:bg-yellow-50' 
-                            : 'text-green-600 hover:bg-green-50'
-                        }`}
+                        className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md ${customer.is_active
+                          ? 'text-yellow-600 hover:bg-yellow-50'
+                          : 'text-green-600 hover:bg-green-50'
+                          }`}
                         title={customer.is_active ? 'إيقاف' : 'إعادة تفعيل'}
                       >
-                        {customer.is_active ? <ToggleLeft className="h-4 w-4"/> : <ToggleRight className="h-4 w-4"/>}
+                        {customer.is_active ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedCustomer(customer)
                           setShowDeleteModal(true)
@@ -497,7 +499,7 @@ const CustomersPage: React.FC = () => {
             </tbody>
           </table>
           <div ref={sentinelRef} />
-          
+
           {filteredCustomers.length === 0 && (
             <div className="text-center py-8">
               <p className="text-gray-500">لا توجد عملاء مطابقين للبحث</p>

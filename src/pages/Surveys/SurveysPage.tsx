@@ -7,6 +7,7 @@ import SurveyDetailsModal from '../../components/Modals/SurveyDetailsModal'
 import SurveysFilterBar, { SurveysFiltersUI } from '../../components/Surveys/SurveysFilterBar'
 import SurveysSearchInfo from '../../components/Surveys/SurveysSearchInfo'
 import { ExportButton } from '../../components/UI'
+import { AdminGuard } from '../../hooks/usePermissions'
 import { exportToExcel } from '../../utils/exportExcel'
 import { Search, Star, ThumbsUp, ThumbsDown, Calendar, User, Phone, MessageSquare, TrendingUp, CheckCircle, Clock, BarChart3 } from 'lucide-react'
 
@@ -21,7 +22,7 @@ const SurveysPage: React.FC = () => {
   const [surveys, setSurveys] = useState<SurveyWithOrder[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isExporting, setIsExporting] = useState(false)
-  
+
   // Filter state
   const [filtersUI, setFiltersUI] = useState<SurveysFiltersUI>({
     status: [],
@@ -37,7 +38,7 @@ const SurveysPage: React.FC = () => {
   // Apply filters to surveys data
   const filteredSurveys = useMemo(() => {
     let filtered = surveys
-    
+
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
@@ -46,26 +47,26 @@ const SurveysPage: React.FC = () => {
         const customerName = (survey as any).order?.customer?.name?.toLowerCase() || ''
         const customerPhone = (survey as any).order?.customer?.phone?.toLowerCase() || ''
         const feedback = survey.customer_feedback?.toLowerCase() || ''
-        
+
         return orderNo.includes(searchLower) ||
-               customerName.includes(searchLower) ||
-               customerPhone.includes(searchLower) ||
-               feedback.includes(searchLower)
+          customerName.includes(searchLower) ||
+          customerPhone.includes(searchLower) ||
+          feedback.includes(searchLower)
       })
     }
-    
+
     // Apply rating filter
     if (filtersUI.rating) {
       const targetRating = parseInt(filtersUI.rating)
       filtered = filtered.filter(survey => survey.overall_rating === targetRating)
     }
-    
+
     // Apply recommendation filter
     if (filtersUI.recommendation) {
       const recommendValue = filtersUI.recommendation === 'true'
       filtered = filtered.filter(survey => survey.would_recommend === recommendValue)
     }
-    
+
     // Apply customer search filter
     if (filtersUI.customerSearch) {
       const customerSearchLower = filtersUI.customerSearch.toLowerCase()
@@ -75,7 +76,7 @@ const SurveysPage: React.FC = () => {
         return customerName.includes(customerSearchLower) || customerPhone.includes(customerSearchLower)
       })
     }
-    
+
     // Apply date filters
     if (filtersUI.dateFrom) {
       filtered = filtered.filter(survey => {
@@ -84,7 +85,7 @@ const SurveysPage: React.FC = () => {
         return surveyDate >= fromDate
       })
     }
-    
+
     if (filtersUI.dateTo) {
       filtered = filtered.filter(survey => {
         const surveyDate = new Date(survey.created_at as string)
@@ -92,10 +93,10 @@ const SurveysPage: React.FC = () => {
         return surveyDate <= toDate
       })
     }
-    
+
     return filtered
   }, [surveys, searchTerm, filtersUI])
-  
+
   // Calculate statistics
   const statistics = useMemo(() => {
     const completed = surveys.filter(s => s.submitted_at).length
@@ -103,7 +104,7 @@ const SurveysPage: React.FC = () => {
     const avgRating = surveys.filter(s => s.overall_rating).reduce((sum, s) => sum + (s.overall_rating as number), 0) / surveys.filter(s => s.overall_rating).length || 0
     const recommendCount = surveys.filter(s => s.would_recommend === true).length
     const recommendPercentage = surveys.length > 0 ? (recommendCount / surveys.length) * 100 : 0
-    
+
     return {
       total: surveys.length,
       completed,
@@ -123,7 +124,7 @@ const SurveysPage: React.FC = () => {
       } else if (filtersUI.status.length === 0) {
         apiStatus = 'all'
       }
-      
+
       const res = await SurveysAPI.getSurveys(apiStatus, page, PAGE_SIZE)
       setSurveys(res.data || [])
       setTotal(res.total || 0)
@@ -138,7 +139,7 @@ const SurveysPage: React.FC = () => {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      
+
       // Use filtered surveys for export
       const dataToExport = filteredSurveys.map(survey => ({
         'رقم الطلب': (survey as any).order?.order_number || '',
@@ -151,13 +152,13 @@ const SurveysPage: React.FC = () => {
         'التعليقات': survey.customer_feedback || '',
         'تاريخ الإرسال': survey.submitted_at ? new Date(survey.submitted_at as string).toLocaleDateString('en-US') : ''
       }))
-      
+
       if (dataToExport.length === 0) {
         toast.error('لا توجد بيانات للتصدير')
         return
       }
-      
-      const fileName = `الاستبيانات_${new Date().toISOString().slice(0,10)}.xlsx`
+
+      const fileName = `الاستبيانات_${new Date().toISOString().slice(0, 10)}.xlsx`
       await exportToExcel(dataToExport, fileName, 'الاستبيانات')
       toast.success('تم تصدير البيانات بنجاح')
     } catch (error: any) {
@@ -166,13 +167,13 @@ const SurveysPage: React.FC = () => {
       setIsExporting(false)
     }
   }
-  
+
   // Handle filter changes
   const handleFiltersChange = (changes: Partial<SurveysFiltersUI>) => {
     setFiltersUI(prev => ({ ...prev, ...changes }))
     setPage(1) // Reset to first page when filters change
   }
-  
+
   // Clear all filters
   const clearFilters = () => {
     setFiltersUI({
@@ -186,22 +187,22 @@ const SurveysPage: React.FC = () => {
     setSearchTerm('')
     setPage(1)
   }
-  
+
   // Clear search
   const clearSearch = () => {
     setSearchTerm('')
     setPage(1)
   }
-  
+
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
     return filtersUI.status.length > 0 ||
-           filtersUI.dateFrom !== '' ||
-           filtersUI.dateTo !== '' ||
-           filtersUI.customerSearch !== '' ||
-           filtersUI.rating !== '' ||
-           filtersUI.recommendation !== '' ||
-           searchTerm !== ''
+      filtersUI.dateFrom !== '' ||
+      filtersUI.dateTo !== '' ||
+      filtersUI.customerSearch !== '' ||
+      filtersUI.rating !== '' ||
+      filtersUI.recommendation !== '' ||
+      searchTerm !== ''
   }, [filtersUI, searchTerm])
 
   useEffect(() => {
@@ -219,7 +220,7 @@ const SurveysPage: React.FC = () => {
           <BarChart3 className="w-8 h-8 text-blue-600" />
           إدارة الاستبيانات
         </h1>
-        
+
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -233,7 +234,7 @@ const SurveysPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -245,7 +246,7 @@ const SurveysPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -257,7 +258,7 @@ const SurveysPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -269,7 +270,7 @@ const SurveysPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -282,7 +283,7 @@ const SurveysPage: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Search Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
           <div className="relative">
@@ -296,13 +297,13 @@ const SurveysPage: React.FC = () => {
             />
           </div>
         </div>
-        
+
         {/* Filters */}
         <SurveysFilterBar
           filters={filtersUI}
           onFiltersChange={handleFiltersChange}
         />
-        
+
         {/* Search Info */}
         {(hasActiveFilters || searchTerm) && (
           <SurveysSearchInfo
@@ -315,14 +316,16 @@ const SurveysPage: React.FC = () => {
             onClearFilters={clearFilters}
           />
         )}
-        
+
         {/* Export Button */}
         <div className="flex justify-end mb-4">
-          <ExportButton
-            onClick={handleExport}
-            disabled={filteredSurveys.length === 0 || isExporting}
-            title={isExporting ? 'جاري التصدير...' : 'تصدير Excel'}
-          />
+          <AdminGuard>
+            <ExportButton
+              onClick={handleExport}
+              disabled={filteredSurveys.length === 0 || isExporting}
+              title={isExporting ? 'جاري التصدير...' : 'تصدير Excel'}
+            />
+          </AdminGuard>
         </div>
       </div>
 
@@ -475,13 +478,13 @@ const SurveysPage: React.FC = () => {
                 </svg>
                 <span>السابق</span>
               </button>
-              
+
               <div className="flex items-center gap-1">
                 <div className="px-4 py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold shadow-md">
                   {page}
                 </div>
               </div>
-              
+
               <button
                 onClick={onNext}
                 disabled={page >= totalPages || loading}
@@ -512,9 +515,8 @@ const SurveyRow: React.FC<{ survey: SurveyWithOrder; index: number }> = ({ surve
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`w-3.5 h-3.5 ${
-          i < rating ? 'text-yellow-500 fill-current drop-shadow-sm' : 'text-gray-300'
-        }`}
+        className={`w-3.5 h-3.5 ${i < rating ? 'text-yellow-500 fill-current drop-shadow-sm' : 'text-gray-300'
+          }`}
       />
     ))
   }
@@ -522,9 +524,8 @@ const SurveyRow: React.FC<{ survey: SurveyWithOrder; index: number }> = ({ surve
   const isEven = index % 2 === 0
 
   return (
-    <tr className={`group transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-sm ${
-      isEven ? 'bg-white' : 'bg-gray-50/30'
-    }`}>
+    <tr className={`group transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-sm ${isEven ? 'bg-white' : 'bg-gray-50/30'
+      }`}>
       {/* Date Column */}
       <td className="px-4 py-4 text-sm">
         <div className="flex items-center gap-2">
@@ -575,11 +576,10 @@ const SurveyRow: React.FC<{ survey: SurveyWithOrder; index: number }> = ({ surve
       {/* Status Column */}
       <td className="px-4 py-4 text-sm">
         <div className="flex items-center justify-center">
-          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold shadow-sm border ${
-            survey.submitted_at
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold shadow-sm border ${survey.submitted_at
               ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border-green-200'
               : 'bg-gradient-to-r from-orange-50 to-yellow-50 text-orange-800 border-orange-200'
-          }`}>
+            }`}>
             {survey.submitted_at ? (
               <>
                 <CheckCircle className="w-3.5 h-3.5" />
@@ -640,11 +640,11 @@ const SurveyRow: React.FC<{ survey: SurveyWithOrder; index: number }> = ({ surve
             <div className="flex items-start gap-2">
               <MessageSquare className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-gray-700 leading-relaxed" style={{display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden'}} title={survey.customer_feedback}>
+                <p className="text-xs text-gray-700 leading-relaxed" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={survey.customer_feedback}>
                   {survey.customer_feedback}
                 </p>
                 {survey.customer_feedback.length > 100 && (
-                  <button 
+                  <button
                     onClick={() => setOpen(true)}
                     className="text-xs text-indigo-600 hover:text-indigo-800 font-medium mt-1 transition-colors"
                   >

@@ -4,6 +4,7 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import { formatCurrency } from '../../api'
 import { RefreshCw, Award, TrendingUp, Users, Calendar, Star, AlertTriangle, DollarSign } from 'lucide-react'
 import { ExportButton } from '../../components/UI'
+import { AdminGuard } from '../../hooks/usePermissions'
 import { exportToExcel } from '../../utils/exportExcel'
 import toast from 'react-hot-toast'
 import { useWorkers } from '../../hooks/useEnhancedAPI'
@@ -104,7 +105,9 @@ const BonusesPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <ExportButton onClick={handleExport} disabled={loading || bonuses.length===0} />
+              <AdminGuard>
+                <ExportButton onClick={handleExport} disabled={loading || bonuses.length === 0} />
+              </AdminGuard>
               <button
                 onClick={refresh}
                 disabled={loading}
@@ -164,8 +167,8 @@ const BonusesPage: React.FC = () => {
                 </p>
               </div>
               <div className={`p-3 rounded-lg ${stats.unratedOrders > 0 ? 'bg-red-100' : 'bg-green-100'}`}>
-                {stats.unratedOrders > 0 ? 
-                  <AlertTriangle className="w-6 h-6 text-red-600" /> : 
+                {stats.unratedOrders > 0 ?
+                  <AlertTriangle className="w-6 h-6 text-red-600" /> :
                   <Star className="w-6 h-6 text-green-600" />
                 }
               </div>
@@ -206,7 +209,7 @@ const BonusesPage: React.FC = () => {
                 تفاصيل حوافز العاملين
               </h2>
             </div>
-            
+
             <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               <table className="w-full min-w-[1000px]">
                 <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
@@ -245,9 +248,8 @@ const BonusesPage: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {bonuses.map((b, index) => (
-                    <tr key={b.worker_id} className={`hover:bg-blue-50/30 transition-all duration-200 ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                    }`}>
+                    <tr key={b.worker_id} className={`hover:bg-blue-50/30 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                      }`}>
                       <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-8 w-8 lg:h-10 lg:w-10">
@@ -297,11 +299,10 @@ const BonusesPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                          b.rating_factor >= 0.8 ? 'bg-green-100 text-green-800' :
-                          b.rating_factor >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${b.rating_factor >= 0.8 ? 'bg-green-100 text-green-800' :
+                            b.rating_factor >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                          }`}>
                           {toEnglishNumbers((b.rating_factor * 100).toFixed(0))}%
                         </span>
                       </td>

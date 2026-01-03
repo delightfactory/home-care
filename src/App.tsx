@@ -10,9 +10,9 @@ import { AdminGuard } from './hooks/usePermissions'
 import RoutePersistence from './components/Router/RoutePersistence'
 
 // PWA Components
-import { 
-  InstallPrompt, 
-  OfflineManager, 
+import {
+  InstallPrompt,
+  OfflineManager,
   UpdateNotification,
   registerPWAEventListeners,
   trackPWAPerformance
@@ -128,39 +128,46 @@ const AppRoutes: React.FC = () => {
         <Route path="routes" element={<RoutesPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="operations" element={<OperationsPage />} />
-        <Route path="reports" element={<ReportsPage />} />
-        <Route 
-          path="surveys" 
+        <Route
+          path="reports"
+          element={
+            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+              <ReportsPage />
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="surveys"
           element={
             <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
               <SurveysPage />
             </AdminGuard>
           }
         />
-        <Route 
-          path="bonuses" 
+        <Route
+          path="bonuses"
           element={
             <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
               <BonusesPage />
             </AdminGuard>
-          } 
+          }
         />
         <Route path="settings" element={<SettingsPage />} />
-        <Route 
-          path="backups" 
+        <Route
+          path="backups"
           element={
             <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
               <BackupsPage />
             </AdminGuard>
           }
         />
-        <Route 
-          path="roles" 
+        <Route
+          path="roles"
           element={
             <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
               <RolesPage />
             </AdminGuard>
-          } 
+          }
         />
       </Route>
 
@@ -198,14 +205,14 @@ const App: React.FC = () => {
       <Router>
         <div className="App">
           <RoutePersistence />
-          
+
           {/* PWA Components */}
           <PWAUI />
-          
+
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
             <AppRoutes />
           </Suspense>
-          
+
           <Toaster
             position="top-center"
             toastOptions={{
