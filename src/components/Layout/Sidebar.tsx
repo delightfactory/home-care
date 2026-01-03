@@ -28,6 +28,7 @@ interface NavigationItem {
   href: string
   icon: LucideIcon
   adminOnly?: boolean
+  excludeRoles?: string[]
 }
 
 interface SidebarProps {
@@ -37,9 +38,9 @@ interface SidebarProps {
 
 const navigation: NavigationItem[] = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home },
-  { name: 'العملاء', href: '/customers', icon: Users },
+  { name: 'العملاء', href: '/customers', icon: Users, excludeRoles: ['operations_supervisor'] },
   { name: 'الخدمات', href: '/services', icon: Wrench },
-  { name: 'الطلبات', href: '/orders', icon: ShoppingCart },
+  { name: 'الطلبات', href: '/orders', icon: ShoppingCart, excludeRoles: ['operations_supervisor'] },
   { name: 'العمال', href: '/workers', icon: UserCheck },
   { name: 'الفرق', href: '/teams', icon: Users2 },
   { name: 'خطوط السير', href: '/routes', icon: Map },
@@ -54,8 +55,14 @@ const navigation: NavigationItem[] = [
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { isAdmin } = usePermissions()
-  const filteredNav = navigation.filter(item => !item.adminOnly || isAdmin())
+  const { isAdmin, hasRole } = usePermissions()
+  const filteredNav = navigation.filter(item => {
+    // Admin-only check
+    if (item.adminOnly && !isAdmin()) return false
+    // Role exclusion check
+    if (item.excludeRoles?.some(role => hasRole(role))) return false
+    return true
+  })
   return (
     <>
       {/* Desktop Sidebar */}
