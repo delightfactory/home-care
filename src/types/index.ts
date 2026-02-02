@@ -121,19 +121,20 @@ export enum UserRole {
   MANAGER = 'manager',
   OPERATIONS_SUPERVISOR = 'operations_supervisor',
   RECEPTIONIST = 'receptionist',
-  TEAM_LEADER = 'team_leader'
+  TEAM_LEADER = 'team_leader',
+  TECHNICIAN = 'technician'
 }
 
 export enum TeamStatus {
-  ACTIVE   = 'active',
+  ACTIVE = 'active',
   INACTIVE = 'inactive'
 }
 
 export enum ServiceUnit {
   SERVICE = 'service',
-  HOUR    = 'hour',
-  ROOM    = 'room',
-  SQM     = 'sqm'
+  HOUR = 'hour',
+  ROOM = 'room',
+  SQM = 'sqm'
 }
 
 // Extended types with relationships
@@ -276,6 +277,7 @@ export interface WorkerForm {
   skills: string[]
   can_drive: boolean
   status?: string
+  user_id?: string  // ربط العامل بمستخدم (اختياري)
 }
 
 export interface TeamForm {

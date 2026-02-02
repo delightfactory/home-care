@@ -81,16 +81,12 @@ const SmartModal: React.FC<SmartModalProps> = ({
     }
   }, [isOpen])
 
-  // Focus management
+  // Focus management - only on initial open, not on content changes
   useEffect(() => {
     if (isOpen && contentRef.current) {
-      const focusableElements = contentRef.current.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )
-      const firstElement = focusableElements[0] as HTMLElement
-      if (firstElement) {
-        firstElement.focus()
-      }
+      // Focus the modal container itself instead of child elements
+      // This prevents scroll jumping when conditional content renders
+      contentRef.current.focus()
     }
   }, [isOpen])
 
@@ -163,7 +159,11 @@ const SmartModal: React.FC<SmartModalProps> = ({
         )}
 
         {/* Content */}
-        <div className={`overflow-y-auto max-h-[calc(90vh-120px)] ${contentClassName}`}>
+        <div
+          className={`overflow-y-auto overscroll-contain max-h-[calc(90vh-120px)] ${contentClassName}`}
+          style={{ scrollBehavior: 'auto' }}
+          tabIndex={-1}
+        >
           {children}
         </div>
       </div>

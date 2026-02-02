@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Shield, Settings, Plus, Edit, Trash2, UserCheck, UserX, UserCog, Lock } from 'lucide-react'
+import { Users, Shield, Settings, Plus, Edit, Trash2, UserCheck, UserX, UserCog, Lock, Key } from 'lucide-react'
 import { RolesAPI, type Role, type UserWithRole } from '../../lib/api/roles'
 import RoleFormModal from '../../components/Forms/RoleFormModal'
 import UserRoleModal from '../../components/Forms/UserRoleModal'
 import UserFormModal from '../../components/Forms/UserFormModal'
+import ResetPasswordModal from '../../components/Forms/ResetPasswordModal'
 import { UsersAPI } from '../../lib/api/users'
 import { useAuth } from '../../contexts/AuthContext'
 import toast from 'react-hot-toast'
@@ -27,6 +28,8 @@ const RolesPage: React.FC = () => {
   const [showUserFormModal, setShowUserFormModal] = useState(false)
   const [userFormTarget, setUserFormTarget] = useState<UserWithRole | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'role' | 'user', id: string, name: string } | null>(null)
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string, name: string } | null>(null)
 
   useEffect(() => {
     loadData()
@@ -93,6 +96,11 @@ const RolesPage: React.FC = () => {
     setShowDeleteModal(true)
   }
 
+  const handleResetPassword = (user: UserWithRole) => {
+    setResetPasswordTarget({ id: user.id, name: user.full_name })
+    setShowResetPasswordModal(true)
+  }
+
   const handleToggleUserStatus = async (user: UserWithRole) => {
     try {
       const response = await RolesAPI.toggleUserStatus(user.id, !user.is_active)
@@ -146,6 +154,8 @@ const RolesPage: React.FC = () => {
         return 'bg-green-100 text-green-800 border-green-200'
       case 'team_leader':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'technician':
+        return 'bg-purple-100 text-purple-800 border-purple-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -153,7 +163,7 @@ const RolesPage: React.FC = () => {
 
   const getPermissionCount = (permissions: Record<string, any>) => {
     if (permissions.admin) return 'جميع الصلاحيات'
-    
+
     let count = 0
     Object.values(permissions).forEach(section => {
       if (typeof section === 'object' && section !== null) {
@@ -240,11 +250,10 @@ const RolesPage: React.FC = () => {
           <nav className="flex space-x-8" dir="ltr">
             <button
               onClick={() => setActiveTab('roles')}
-              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-                activeTab === 'roles'
-                  ? 'bg-primary-100 text-primary-700 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${activeTab === 'roles'
+                ? 'bg-primary-100 text-primary-700 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
             >
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
@@ -253,11 +262,10 @@ const RolesPage: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-                activeTab === 'users'
-                  ? 'bg-primary-100 text-primary-700 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${activeTab === 'users'
+                ? 'bg-primary-100 text-primary-700 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
             >
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
@@ -319,11 +327,10 @@ const RolesPage: React.FC = () => {
                   <span className="text-gray-500">
                     {getPermissionCount(role.permissions)}
                   </span>
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    role.is_active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
+                  <span className={`px-2 py-1 rounded-full text-xs ${role.is_active
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                    }`}>
                     {role.is_active ? 'نشط' : 'غير نشط'}
                   </span>
                 </div>
@@ -396,11 +403,10 @@ const RolesPage: React.FC = () => {
                         )}
                       </td>
                       <td className="table-cell">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.is_active 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.is_active
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                          }`}>
                           {user.is_active ? 'نشط' : 'غير نشط'}
                         </span>
                       </td>
@@ -432,14 +438,20 @@ const RolesPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleToggleUserStatus(user)}
-                            className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md ${
-                              user.is_active 
-                                ? 'text-red-600 hover:bg-red-50' 
-                                : 'text-green-600 hover:bg-green-50'
-                            }`}
+                            className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md ${user.is_active
+                              ? 'text-red-600 hover:bg-red-50'
+                              : 'text-green-600 hover:bg-green-50'
+                              }`}
                             title={user.is_active ? 'إلغاء التفعيل' : 'تفعيل'}
                           >
                             {user.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                          </button>
+                          <button
+                            onClick={() => handleResetPassword(user)}
+                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                            title="إعادة تعيين كلمة المرور"
+                          >
+                            <Key className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -510,6 +522,21 @@ const RolesPage: React.FC = () => {
           onConfirm={confirmDelete}
           title={`حذف ${deleteTarget.type === 'role' ? 'الدور' : 'المستخدم'}`}
           message={`هل أنت متأكد من حذف ${deleteTarget.type === 'role' ? 'الدور' : 'المستخدم'} "${deleteTarget.name}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
+        />
+      )}
+
+      {showResetPasswordModal && resetPasswordTarget && (
+        <ResetPasswordModal
+          userId={resetPasswordTarget.id}
+          userName={resetPasswordTarget.name}
+          onClose={() => {
+            setShowResetPasswordModal(false)
+            setResetPasswordTarget(null)
+          }}
+          onSuccess={() => {
+            setShowResetPasswordModal(false)
+            setResetPasswordTarget(null)
+          }}
         />
       )}
     </div>

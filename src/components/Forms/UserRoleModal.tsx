@@ -17,7 +17,7 @@ const UserRoleModal: React.FC<UserRoleModalProps> = ({ user, roles, onClose, onS
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!selectedRoleId) {
       toast.error('يرجى اختيار دور للمستخدم')
       return
@@ -58,6 +58,8 @@ const UserRoleModal: React.FC<UserRoleModalProps> = ({ user, roles, onClose, onS
         return 'bg-green-100 text-green-800 border-green-200'
       case 'team_leader':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'technician':
+        return 'bg-purple-100 text-purple-800 border-purple-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -65,7 +67,7 @@ const UserRoleModal: React.FC<UserRoleModalProps> = ({ user, roles, onClose, onS
 
   const getPermissionCount = (permissions: Record<string, any>) => {
     if (permissions.admin) return 'جميع الصلاحيات'
-    
+
     let count = 0
     Object.values(permissions).forEach(section => {
       if (typeof section === 'object' && section !== null) {
@@ -132,11 +134,10 @@ const UserRoleModal: React.FC<UserRoleModalProps> = ({ user, roles, onClose, onS
                 />
                 <label
                   htmlFor={role.id}
-                  className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedRoleId === role.id
+                  className={`block p-4 border rounded-lg cursor-pointer transition-colors ${selectedRoleId === role.id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -152,11 +153,10 @@ const UserRoleModal: React.FC<UserRoleModalProps> = ({ user, roles, onClose, onS
                         <p className="text-sm text-gray-600">{role.description}</p>
                       )}
                     </div>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                      selectedRoleId === role.id
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedRoleId === role.id
                         ? 'border-blue-500 bg-blue-500'
                         : 'border-gray-300'
-                    }`}>
+                      }`}>
                       {selectedRoleId === role.id && (
                         <div className="w-2 h-2 rounded-full bg-white"></div>
                       )}

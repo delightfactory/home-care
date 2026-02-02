@@ -38,6 +38,10 @@ const BonusesPage = React.lazy(() => import('./pages/Bonuses/BonusesPage'))
 const SurveyFormPage = React.lazy(() => import('./pages/Survey/SurveyFormPage'))
 const SurveysPage = React.lazy(() => import('./pages/Surveys/SurveysPage'))
 
+// Technician App - تطبيق الفنى (منفصل)
+const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
+import { TechGuard } from './components/Guards/TechGuard'
+
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, session, loading } = useAuth()
@@ -72,8 +76,14 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     )
   }
 
-  // إذا كان المستخدم مُسجَّل الدخول بالفعل، وجّه مباشرة للوحة التحكم
+  // إذا كان المستخدم مُسجَّل الدخول بالفعل
   if (session && user) {
+    // إذا كان فني أو قائد فريق، وجّه لتطبيق الفنى
+    const userRole = (user as any)?.role?.name
+    if (userRole === 'team_leader' || userRole === 'technician') {
+      return <Navigate to="/tech" replace />
+    }
+    // باقى المستخدمين للوحة التحكم
     return <Navigate to="/dashboard" replace />
   }
 
@@ -170,6 +180,16 @@ const AppRoutes: React.FC = () => {
           }
         />
       </Route>
+
+      {/* Technician App - تطبيق الفنى منفصل */}
+      <Route
+        path="/tech"
+        element={
+          <TechGuard>
+            <TechDashboard />
+          </TechGuard>
+        }
+      />
 
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
