@@ -137,7 +137,7 @@ export class TechnicianAPI {
                 `)
                 .eq('worker_id', worker.id)
                 .is('left_at', null)
-                .single()
+                .maybeSingle()
 
             if (memberError || !membership) {
                 return defaultStatus
@@ -189,11 +189,11 @@ export class TechnicianAPI {
         `)
                 .eq('team_id', teamId)
                 .eq('date', today)
-                .single()
+                .maybeSingle()
 
             if (error) {
-                if (error.code === 'PGRST116') return null
-                throw error
+                console.error('Error fetching route:', error)
+                return null
             }
             return data
         } catch (error) {

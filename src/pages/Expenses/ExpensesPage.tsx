@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react'
-import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, DollarSign, TrendingUp, Clock, FileText, Activity } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, DollarSign, TrendingUp, Clock, FileText, Activity, Eye } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
 import { eventBus } from '../../utils/EventBus'
 import { ExpenseWithCategory } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import ExpenseFormModal from '../../components/Forms/ExpenseFormModal'
+import ExpenseDetailsModal from '../../components/Modals/ExpenseDetailsModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
 import { useExpenses, useSystemHealth, useExpenseCounts, useFilteredExpenseStats } from '../../hooks/useEnhancedAPI'
@@ -35,6 +36,7 @@ const ExpensesPage: React.FC = () => {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const { user } = useAuth()
 
   // Use optimized hooks for data fetching
@@ -398,6 +400,16 @@ const ExpensesPage: React.FC = () => {
                       <button
                         onClick={() => {
                           setSelectedExpense(expense)
+                          setShowDetailsModal(true)
+                        }}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all hover:scale-110 shadow-sm hover:shadow-md"
+                        title="عرض التفاصيل"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedExpense(expense)
                           setFormMode('edit')
                           setShowFormModal(true)
                         }}
@@ -493,6 +505,16 @@ const ExpensesPage: React.FC = () => {
         onConfirm={handleDeleteExpense}
         message={`هل أنت متأكد من رغبتك في حذف المصروف "${selectedExpense?.description}"؟ لا يمكن التراجع عن هذا الإجراء.`}
         loading={deleteLoading}
+      />
+
+      {/* Expense Details Modal */}
+      <ExpenseDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setSelectedExpense(undefined)
+        }}
+        expense={selectedExpense as any}
       />
     </div>
   )

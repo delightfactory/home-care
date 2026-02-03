@@ -3,13 +3,15 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Home, LogOut, RefreshCw } from 'lucide-react'
+import TechBottomNav from '../Tech/TechBottomNav'
 
 interface TechLayoutProps {
     children: React.ReactNode
     onRefresh?: () => void
+    isLeader?: boolean
 }
 
-export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh }) => {
+export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isLeader = false }) => {
     const { user, signOut } = useAuth()
     const navigate = useNavigate()
 
@@ -71,12 +73,16 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh }) =
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto pb-4">
+            {/* Main Content - with bottom padding for nav bar */}
+            <main className="flex-1 overflow-y-auto pb-20">
                 {children}
             </main>
+
+            {/* Bottom Navigation */}
+            <TechBottomNav isLeader={isLeader} />
         </div>
     )
 }
 
 export default TechLayout
+

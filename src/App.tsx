@@ -40,6 +40,7 @@ const SurveysPage = React.lazy(() => import('./pages/Surveys/SurveysPage'))
 
 // Technician App - تطبيق الفنى (منفصل)
 const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
+const TechExpensesPage = React.lazy(() => import('./pages/Tech/TechExpensesPage'))
 import { TechGuard } from './components/Guards/TechGuard'
 
 // Protected Route Component
@@ -187,6 +188,14 @@ const AppRoutes: React.FC = () => {
         element={
           <TechGuard>
             <TechDashboard />
+          </TechGuard>
+        }
+      />
+      <Route
+        path="/tech/expenses"
+        element={
+          <TechGuard>
+            <TechExpensesPage />
           </TechGuard>
         }
       />

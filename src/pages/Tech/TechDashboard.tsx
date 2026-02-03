@@ -23,7 +23,7 @@ const TechDashboard: React.FC = () => {
     // شاشة التحميل
     if (loading) {
         return (
-            <TechLayout>
+            <TechLayout isLeader={status.isLeader}>
                 <div className="flex-1 flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
                         <LoadingSpinner size="large" />
@@ -37,7 +37,7 @@ const TechDashboard: React.FC = () => {
     // شاشة الخطأ
     if (error) {
         return (
-            <TechLayout onRefresh={refresh}>
+            <TechLayout onRefresh={refresh} isLeader={status.isLeader}>
                 <div className="flex-1 flex items-center justify-center min-h-[60vh] p-4">
                     <div className="text-center">
                         <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
@@ -61,7 +61,7 @@ const TechDashboard: React.FC = () => {
     // ❌ ليس عضواً في فريق
     if (!status.isTeamMember) {
         return (
-            <TechLayout onRefresh={refresh}>
+            <TechLayout onRefresh={refresh} isLeader={status.isLeader}>
                 <div className="flex-1 flex items-center justify-center min-h-[60vh] p-4">
                     <div className="text-center max-w-sm">
                         <div className="w-20 h-20 mx-auto bg-amber-50 rounded-full flex items-center justify-center mb-4 border-2 border-amber-200">
@@ -95,7 +95,7 @@ const TechDashboard: React.FC = () => {
     // ⚠️ فريق بلا قائد
     if (!status.hasLeader) {
         return (
-            <TechLayout onRefresh={refresh}>
+            <TechLayout onRefresh={refresh} isLeader={status.isLeader}>
                 <div className="flex-1 flex items-center justify-center min-h-[60vh] p-4">
                     <div className="text-center max-w-sm">
                         <div className="w-20 h-20 mx-auto bg-orange-50 rounded-full flex items-center justify-center mb-4 border-2 border-orange-200">
@@ -128,7 +128,7 @@ const TechDashboard: React.FC = () => {
     // لا يوجد خط سير لهذا اليوم
     if (progress.total === 0) {
         return (
-            <TechLayout onRefresh={refresh}>
+            <TechLayout onRefresh={refresh} isLeader={status.isLeader}>
                 <div className="flex-1 flex items-center justify-center min-h-[60vh] p-4">
                     <div className="text-center">
                         <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -154,7 +154,7 @@ const TechDashboard: React.FC = () => {
     // أنهى جميع الطلبات
     if (!currentOrder && progress.completed === progress.total) {
         return (
-            <TechLayout onRefresh={refresh}>
+            <TechLayout onRefresh={refresh} isLeader={status.isLeader}>
                 <div className="p-4 space-y-4">
                     {/* Progress Bar */}
                     <TechProgressBar progress={progress} />
@@ -183,7 +183,7 @@ const TechDashboard: React.FC = () => {
     // شاشة الانتقال بعد إكمال الطلب
     if (!currentOrder && orderLoading) {
         return (
-            <TechLayout>
+            <TechLayout isLeader={status.isLeader}>
                 <div className="p-4 space-y-4">
                     {/* Progress Bar */}
                     <TechProgressBar progress={progress} />
@@ -209,7 +209,7 @@ const TechDashboard: React.FC = () => {
     }
 
     return (
-        <TechLayout onRefresh={refresh}>
+        <TechLayout onRefresh={refresh} isLeader={status.isLeader}>
             <div className="p-4 space-y-4">
                 {/* Progress Bar */}
                 <TechProgressBar progress={progress} />
