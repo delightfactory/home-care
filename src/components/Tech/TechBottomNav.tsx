@@ -1,7 +1,7 @@
 // TechBottomNav - شريط التنقل السفلي لتطبيق الفنى
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Plus, Receipt } from 'lucide-react'
+import { Home, Plus, Receipt, MessageSquare } from 'lucide-react'
 import TechQuickActionsMenu from './TechQuickActionsMenu'
 
 interface TechBottomNavProps {
@@ -17,6 +17,7 @@ const TechBottomNav: React.FC<TechBottomNavProps> = ({ isLeader }) => {
     // ⚠️ لا تُضف أي مسار خارج /tech/* لمنع الوصول للتطبيق الإداري
     const navItems = [
         { path: '/tech', icon: Home, label: 'الرئيسية' },
+        { path: '/tech/messages', icon: MessageSquare, label: 'الرسائل' },
         // زر الإجراءات السريعة (للقائد فقط)
         ...(isLeader ? [{ path: 'quick-action', icon: Plus, label: 'إجراء', isAction: true }] : []),
         ...(isLeader ? [{ path: '/tech/expenses', icon: Receipt, label: 'مصروفات' }] : []),

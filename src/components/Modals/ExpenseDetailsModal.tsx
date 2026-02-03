@@ -1,6 +1,6 @@
 // ExpenseDetailsModal - مودال تفاصيل المصروف للإدارة - تصميم محسّن
 import React, { useState } from 'react'
-import { X, User, Calendar, Tag, FileText, Image as ImageIcon, CheckCircle, XCircle, Clock, Users, MapPin, ExternalLink, ZoomIn, Receipt, Wallet } from 'lucide-react'
+import { X, User, Calendar, Tag, FileText, CheckCircle, XCircle, Clock, Users, MapPin, ExternalLink, ZoomIn, Receipt, Wallet } from 'lucide-react'
 import SmartModal from '../UI/SmartModal'
 
 interface ExpenseDetailsModalProps {

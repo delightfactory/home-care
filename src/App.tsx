@@ -38,11 +38,13 @@ const BonusesPage = React.lazy(() => import('./pages/Bonuses/BonusesPage'))
 const SurveyFormPage = React.lazy(() => import('./pages/Survey/SurveyFormPage'))
 const SurveysPage = React.lazy(() => import('./pages/Surveys/SurveysPage'))
 const NotificationsPage = React.lazy(() => import('./pages/Notifications/NotificationsPage'))
+const MessagesPage = React.lazy(() => import('./pages/MessagesPage'))
 
 // Technician App - تطبيق الفنى (منفصل)
 const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
 const TechExpensesPage = React.lazy(() => import('./pages/Tech/TechExpensesPage'))
 const TechNotificationsPage = React.lazy(() => import('./pages/Tech/TechNotificationsPage'))
+const TechMessagesPage = React.lazy(() => import('./pages/Tech/TechMessagesPage'))
 import { TechGuard } from './components/Guards/TechGuard'
 
 // Protected Route Component
@@ -167,6 +169,8 @@ const AppRoutes: React.FC = () => {
         />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
+        <Route path="messages/:conversationId" element={<MessagesPage />} />
         <Route
           path="backups"
           element={
@@ -209,6 +213,22 @@ const AppRoutes: React.FC = () => {
         element={
           <TechGuard>
             <TechNotificationsPage />
+          </TechGuard>
+        }
+      />
+      <Route
+        path="/tech/messages"
+        element={
+          <TechGuard>
+            <TechMessagesPage />
+          </TechGuard>
+        }
+      />
+      <Route
+        path="/tech/messages/:conversationId"
+        element={
+          <TechGuard>
+            <TechMessagesPage />
           </TechGuard>
         }
       />

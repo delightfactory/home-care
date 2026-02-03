@@ -51,6 +51,7 @@ const navigation: NavigationItem[] = [
   { name: 'حوافز العمال', href: '/bonuses', icon: Coins, adminOnly: true },
   { name: 'الأدوار', href: '/roles', icon: Shield },
   { name: 'النسخ الاحتياطية', href: '/backups', icon: DownloadCloud, adminOnly: true },
+  { name: 'الرسائل', href: '/messages', icon: MessageSquare },
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ]
 

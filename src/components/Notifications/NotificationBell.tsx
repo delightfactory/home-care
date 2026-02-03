@@ -158,7 +158,24 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose
             await markAsRead(notification.id);
         }
         if (notification.action_url) {
-            navigate(notification.action_url);
+            let targetUrl = notification.action_url;
+
+            // ⚠️ CRITICAL: Transform URLs for tech app to prevent navigation to main app
+            if (isTechApp && !targetUrl.startsWith('/tech')) {
+                // Map main app routes to tech app equivalents
+                if (targetUrl.startsWith('/messages')) {
+                    targetUrl = targetUrl.replace('/messages', '/tech/messages');
+                } else if (targetUrl.startsWith('/notifications')) {
+                    targetUrl = targetUrl.replace('/notifications', '/tech/notifications');
+                } else {
+                    // For other routes (orders, expenses, etc.) that don't have tech equivalents,
+                    // redirect to tech dashboard instead of breaking security
+                    console.warn(`[TechApp] Blocked navigation to non-tech route: ${targetUrl}`);
+                    targetUrl = '/tech';
+                }
+            }
+
+            navigate(targetUrl);
             onClose();
         }
     };
