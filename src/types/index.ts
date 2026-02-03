@@ -464,7 +464,74 @@ export interface ExpenseFilters {
   search?: string
 }
 
-// Notification types
+// =============== Notification Types ===============
+
+export type NotificationType =
+  // Orders
+  | 'order_created' | 'order_scheduled' | 'order_status_changed'
+  | 'order_cancelled' | 'order_rated' | 'order_delayed'
+  // Expenses
+  | 'expense_created' | 'expense_approved' | 'expense_rejected'
+  // Routes
+  | 'route_created' | 'route_assigned' | 'route_updated'
+  | 'route_started' | 'route_completed'
+  // Teams
+  | 'team_assigned' | 'worker_joined' | 'worker_left'
+  // Customers
+  | 'customer_created' | 'survey_submitted'
+  // System
+  | 'daily_report_ready' | 'system_announcement';
+
+export type NotificationCategory =
+  | 'orders' | 'expenses' | 'routes'
+  | 'teams' | 'customers' | 'system';
+
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  category: NotificationCategory;
+  priority: NotificationPriority;
+  title: string;
+  message: string;
+  reference_type?: string;
+  reference_id?: string;
+  action_url?: string;
+  metadata?: Record<string, unknown>;
+  is_read: boolean;
+  read_at?: string;
+  created_at: string;
+  expires_at?: string;
+}
+
+export interface NotificationPreferences {
+  id: string;
+  user_id: string;
+  in_app_enabled: boolean;
+  push_enabled: boolean;
+  categories: Record<NotificationCategory, boolean>;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start?: string;
+  quiet_hours_end?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PushSubscriptionData {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  device_name?: string;
+  device_type?: string;
+  browser?: string;
+  is_active: boolean;
+  last_used_at?: string;
+  created_at: string;
+}
+
+// Legacy Notification type for backwards compatibility
 export interface Notification {
   id: string
   type: 'info' | 'success' | 'warning' | 'error'

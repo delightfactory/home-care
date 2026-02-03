@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Home, LogOut, RefreshCw } from 'lucide-react'
 import TechBottomNav from '../Tech/TechBottomNav'
+import NotificationBell from '../Notifications/NotificationBell'
+import { PushNotificationPrompt } from '../Notifications'
 
 interface TechLayoutProps {
     children: React.ReactNode
@@ -46,6 +48,9 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
 
                         {/* Actions */}
                         <div className="flex items-center gap-2">
+                            {/* Notification Bell */}
+                            <NotificationBell />
+
                             {onRefresh && (
                                 <button
                                     onClick={onRefresh}
@@ -80,6 +85,9 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
 
             {/* Bottom Navigation */}
             <TechBottomNav isLeader={isLeader} />
+
+            {/* Push Notification Prompt - للفنيين */}
+            <PushNotificationPrompt delay={3000} variant="floating" />
         </div>
     )
 }

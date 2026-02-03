@@ -4,6 +4,7 @@ import { SettingsAPI } from '../../api'
 import { SystemSettings } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import PWASettings from '../../components/Settings/PWASettings'
+import NotificationSettings from '../../components/Settings/NotificationSettings'
 import toast from 'react-hot-toast'
 
 const SettingsPage: React.FC = () => {
@@ -20,7 +21,7 @@ const SettingsPage: React.FC = () => {
     try {
       setLoading(true)
       const data = await SettingsAPI.getSystemSettings()
-      
+
       // Convert settings object to array format for UI
       const settingsArray: SystemSettings[] = Object.entries(data).map(([key, value]) => ({
         id: key,
@@ -33,9 +34,9 @@ const SettingsPage: React.FC = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }))
-      
+
       setSettings(settingsArray)
-      
+
       // Initialize form data
       const initialData: Record<string, string> = {}
       settingsArray.forEach((setting: SystemSettings) => {
@@ -53,15 +54,15 @@ const SettingsPage: React.FC = () => {
   const handleSave = async () => {
     try {
       setSaving(true)
-      
+
       // Update each setting
-      const updatePromises = Object.entries(formData).map(([key, value]) => 
+      const updatePromises = Object.entries(formData).map(([key, value]) =>
         SettingsAPI.updateSetting(key, value)
       )
-      
+
       await Promise.all(updatePromises)
       toast.success('تم حفظ الإعدادات بنجاح')
-      
+
       // Refresh settings
       await fetchSettings()
     } catch (error) {
@@ -103,7 +104,7 @@ const SettingsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">إعدادات النظام</h1>
           <p className="text-gray-600 mt-1">إدارة إعدادات النظام والتطبيق</p>
         </div>
-        <button 
+        <button
           onClick={handleSave}
           disabled={saving}
           className="btn-primary"
@@ -120,9 +121,12 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <div className="space-y-6">
+        {/* Notification Settings */}
+        <NotificationSettings />
+
         {/* PWA Settings */}
         <PWASettings />
-        
+
         {Object.entries(settingsByCategory).map(([category, categorySettings]) => (
           <div key={category} className="card">
             <div className="card-header">
@@ -131,7 +135,7 @@ const SettingsPage: React.FC = () => {
                 <h3 className="card-title">{category}</h3>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               {categorySettings.map((setting) => (
                 <div key={setting.key} className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
@@ -143,7 +147,7 @@ const SettingsPage: React.FC = () => {
                       <p className="text-sm text-gray-500 mt-1">{setting.description}</p>
                     )}
                   </div>
-                  
+
                   <div className="lg:col-span-2">
                     {setting.data_type === 'boolean' ? (
                       <select

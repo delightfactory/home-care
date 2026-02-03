@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar.tsx'
 import Header from './Header.tsx'
 import FloatingRefreshButton from '../UI/FloatingRefreshButton'
+import { PushNotificationPrompt } from '../Notifications'
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -11,10 +12,10 @@ const Layout: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+
       {/* Header */}
       <Header onMenuClick={() => setSidebarOpen(true)} />
-      
+
       {/* Main Content */}
       <div className="lg:pr-64 pt-16">
         {/* Page Content */}
@@ -24,17 +25,20 @@ const Layout: React.FC = () => {
           </div>
         </main>
       </div>
-      
+
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      
+
       {/* Floating Refresh Button */}
       <FloatingRefreshButton />
+
+      {/* Push Notification Prompt - يظهر بعد 5 ثواني للمستخدمين غير المشتركين */}
+      <PushNotificationPrompt delay={5000} variant="floating" />
     </div>
   )
 }

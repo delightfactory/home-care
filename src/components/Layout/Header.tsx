@@ -1,6 +1,7 @@
 import React from 'react'
-import { Menu, Bell, User, LogOut } from 'lucide-react'
+import { Menu, User, LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import NotificationBell from '../Notifications/NotificationBell'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -40,18 +41,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* Right side */}
           <div className="flex items-center space-x-4 space-x-reverse">
             {/* Notifications */}
-            <div className="relative">
-              <button
-                type="button"
-                className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
-              >
-                <Bell className="h-6 w-6" />
-              </button>
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
-                3
-              </span>
-            </div>
+            <NotificationBell />
 
             {/* User menu */}
             <div className="relative flex items-center space-x-3 space-x-reverse">

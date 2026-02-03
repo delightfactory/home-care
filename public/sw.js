@@ -23,7 +23,7 @@ const API_CACHE_PATTERNS = [
 // Install event - cache static files
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installing...');
-  
+
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
       .then((cache) => {
@@ -43,7 +43,7 @@ self.addEventListener('install', (event) => {
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activating...');
-  
+
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
@@ -67,7 +67,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
@@ -78,7 +78,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) {
     return;
   }
-  
+
   // Handle navigation requests
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -106,7 +106,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Handle API requests
   if (API_CACHE_PATTERNS.some(pattern => pattern.test(url.pathname))) {
     event.respondWith(
@@ -129,7 +129,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Handle static assets
   event.respondWith(
     caches.match(request)
@@ -137,21 +137,21 @@ self.addEventListener('fetch', (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        
+
         return fetch(request)
           .then((response) => {
             // Don't cache non-successful responses
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
-            
+
             // Clone and cache the response
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE_NAME)
               .then((cache) => {
                 cache.put(request, responseClone);
               });
-            
+
             return response;
           });
       })
@@ -161,7 +161,7 @@ self.addEventListener('fetch', (event) => {
 // Handle background sync
 self.addEventListener('sync', (event) => {
   console.log('Service Worker: Background sync triggered:', event.tag);
-  
+
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Handle offline data synchronization
@@ -173,16 +173,42 @@ self.addEventListener('sync', (event) => {
 // Handle push notifications
 self.addEventListener('push', (event) => {
   console.log('Service Worker: Push notification received');
-  
-  const options = {
-    body: event.data ? event.data.text() : 'إشعار جديد من نظام HOME CARE',
+
+  let notificationData = {
+    title: 'نظام HOME CARE',
+    body: 'إشعار جديد من نظام HOME CARE',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/favicon-32x32.png',
+    data: {}
+  };
+
+  // Try to parse JSON payload from Edge Function
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      notificationData = {
+        title: payload.title || notificationData.title,
+        body: payload.body || payload.message || notificationData.body,
+        icon: payload.icon || notificationData.icon,
+        badge: payload.badge || notificationData.badge,
+        data: payload.data || {}
+      };
+    } catch (e) {
+      // Fallback to text if not JSON
+      notificationData.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: notificationData.badge,
     vibrate: [200, 100, 200],
     dir: 'rtl',
     lang: 'ar',
-    tag: 'home-cleaning-notification',
+    tag: 'home-care-notification-' + Date.now(),
     requireInteraction: true,
+    data: notificationData.data,
     actions: [
       {
         action: 'view',
@@ -196,21 +222,36 @@ self.addEventListener('push', (event) => {
       }
     ]
   };
-  
+
   event.waitUntil(
-    self.registration.showNotification('نظام HOME CARE المنزلي', options)
+    self.registration.showNotification(notificationData.title, options)
   );
 });
 
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   console.log('Service Worker: Notification clicked:', event.action);
-  
+
   event.notification.close();
-  
-  if (event.action === 'view') {
+
+  // Get URL from notification data or default to home
+  const targetUrl = event.notification.data?.url || '/';
+
+  if (event.action === 'view' || event.action === '') {
     event.waitUntil(
-      clients.openWindow('/')
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        // Check if app is already open
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
+        }
+        // Open new window if app is not open
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
     );
   }
 });
@@ -220,7 +261,7 @@ async function syncOfflineData() {
   try {
     // Get offline data from IndexedDB or localStorage
     const offlineData = await getOfflineData();
-    
+
     if (offlineData && offlineData.length > 0) {
       // Sync data with server
       for (const data of offlineData) {
@@ -230,7 +271,7 @@ async function syncOfflineData() {
             headers: data.headers,
             body: data.body
           });
-          
+
           // Remove synced data from offline storage
           await removeOfflineData(data.id);
         } catch (error) {
@@ -257,11 +298,11 @@ async function removeOfflineData(id) {
 // Handle messages from main thread
 self.addEventListener('message', (event) => {
   console.log('Service Worker: Message received:', event.data);
-  
+
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
+
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_NAME });
   }

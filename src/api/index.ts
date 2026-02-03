@@ -10,6 +10,7 @@ export { ReportsAPI } from './reports'
 export { RoutesAPI } from './routes'
 export { SettingsAPI } from './settings'
 export { SurveysAPI } from './surveys'
+export { NotificationsAPI } from './notifications'
 
 // Re-export Supabase client and utilities
 export { supabase, handleSupabaseError, generateOrderNumber, calculateTransportCost } from '../lib/supabase'
@@ -22,9 +23,9 @@ export const apiCall = async <T>(
     const data = await apiFunction()
     return { data, success: true }
   } catch (error) {
-    return { 
+    return {
       error: error instanceof Error ? error.message : 'حدث خطأ غير متوقع',
-      success: false 
+      success: false
     }
   }
 }
@@ -113,7 +114,7 @@ export const getEndOfMonth = (): string => {
 export const getDateRange = (days: number): { start: string; end: string } => {
   const end = new Date()
   const start = new Date(end.getTime() - (days * 24 * 60 * 60 * 1000))
-  
+
   return {
     start: toLocalDateISO(start),
     end: toLocalDateISO(end)
@@ -134,7 +135,7 @@ export const getStatusColor = (status: string): string => {
     inactive: 'gray',
     vacation: 'orange'
   }
-  
+
   return colors[status] || 'gray'
 }
 
@@ -154,7 +155,7 @@ export const getStatusText = (status: string): string => {
     paid_card: 'مدفوع بالبطاقة',
     unpaid: 'غير مدفوع'
   }
-  
+
   return texts[status] || status
 }
 
