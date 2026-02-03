@@ -1,13 +1,13 @@
 // TechMessagesPage Component
-// صفحة الرسائل لتطبيق الفني - معزولة وبسيطة
+// صفحة الرسائل لتطبيق الفني - مع TechLayout
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, MessageSquarePlus } from 'lucide-react';
 import { useMessages } from '../../hooks/useMessages';
 import ConversationList from '../../components/Messages/ConversationList';
 import ChatView from '../../components/Messages/ChatView';
 import NewConversationModal from '../../components/Messages/NewConversationModal';
+import TechLayout from '../../components/Layout/TechLayout';
 
 const TechMessagesPage: React.FC = () => {
     const { conversationId } = useParams<{ conversationId?: string }>();
@@ -28,62 +28,51 @@ const TechMessagesPage: React.FC = () => {
         navigate(`/tech/messages/${id}`);
     };
 
-    // عرض المحادثة إذا تم اختيارها
+    // عرض المحادثة إذا تم اختيارها 
+    // استخدام ارتفاع محسوب لتجنب scroll من TechLayout
     if (conversationId) {
         return (
-            <div className="h-full flex flex-col bg-white">
-                <ChatView
-                    conversationId={conversationId}
-                    onBack={handleBack}
-                />
-            </div>
+            <TechLayout>
+                <div
+                    className="flex flex-col bg-white overflow-hidden"
+                    style={{
+                        height: 'calc(100vh - 140px)', // header (~80px) + bottom nav (~60px)
+                        marginTop: '-1rem' // تعويض padding الأعلى
+                    }}
+                >
+                    <ChatView
+                        conversationId={conversationId}
+                        onBack={handleBack}
+                    />
+                </div>
+            </TechLayout>
         );
     }
 
     // عرض قائمة المحادثات
     return (
-        <div className="h-full flex flex-col bg-white">
-            {/* Header */}
-            <div className="flex-shrink-0 p-4 border-b border-gray-100 bg-white">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => navigate('/tech/dashboard')}
-                            className="p-2 -mr-2 rounded-full hover:bg-gray-100 text-gray-600"
-                        >
-                            <ArrowRight className="w-5 h-5" />
-                        </button>
-                        <h1 className="text-xl font-bold text-gray-900">الرسائل</h1>
-                    </div>
-                    <button
-                        onClick={() => setShowNewModal(true)}
-                        className="p-2 rounded-full hover:bg-gray-100 text-indigo-600"
-                        title="محادثة جديدة"
-                    >
-                        <MessageSquarePlus className="w-6 h-6" />
-                    </button>
+        <TechLayout onRefresh={refreshConversations}>
+            <div className="h-full flex flex-col bg-white">
+                {/* Conversations List with its own header and search */}
+                <div className="flex-1 overflow-y-auto">
+                    <ConversationList
+                        conversations={conversations}
+                        selectedId={null}
+                        onSelect={handleSelectConversation}
+                        onNewChat={() => setShowNewModal(true)}
+                        isLoading={isLoading}
+                    />
                 </div>
-            </div>
 
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
-                <ConversationList
-                    conversations={conversations}
-                    selectedId={null}
-                    onSelect={handleSelectConversation}
-                    onNewChat={() => setShowNewModal(true)}
-                    isLoading={isLoading}
+                {/* New Conversation Modal */}
+                <NewConversationModal
+                    isOpen={showNewModal}
+                    onClose={() => setShowNewModal(false)}
+                    onConversationCreated={handleConversationCreated}
+                    userRole="technician"
                 />
             </div>
-
-            {/* New Conversation Modal */}
-            <NewConversationModal
-                isOpen={showNewModal}
-                onClose={() => setShowNewModal(false)}
-                onConversationCreated={handleConversationCreated}
-                userRole="technician"
-            />
-        </div>
+        </TechLayout>
     );
 };
 

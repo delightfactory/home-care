@@ -175,7 +175,7 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
 
     setIsRefreshing(true)
     lastActivityTime.current = Date.now()
-    
+
     try {
       const path = location.pathname
       const events = getRefreshEvents()
@@ -214,17 +214,17 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
       }
 
       const pageName = pageNames[path] || 'الصفحة'
-      
+
       // إظهار الإشعار فقط إذا لم يكن التحديث صامتاً والإعدادات تسمح بذلك
       if (!silent && settings.showNotifications) {
         toast.success(`تم تحديث بيانات ${pageName} بنجاح`)
       }
-      
+
       setLastRefresh(new Date())
 
     } catch (error) {
       console.error('Refresh error:', error)
-      
+
       // إظهار رسالة الخطأ دائماً (حتى في التحديث الصامت)
       if (settings.showNotifications) {
         toast.error('حدث خطأ أثناء تحديث البيانات')
@@ -237,17 +237,17 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
   // تنسيق وقت آخر تحديث
   const formatLastRefresh = useCallback(() => {
     if (!lastRefresh) return 'لم يتم التحديث بعد'
-    
+
     const now = new Date()
     const diff = now.getTime() - lastRefresh.getTime()
     const minutes = Math.floor(diff / 60000)
-    
+
     if (minutes < 1) return 'منذ لحظات'
     if (minutes < 60) return `منذ ${minutes} دقيقة`
-    
+
     const hours = Math.floor(minutes / 60)
     if (hours < 24) return `منذ ${hours} ساعة`
-    
+
     return lastRefresh.toLocaleDateString('ar-SA')
   }, [lastRefresh])
 
@@ -264,14 +264,14 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
-      
+
       // إذا كان المؤقت ما زال يعمل، فهذا يعني أنه لم يكن ضغط طويل
       // لذا يجب تنفيذ التحديث الصامت
       if (isLongPressing && !showSettings) {
         handleRefresh(true) // التحديث الصامت
       }
     }
-    
+
     setIsLongPressing(false)
   }, [isLongPressing, showSettings, handleRefresh])
 
@@ -300,7 +300,7 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
 
   return (
     <>
-      <div className="fixed bottom-4 left-4 z-50">
+      <div className="fixed bottom-24 left-4 z-50">
         {/* Main Refresh Button */}
         <div className="relative">
           {/* Tooltip */}
@@ -315,24 +315,24 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
               <div className="absolute -bottom-1 left-3 w-1.5 h-1.5 bg-gray-900 transform rotate-45 border-r border-b border-gray-700"></div>
             </div>
           )}
-      
-      <button
-        disabled={isRefreshing || !isOnline}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={handleMouseLeave}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
-        className={`
+
+          <button
+            disabled={isRefreshing || !isOnline}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={handleMouseLeave}
+            onTouchStart={handleMouseDown}
+            onTouchEnd={handleMouseUp}
+            className={`
           relative
           w-10 h-10 
-          ${isOnline 
-            ? isLongPressing 
-              ? 'bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-500/25' 
-              : 'bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-500/25'
-            : 'bg-gradient-to-br from-gray-400 to-gray-500 shadow-gray-500/25'
-          }
+          ${isOnline
+                ? isLongPressing
+                  ? 'bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-500/25'
+                  : 'bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-500/25'
+                : 'bg-gradient-to-br from-gray-400 to-gray-500 shadow-gray-500/25'
+              }
           text-white 
           rounded-full 
           shadow-lg hover:shadow-xl 
@@ -345,45 +345,45 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
           ${className}
           ${isLongPressing ? 'scale-95' : ''}
         `}
-        title={isOnline ? "تحديث البيانات (اضغط مطولاً للإعدادات)" : "غير متصل بالإنترنت"}
-        aria-label={isOnline ? "تحديث البيانات (اضغط مطولاً للإعدادات)" : "غير متصل بالإنترنت"}
-      >
-        <RefreshCw 
-          className={`
+            title={isOnline ? "تحديث البيانات (اضغط مطولاً للإعدادات)" : "غير متصل بالإنترنت"}
+            aria-label={isOnline ? "تحديث البيانات (اضغط مطولاً للإعدادات)" : "غير متصل بالإنترنت"}
+          >
+            <RefreshCw
+              className={`
             h-4 w-4 
             transition-transform duration-200
             ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'}
-          `} 
-        />
-        
-        {/* مؤشر حالة الاتصال */}
-        <div className="absolute -top-0.5 -right-0.5">
-          {isOnline ? (
-            <div className="w-2.5 h-2.5 bg-green-400 rounded-full border border-white shadow-sm" />
-          ) : (
-            <div className="w-2.5 h-2.5 bg-red-400 rounded-full border border-white shadow-sm" />
-          )}
-        </div>
-        
-        {/* مؤشر التحديث التلقائي */}
-        {settings.autoRefresh && (
-          <div className="absolute -bottom-0.5 -right-0.5">
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse border border-white shadow-sm" title="التحديث التلقائي مفعل" />
-          </div>
-        )}
-        
-        {/* مؤشر التحميل */}
-        {isRefreshing && (
-          <div className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-        )}
-         </button>
+          `}
+            />
+
+            {/* مؤشر حالة الاتصال */}
+            <div className="absolute -top-0.5 -right-0.5">
+              {isOnline ? (
+                <div className="w-2.5 h-2.5 bg-green-400 rounded-full border border-white shadow-sm" />
+              ) : (
+                <div className="w-2.5 h-2.5 bg-red-400 rounded-full border border-white shadow-sm" />
+              )}
+            </div>
+
+            {/* مؤشر التحديث التلقائي */}
+            {settings.autoRefresh && (
+              <div className="absolute -bottom-0.5 -right-0.5">
+                <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse border border-white shadow-sm" title="التحديث التلقائي مفعل" />
+              </div>
+            )}
+
+            {/* مؤشر التحميل */}
+            {isRefreshing && (
+              <div className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            )}
+          </button>
         </div>
       </div>
-      
+
       {/* Settings Modal */}
-      <FloatingRefreshSettings 
-        isOpen={showSettings} 
-        onClose={() => setShowSettings(false)} 
+      <FloatingRefreshSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </>
   )
