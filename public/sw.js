@@ -1,7 +1,9 @@
 // Service Worker for Home Cleaning Management PWA
-const CACHE_NAME = 'home-cleaning-v1.0.1';
-const STATIC_CACHE_NAME = 'static-v1.0.1';
-const DYNAMIC_CACHE_NAME = 'dynamic-v1.0.1';
+// __BUILD_TIMESTAMP__ سيتم استبداله تلقائياً عند البناء
+const BUILD_VERSION = '__BUILD_TIMESTAMP__';
+const CACHE_NAME = `home-cleaning-${BUILD_VERSION}`;
+const STATIC_CACHE_NAME = `static-${BUILD_VERSION}`;
+const DYNAMIC_CACHE_NAME = `dynamic-${BUILD_VERSION}`;
 
 // Files to cache immediately
 const STATIC_FILES = [
@@ -22,7 +24,7 @@ const API_CACHE_PATTERNS = [
 
 // Install event - cache static files
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  console.log('Service Worker: Installing new version...');
 
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -31,8 +33,10 @@ self.addEventListener('install', (event) => {
         return cache.addAll(STATIC_FILES);
       })
       .then(() => {
-        console.log('Service Worker: Static files cached successfully');
-        return self.skipWaiting();
+        console.log('Service Worker: Static files cached. Waiting for activation...');
+        // لا نستدعي skipWaiting() تلقائياً
+        // ننتظر رسالة SKIP_WAITING من التطبيق بعد موافقة المستخدم
+        // هذا يسمح للتطبيق بإظهار إشعار التحديث للمستخدم
       })
       .catch((error) => {
         console.error('Service Worker: Error caching static files:', error);

@@ -12,53 +12,77 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      // Check for service worker updates
-      navigator.serviceWorker.ready.then((reg) => {
+    if (!('serviceWorker' in navigator)) return;
+
+    let updateCheckInterval: NodeJS.Timeout;
+
+    const setupUpdateListener = async () => {
+      try {
+        const reg = await navigator.serviceWorker.ready;
         setRegistration(reg);
-        
-        // Check for updates every 30 seconds
-        const checkForUpdates = () => {
+
+        // تحقق فوري إذا كان هناك SW منتظر
+        if (reg.waiting) {
+          console.log('UpdateNotification: Found waiting SW on load');
+          setShowUpdatePrompt(true);
+        }
+
+        // الاستماع لأحداث التحديث (updatefound)
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          console.log('UpdateNotification: New SW installing...');
+
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              // عندما يصبح SW الجديد في حالة 'installed' وهناك controller حالي
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('UpdateNotification: New SW installed and waiting');
+                setShowUpdatePrompt(true);
+              }
+            });
+          }
+        });
+
+        // تحقق فوري عند بدء التطبيق
+        reg.update();
+
+        // تحقق دوري كل 5 دقائق (بدلاً من 30 ثانية)
+        updateCheckInterval = setInterval(() => {
+          console.log('UpdateNotification: Periodic update check');
           reg.update();
-        };
-        
-        const updateInterval = setInterval(checkForUpdates, 30000);
-        
-        return () => clearInterval(updateInterval);
-      });
+        }, 5 * 60 * 1000); // 5 دقائق
+      } catch (error) {
+        console.error('UpdateNotification: Error setting up update listener:', error);
+      }
+    };
 
-      // Listen for service worker updates
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // New service worker has taken control
-        if (!isUpdating) {
-          window.location.reload();
-        }
-      });
+    setupUpdateListener();
 
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'SW_UPDATE_AVAILABLE') {
-          setShowUpdatePrompt(true);
-        }
-      });
+    // الاستماع لتغيير الـ controller - لكن لا نُعيد التحميل تلقائياً
+    const handleControllerChange = () => {
+      console.log('UpdateNotification: Controller changed');
+      // نُعيد التحميل فقط إذا كان المستخدم قد ضغط "تحديث الآن"
+      if (isUpdating) {
+        window.location.reload();
+      }
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
-      // Check if there's a waiting service worker
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg && reg.waiting) {
-          setShowUpdatePrompt(true);
-        }
-      });
-    }
+    return () => {
+      if (updateCheckInterval) clearInterval(updateCheckInterval);
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    };
   }, [isUpdating]);
 
   const handleUpdate = async () => {
     if (!registration || !registration.waiting) return;
 
     setIsUpdating(true);
-    
+
     try {
       // Tell the waiting service worker to skip waiting
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      
+
       // Wait for the new service worker to take control
       await new Promise<void>((resolve) => {
         const handleControllerChange = () => {
@@ -67,9 +91,9 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
         };
         navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
       });
-      
+
       onUpdate?.();
-      
+
       // Reload the page to get the latest version
       window.location.reload();
     } catch (error) {
@@ -103,7 +127,7 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
               {isUpdating ? 'جاري التحديث...' : 'تحديث متوفر'}
             </h3>
             <p className="text-sm text-blue-100">
-              {isUpdating 
+              {isUpdating
                 ? 'يرجى الانتظار أثناء تحديث التطبيق'
                 : 'إصدار جديد من التطبيق متوفر الآن'
               }
@@ -170,12 +194,12 @@ export const useAppUpdate = () => {
   const updateApp = async () => {
     if ('serviceWorker' in navigator) {
       setIsUpdating(true);
-      
+
       try {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration && registration.waiting) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          
+
           // Wait for controller change
           await new Promise<void>((resolve) => {
             const handleControllerChange = () => {
@@ -184,7 +208,7 @@ export const useAppUpdate = () => {
             };
             navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
           });
-          
+
           window.location.reload();
         }
       } catch (error) {
