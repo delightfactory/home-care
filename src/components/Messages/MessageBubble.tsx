@@ -12,6 +12,7 @@ import {
 import { Message } from '../../api/messages';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import VoiceMessagePlayer from '../VoiceMessage/VoiceMessagePlayer';
 
 interface MessageBubbleProps {
     message: Message;
@@ -67,6 +68,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = memo(({
 
     const hasAttachment = message.attachment_url;
     const isImage = message.content_type === 'image';
+    const isAudio = hasAttachment && (
+        message.attachment_url?.includes('/voice_messages/') ||
+        message.attachment_url?.endsWith('.webm') ||
+        message.attachment_url?.endsWith('.mp3') ||
+        message.attachment_url?.endsWith('.ogg') ||
+        message.attachment_url?.endsWith('.wav')
+    );
 
     return (
         <div id={`msg-${message.id}`} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1 group`}>
@@ -146,8 +154,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = memo(({
                     </div>
                 )}
 
-                {/* File attachment */}
-                {hasAttachment && !isImage && (
+                {/* Voice message - مشغّل الصوت */}
+                {hasAttachment && isAudio && (
+                    <div className="p-2">
+                        <VoiceMessagePlayer
+                            audioUrl={message.attachment_url!}
+                            isOwn={isOwn}
+                        />
+                    </div>
+                )}
+
+                {/* File attachment - ملفات أخرى (غير صور وغير صوت) */}
+                {hasAttachment && !isImage && !isAudio && (
                     <a
                         href={message.attachment_url!}
                         target="_blank"

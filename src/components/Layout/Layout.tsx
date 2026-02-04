@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar.tsx'
 import Header from './Header.tsx'
 import FloatingRefreshButton from '../UI/FloatingRefreshButton'
+import FloatingCallButton from '../UI/FloatingCallButton'
 import { PushNotificationPrompt } from '../Notifications'
 
 const Layout: React.FC = () => {
@@ -34,8 +35,9 @@ const Layout: React.FC = () => {
         />
       )}
 
-      {/* Floating Refresh Button */}
+      {/* Floating Buttons */}
       <FloatingRefreshButton />
+      <FloatingCallButton />
 
       {/* Push Notification Prompt - يظهر بعد 5 ثواني للمستخدمين غير المشتركين */}
       <PushNotificationPrompt delay={5000} variant="floating" />

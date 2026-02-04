@@ -25,6 +25,7 @@ import { useConversation } from '../../hooks/useMessages';
 import { Message, MessagesAPI } from '../../api/messages';
 import MessageBubble from './MessageBubble';
 import { useAuth } from '../../hooks/useAuth';
+import { VoiceRecordButton } from '../VoiceMessage';
 
 interface ChatViewProps {
     conversationId: string | null;
@@ -45,6 +46,7 @@ const ChatView: React.FC<ChatViewProps> = ({
         loadMore,
         sendMessage,
         sendAttachment,
+        sendVoiceMessage,
         markAsRead,
         conversation,
         isSending
@@ -498,6 +500,16 @@ const ChatView: React.FC<ChatViewProps> = ({
                         onChange={handleFileSelect}
                         accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                         className="hidden"
+                    />
+
+                    {/* Voice Record button */}
+                    <VoiceRecordButton
+                        onSend={async (audioUrl, duration) => {
+                            // إرسال الرسالة الصوتية مع attachment_url
+                            await sendVoiceMessage(audioUrl, duration, replyTo?.id);
+                            setReplyTo(null);
+                        }}
+                        disabled={isSending}
                     />
 
                     {/* Text input */}

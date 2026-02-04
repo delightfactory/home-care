@@ -8,6 +8,7 @@ import Layout from './components/Layout/Layout'
 import LoadingSpinner from './components/UI/LoadingSpinner'
 import { AdminGuard } from './hooks/usePermissions'
 import RoutePersistence from './components/Router/RoutePersistence'
+import { VoiceCallProvider } from './components/VoiceCallProvider'
 
 // PWA Components
 import {
@@ -291,42 +292,44 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <div className="App">
-          <RoutePersistence />
+        <VoiceCallProvider>
+          <div className="App">
+            <RoutePersistence />
 
-          {/* PWA Components */}
-          <PWAUI />
+            {/* PWA Components */}
+            <PWAUI />
 
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-            <AppRoutes />
-          </Suspense>
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+              <AppRoutes />
+            </Suspense>
 
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-                fontFamily: 'Cairo, Tajawal, system-ui, sans-serif',
-                direction: 'rtl',
-                textAlign: 'right',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#22c55e',
-                  secondary: '#fff',
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
+                  fontFamily: 'Cairo, Tajawal, system-ui, sans-serif',
+                  direction: 'rtl',
+                  textAlign: 'right',
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
+                success: {
+                  iconTheme: {
+                    primary: '#22c55e',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }}
-          />
-        </div>
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
+          </div>
+        </VoiceCallProvider>
       </Router>
     </AuthProvider>
   )

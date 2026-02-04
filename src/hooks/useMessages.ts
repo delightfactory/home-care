@@ -20,6 +20,7 @@ interface UseConversationReturn {
     loadMore: () => Promise<void>;
     sendMessage: (content: string, replyToId?: string) => Promise<boolean>;
     sendAttachment: (file: File, replyToId?: string, caption?: string) => Promise<boolean>;
+    sendVoiceMessage: (audioUrl: string, duration: number, replyToId?: string) => Promise<boolean>;
     markAsRead: () => void;
     conversation: ConversationWithDetails | null;
     isSending: boolean;
@@ -335,6 +336,44 @@ export function useConversation(conversationId: string | null): UseConversationR
         }
     }, [conversationId]);
 
+    // إرسال رسالة صوتية (URL جاهز)
+    const sendVoiceMessage = useCallback(async (audioUrl: string, duration: number, replyToId?: string): Promise<boolean> => {
+        if (!conversationId || !audioUrl) return false;
+
+        setIsSending(true);
+        try {
+            // تنسيق المدة
+            const mins = Math.floor(duration / 60);
+            const secs = duration % 60;
+            const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            // إرسال الرسالة مع رابط الصوت
+            const result = await MessagesAPI.sendMessage(conversationId, {
+                content: `🎤 رسالة صوتية (${durationStr})`,
+                content_type: 'file', // استخدام file لأن audio غير موجود في النوع
+                attachment_url: audioUrl,
+                attachment_name: 'voice_message.webm',
+                attachment_mime_type: 'audio/webm',
+                reply_to_id: replyToId
+            });
+
+            // إضافة الرسالة المُرسلة للواجهة فوراً
+            if (result.success && result.data) {
+                setMessages(prev => {
+                    if (prev.some(m => m.id === result.data!.id)) return prev;
+                    return [...prev, result.data!];
+                });
+            }
+
+            return result.success;
+        } catch (error) {
+            console.error('Error sending voice message:', error);
+            return false;
+        } finally {
+            setIsSending(false);
+        }
+    }, [conversationId]);
+
     return {
         messages,
         isLoading,
@@ -342,6 +381,7 @@ export function useConversation(conversationId: string | null): UseConversationR
         loadMore,
         sendMessage,
         sendAttachment,
+        sendVoiceMessage,
         markAsRead,
         conversation,
         isSending
