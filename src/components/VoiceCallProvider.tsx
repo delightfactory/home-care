@@ -43,14 +43,12 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
         status,
         callInfo,
         isMuted,
-        isSpeakerOn,
         duration,
         startCall,
         acceptCall,
         rejectCall,
         endCall,
         toggleMute,
-        toggleSpeaker,
         isInCall,
         canStartCall
     } = useVoiceCall()
@@ -168,11 +166,9 @@ export function VoiceCallProvider({ children }: VoiceCallProviderProps) {
                 remoteName={getRemoteName()}
                 duration={duration}
                 isMuted={isMuted}
-                isSpeakerOn={isSpeakerOn}
                 isCalling={status === 'calling'}
                 isConnecting={status === 'connecting'}
                 onToggleMute={toggleMute}
-                onToggleSpeaker={toggleSpeaker}
                 onEndCall={endCall}
             />
 

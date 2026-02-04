@@ -18,7 +18,6 @@ class AgoraClient {
     private localAudioTrack: IMicrophoneAudioTrack | null = null
     private remoteAudioTracks: Map<string | number, IRemoteAudioTrack> = new Map()
     private isJoined = false
-    private _isSpeakerEnabled = true // السماعة الخارجية مفعلة افتراضياً
 
     /**
      * الحصول على عميل Agora (إنشاء إذا لم يكن موجوداً)
@@ -82,7 +81,14 @@ class AgoraClient {
                 this.localAudioTrack = null
             }
 
-            // تنظيف مسارات الصوت البعيدة
+            // إيقاف وتنظيف مسارات الصوت البعيدة
+            this.remoteAudioTracks.forEach((track) => {
+                try {
+                    track.stop()
+                } catch (e) {
+                    console.warn('⚠️ فشل إيقاف مسار صوت بعيد:', e)
+                }
+            })
             this.remoteAudioTracks.clear()
 
             // مغادرة القناة
@@ -117,35 +123,6 @@ class AgoraClient {
     }
 
     /**
-     * تبديل السماعة الخارجية / سماعة الهاتف
-     */
-    async toggleSpeaker(): Promise<boolean> {
-        this._isSpeakerEnabled = !this._isSpeakerEnabled
-
-        // تطبيق على جميع مسارات الصوت البعيدة
-        this.remoteAudioTracks.forEach((track) => {
-            try {
-                // تغيير مستوى الصوت بناءً على وضع السماعة
-                // في وضع السماعة: صوت عالي، في وضع الهاتف: صوت أقل
-                const volume = this._isSpeakerEnabled ? 100 : 50
-                track.setVolume(volume)
-            } catch (error) {
-                console.warn('⚠️ فشل تغيير وضع السماعة:', error)
-            }
-        })
-
-        console.log(this._isSpeakerEnabled ? '🔊 السماعة الخارجية' : '📱 سماعة الهاتف')
-        return this._isSpeakerEnabled
-    }
-
-    /**
-     * الحصول على حالة السماعة
-     */
-    get isSpeakerEnabled(): boolean {
-        return this._isSpeakerEnabled
-    }
-
-    /**
      * الاستماع لأحداث المستخدمين البعيدين
      */
     onRemoteUserJoined(callback: (user: IAgoraRTCRemoteUser) => void): void {
@@ -169,10 +146,6 @@ class AgoraClient {
                 if (user.audioTrack) {
                     // حفظ مسار الصوت البعيد
                     this.remoteAudioTracks.set(user.uid, user.audioTrack)
-
-                    // تطبيق وضع السماعة الحالي
-                    const volume = this._isSpeakerEnabled ? 100 : 50
-                    user.audioTrack.setVolume(volume)
 
                     // تشغيل الصوت
                     user.audioTrack.play()

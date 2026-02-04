@@ -11,7 +11,6 @@ interface VoiceCallState {
     status: CallStatus
     callInfo: CallInfo | null
     isMuted: boolean
-    isSpeakerOn: boolean
     duration: number
     error: string | null
 }
@@ -23,7 +22,6 @@ interface UseVoiceCallReturn extends VoiceCallState {
     rejectCall: () => Promise<void>
     endCall: () => Promise<void>
     toggleMute: () => Promise<void>
-    toggleSpeaker: () => Promise<void>
 
     // معلومات إضافية
     isInCall: boolean
@@ -37,13 +35,18 @@ export function useVoiceCall(): UseVoiceCallReturn {
         status: 'idle',
         callInfo: null,
         isMuted: false,
-        isSpeakerOn: true,
         duration: 0,
         error: null
     })
 
     const durationInterval = useRef<NodeJS.Timeout | null>(null)
     const ringTimeout = useRef<NodeJS.Timeout | null>(null)
+    const statusRef = useRef<CallStatus>('idle') // Ref لتجنب stale closure
+
+    // تحديث Ref عند تغيير الحالة
+    useEffect(() => {
+        statusRef.current = state.status
+    }, [state.status])
 
     // تنظيف عند الخروج
     useEffect(() => {
@@ -96,7 +99,7 @@ export function useVoiceCall(): UseVoiceCallReturn {
 
     // معالجة مكالمة واردة
     const handleIncomingCall = useCallback((call: any) => {
-        if (state.status !== 'idle') {
+        if (statusRef.current !== 'idle') {
             // مشغول، رفض تلقائي
             rejectCall()
             return
@@ -118,11 +121,11 @@ export function useVoiceCall(): UseVoiceCallReturn {
 
         // مهلة الرنين
         ringTimeout.current = setTimeout(() => {
-            if (state.status === 'ringing') {
+            if (statusRef.current === 'ringing') {
                 handleMissedCall()
             }
         }, AGORA_CONFIG.call.ringTimeout)
-    }, [state.status])
+    }, [])
 
     // معالجة تحديث المكالمة
     const handleCallUpdate = useCallback((call: any) => {
@@ -215,7 +218,6 @@ export function useVoiceCall(): UseVoiceCallReturn {
             status: 'idle',
             callInfo: null,
             isMuted: false,
-            isSpeakerOn: true,
             duration: 0,
             error: null
         })
@@ -295,7 +297,7 @@ export function useVoiceCall(): UseVoiceCallReturn {
 
             // مهلة الرنين
             ringTimeout.current = setTimeout(() => {
-                if (state.status === 'calling') {
+                if (statusRef.current === 'calling') {
                     endCall()
                 }
             }, AGORA_CONFIG.call.ringTimeout)
@@ -361,12 +363,6 @@ export function useVoiceCall(): UseVoiceCallReturn {
         setState(prev => ({ ...prev, isMuted: newMutedState }))
     }
 
-    // تبديل السماعة الخارجية
-    const toggleSpeaker = async () => {
-        const newSpeakerState = await agoraClient.toggleSpeaker()
-        setState(prev => ({ ...prev, isSpeakerOn: newSpeakerState }))
-    }
-
     return {
         ...state,
         startCall,
@@ -374,7 +370,6 @@ export function useVoiceCall(): UseVoiceCallReturn {
         rejectCall,
         endCall,
         toggleMute,
-        toggleSpeaker,
         isInCall: ['calling', 'ringing', 'connecting', 'connected'].includes(state.status),
         canStartCall: state.status === 'idle' && !!user?.id
     }

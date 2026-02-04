@@ -4,18 +4,16 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { PhoneOff, Mic, MicOff, Volume2, Volume1 } from 'lucide-react'
+import { PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react'
 
 interface ActiveCallOverlayProps {
     isVisible: boolean
     remoteName: string
     duration: number
     isMuted: boolean
-    isSpeakerOn?: boolean
     isConnecting?: boolean
     isCalling?: boolean
     onToggleMute: () => void
-    onToggleSpeaker?: () => void
     onEndCall: () => void
 }
 
@@ -31,11 +29,9 @@ const ActiveCallOverlay: React.FC<ActiveCallOverlayProps> = ({
     remoteName,
     duration,
     isMuted,
-    isSpeakerOn = true,
     isConnecting = false,
     isCalling = false,
     onToggleMute,
-    onToggleSpeaker,
     onEndCall
 }) => {
     const [waveIndex, setWaveIndex] = useState(0)
@@ -133,20 +129,6 @@ const ActiveCallOverlay: React.FC<ActiveCallOverlayProps> = ({
                             >
                                 {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                             </button>
-
-                            {/* السماعة الخارجية */}
-                            {onToggleSpeaker && (
-                                <button
-                                    onClick={onToggleSpeaker}
-                                    className={`p-2.5 rounded-full transition-all active:scale-95 ${isSpeakerOn
-                                        ? 'bg-white text-emerald-600'
-                                        : 'bg-white/20 text-white hover:bg-white/30'
-                                        }`}
-                                    title={isSpeakerOn ? 'سماعة الهاتف' : 'السماعة الخارجية'}
-                                >
-                                    {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <Volume1 className="w-5 h-5" />}
-                                </button>
-                            )}
 
                             {/* إنهاء */}
                             <button
