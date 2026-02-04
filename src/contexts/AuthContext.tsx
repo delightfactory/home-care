@@ -30,14 +30,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true
-    
+
     // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        
+
         if (!isMounted) return
-        
+
         setSession(session)
         // ابدأ جلب الملف التعريفي في الخلفية بدون انتظار
         if (session?.user) {
@@ -60,17 +60,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
-        
+
         console.log('Auth state change:', event, session?.user?.email)
-        
+
         setSession(session)
-        
+
         if (session?.user) {
           fetchUserProfile(session.user)
         } else {
           setUser(null)
         }
-        
+
         if (isMounted) {
           setLoading(false)
         }
@@ -83,13 +83,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const fetchUserProfile = async (authUser: User) => {
+  const fetchUserProfile = async (authUser: User, retryCount = 0): Promise<void> => {
+    const MAX_RETRIES = 2  // تقليل عدد المحاولات لتسريع الفشل
+    const RETRY_DELAY = 300 // تقليل التأخير من 500ms إلى 300ms
+
     try {
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+      // جلب الملف الشخصي مع timeout معقول
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
       )
-      
+
       const fetchPromise = supabase
         .from('users')
         .select(`
@@ -102,37 +105,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any
 
       if (error) {
-        console.warn('User profile not found, creating fallback:', error.message)
-        // Create a basic user profile if not found
-        const basicUser = {
+        console.warn(`User profile fetch attempt ${retryCount + 1} failed:`, error.message)
+
+        // إعادة المحاولة مع تأخير بسيط
+        if (retryCount < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+          return fetchUserProfile(authUser, retryCount + 1)
+        }
+
+        // بعد استنفاد المحاولات: استخدم RPC مباشرة
+        console.log('All retries exhausted, trying final RPC fallback...')
+        const { data: roleName } = await supabase.rpc('get_current_user_role')
+
+        const fallbackUser = {
           id: authUser.id,
           full_name: authUser.email?.split('@')[0] || 'مستخدم',
           phone: null,
           role_id: null,
-          role: { name: 'user', name_ar: 'مستخدم', permissions: {} },
+          role: {
+            name: roleName || 'pending',
+            name_ar: roleName === 'technician' ? 'فني' :
+              roleName === 'team_leader' ? 'قائد فريق' :
+                roleName === 'manager' ? 'المدير العام' :
+                  roleName === 'pending' ? 'قيد المراجعة' : 'مستخدم',
+            permissions: {}
+          },
           is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
-        setUser(basicUser as any)
+        console.log('Using fallback with role from RPC:', roleName)
+        setUser(fallbackUser as any)
         return
       }
 
       setUser(data)
     } catch (error) {
-      console.warn('Error fetching user profile, using fallback:', error)
-      // Fallback user in case of error
-      const fallbackUser = {
-        id: authUser.id,
-        full_name: authUser.email?.split('@')[0] || 'مستخدم',
-        phone: null,
-        role_id: null,
-        role: { name: 'user', name_ar: 'مستخدم', permissions: {} },
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      console.warn('Error fetching user profile:', error)
+
+      // retry بسرعة
+      if (retryCount < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+        return fetchUserProfile(authUser, retryCount + 1)
       }
-      setUser(fallbackUser as any)
+
+      // fallback نهائي
+      try {
+        const { data: roleName } = await supabase.rpc('get_current_user_role')
+        const fallbackUser = {
+          id: authUser.id,
+          full_name: authUser.email?.split('@')[0] || 'مستخدم',
+          phone: null,
+          role_id: null,
+          role: {
+            name: roleName || 'pending',
+            name_ar: roleName === 'technician' ? 'فني' :
+              roleName === 'team_leader' ? 'قائد فريق' :
+                roleName === 'manager' ? 'المدير العام' :
+                  roleName === 'pending' ? 'قيد المراجعة' : 'مستخدم',
+            permissions: {}
+          },
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        setUser(fallbackUser as any)
+      } catch (rpcError) {
+        console.error('RPC fallback also failed:', rpcError)
+        const lastResortUser = {
+          id: authUser.id,
+          full_name: authUser.email?.split('@')[0] || 'مستخدم',
+          phone: null,
+          role_id: null,
+          role: { name: 'pending', name_ar: 'قيد المراجعة', permissions: {} },
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        setUser(lastResortUser as any)
+      }
     }
   }
 

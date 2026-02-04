@@ -70,7 +70,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route Component (redirect if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, session, loading } = useAuth()
+  const { user, session, loading, signOut } = useAuth()
 
   // انتظر اكتمال التحقق حتى لا يحدث وميض
   if (loading || (session && !user)) {
@@ -83,13 +83,41 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   // إذا كان المستخدم مُسجَّل الدخول بالفعل
   if (session && user) {
-    // إذا كان فني أو قائد فريق، وجّه لتطبيق الفنى
     const userRole = (user as any)?.role?.name
+
+    // إذا كان فني أو قائد فريق فقط، وجّه لتطبيق الفنى
     if (userRole === 'team_leader' || userRole === 'technician') {
       return <Navigate to="/tech" replace />
     }
-    // باقى المستخدمين للوحة التحكم
-    return <Navigate to="/dashboard" replace />
+
+    // باقي الأدوار المعروفة للتطبيق العام - وجّه للداشبورد
+    const knownAdminRoles = ['manager', 'operations_supervisor', 'receptionist', 'admin']
+    if (knownAdminRoles.includes(userRole)) {
+      return <Navigate to="/dashboard" replace />
+    }
+
+    // للمستخدمين pending أو أدوار غير معروفة - عرض شاشة انتظار
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">حسابك قيد المراجعة</h2>
+          <p className="text-gray-600 mb-6">
+            يتم حالياً مراجعة حسابك من قبل المسؤول. سيتم إعلامك عند تفعيل حسابك.
+          </p>
+          <button
+            onClick={() => signOut()}
+            className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>
