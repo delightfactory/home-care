@@ -117,44 +117,51 @@ const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       `}
             dir="rtl"
         >
-            {/* زر التشغيل */}
-            <button
-                onClick={togglePlay}
-                disabled={isLoading}
-                className={`
-          p-2 rounded-full transition-colors flex-shrink-0
-          ${isOwn
-                        ? 'bg-white/20 hover:bg-white/30'
-                        : 'bg-gray-200 hover:bg-gray-300'
-                    }
-          ${isLoading ? 'opacity-50' : ''}
-        `}
-            >
-                {isPlaying ? (
-                    <Pause className="w-4 h-4" />
-                ) : (
-                    <Play className="w-4 h-4" />
-                )}
-            </button>
+            {/* عرض الخطأ إن وجد */}
+            {error ? (
+                <span className="text-xs opacity-70">{error}</span>
+            ) : (
+                <>
+                    {/* زر التشغيل */}
+                    <button
+                        onClick={togglePlay}
+                        disabled={isLoading}
+                        className={`
+              p-2 rounded-full transition-colors flex-shrink-0
+              ${isOwn
+                                ? 'bg-white/20 hover:bg-white/30'
+                                : 'bg-gray-200 hover:bg-gray-300'
+                            }
+              ${isLoading ? 'opacity-50' : ''}
+            `}
+                    >
+                        {isPlaying ? (
+                            <Pause className="w-4 h-4" />
+                        ) : (
+                            <Play className="w-4 h-4" />
+                        )}
+                    </button>
 
-            {/* شريط التقدم */}
-            <div className="flex-1 flex flex-col gap-1">
-                <div className="relative h-1.5 rounded-full overflow-hidden bg-white/20">
-                    <div
-                        className={`absolute inset-y-0 right-0 rounded-full transition-all ${isOwn ? 'bg-white' : 'bg-blue-500'}`}
-                        style={{ width: `${progress}%` }}
-                    />
-                </div>
+                    {/* شريط التقدم */}
+                    <div className="flex-1 flex flex-col gap-1">
+                        <div className="relative h-1.5 rounded-full overflow-hidden bg-white/20">
+                            <div
+                                className={`absolute inset-y-0 right-0 rounded-full transition-all ${isOwn ? 'bg-white' : 'bg-blue-500'}`}
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
 
-                {/* الوقت */}
-                <div className="flex justify-between text-xs opacity-70">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration)}</span>
-                </div>
-            </div>
+                        {/* الوقت */}
+                        <div className="flex justify-between text-xs opacity-70">
+                            <span>{formatTime(currentTime)}</span>
+                            <span>{formatTime(duration)}</span>
+                        </div>
+                    </div>
 
-            {/* أيقونة الصوت */}
-            <Volume2 className="w-4 h-4 opacity-60 flex-shrink-0" />
+                    {/* أيقونة الصوت */}
+                    <Volume2 className="w-4 h-4 opacity-60 flex-shrink-0" />
+                </>
+            )}
 
             {/* عنصر الصوت المخفي */}
             <audio
