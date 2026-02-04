@@ -28,7 +28,8 @@ export interface TechnicianOrder {
         name: string
         area: string | null
         address: string | null
-        // بدون phone و extra_phone
+        phone?: string | null       // للقادة فقط
+        extra_phone?: string | null // للقادة فقط
     } | null
 }
 
@@ -221,9 +222,11 @@ export class TechnicianAPI {
     }
 
     /**
-     * تحويل الطلب لنوع الفنى (إخفاء الهاتف)
+     * تحويل الطلب لنوع الفنى (إخفاء الهاتف للفنيين العاديين)
+     * @param order الطلب الكامل
+     * @param isLeader هل المستخدم قائد فريق؟ إذا نعم يظهر رقم الهاتف
      */
-    private static sanitizeOrder(order: OrderWithDetails): TechnicianOrder {
+    private static sanitizeOrder(order: OrderWithDetails, isLeader: boolean = false): TechnicianOrder {
         return {
             id: order.id,
             order_number: order.order_number || '',
@@ -247,16 +250,22 @@ export class TechnicianAPI {
                 id: order.customer.id,
                 name: order.customer.name,
                 area: order.customer.area,
-                address: order.customer.address
-                // بدون phone و extra_phone
+                address: order.customer.address,
+                // الهاتف للقادة فقط
+                ...(isLeader && {
+                    phone: order.customer.phone,
+                    extra_phone: order.customer.extra_phone
+                })
             } : null
         }
     }
 
     /**
      * جلب الطلب الحالى (أول طلب غير مكتمل فى التسلسل)
+     * @param routeId معرف خط السير
+     * @param isLeader هل المستخدم قائد فريق؟ إذا نعم يظهر رقم هاتف العميل
      */
-    static async getCurrentOrder(routeId: string): Promise<TechnicianOrder | null> {
+    static async getCurrentOrder(routeId: string, isLeader: boolean = false): Promise<TechnicianOrder | null> {
         try {
             const { data, error } = await supabase
                 .from('route_orders')
@@ -264,7 +273,7 @@ export class TechnicianAPI {
           sequence_order,
           order:orders(
             *,
-            customer:customers(id, name, area, address),
+            customer:customers(id, name, area, address, phone, extra_phone),
             items:order_items(
               *,
               service:services(id, name, name_ar)
@@ -283,7 +292,7 @@ export class TechnicianAPI {
 
             if (!currentRouteOrder?.order) return null
 
-            return this.sanitizeOrder(currentRouteOrder.order as unknown as OrderWithDetails)
+            return this.sanitizeOrder(currentRouteOrder.order as unknown as OrderWithDetails, isLeader)
         } catch (error) {
             console.error('Error getting current order:', error)
             return null

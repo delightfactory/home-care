@@ -2,7 +2,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Home, LogOut, RefreshCw } from 'lucide-react'
+import { Home, LogOut, RefreshCw, MapPin } from 'lucide-react'
 import TechBottomNav from '../Tech/TechBottomNav'
 import NotificationBell from '../Notifications/NotificationBell'
 import { PushNotificationPrompt } from '../Notifications'
@@ -11,9 +11,10 @@ interface TechLayoutProps {
     children: React.ReactNode
     onRefresh?: () => void
     isLeader?: boolean
+    routeName?: string  // اسم خط السير
 }
 
-export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isLeader = false }) => {
+export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isLeader = false, routeName }) => {
     const { user, signOut } = useAuth()
     const navigate = useNavigate()
 
@@ -75,6 +76,18 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
                         <span className="text-gray-600">{today}</span>
                         <span className="text-blue-600 font-medium">{user?.full_name || 'الفنى'}</span>
                     </div>
+
+                    {/* Route Name Banner */}
+                    {routeName && (
+                        <div className="mt-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg px-3 py-2 border border-blue-100">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-blue-500" />
+                                <span className="text-sm font-medium text-blue-700">
+                                    خط السير: {routeName}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </header>
 

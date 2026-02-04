@@ -83,7 +83,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
             if (todayRoute) {
                 // جلب الطلب الحالى والتقدم بالتوازى
                 const [order, prog] = await Promise.all([
-                    TechnicianAPI.getCurrentOrder(todayRoute.id),
+                    TechnicianAPI.getCurrentOrder(todayRoute.id, techStatus.isLeader),
                     TechnicianAPI.getTodayProgress(todayRoute.id)
                 ])
 
@@ -147,7 +147,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
 
                 // إعادة جلب البيانات للحصول على الطلب التالى
                 const [newOrder, newProgress] = await Promise.all([
-                    TechnicianAPI.getCurrentOrder(route.id),
+                    TechnicianAPI.getCurrentOrder(route.id, status.isLeader),
                     TechnicianAPI.getTodayProgress(route.id)
                 ])
 

@@ -200,6 +200,62 @@ export class UsersAPI {
   }
 
   /**
+   * إنشاء مستخدم جديد وربطه بعامل موجود
+   * يستخدم للعمال الموجودين الذين نريد إنشاء حساب لهم
+   */
+  static async createUserForExistingWorker(input: {
+    email: string
+    password: string
+    full_name: string
+    phone?: string
+    workerId: string
+  }): Promise<ApiResponse<{ user_id: string }>> {
+    try {
+      // 1. جلب role_id للفني من قاعدة البيانات
+      const { data: techRole, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', 'technician')
+        .single()
+
+      if (roleError || !techRole) {
+        return { success: false, error: 'لم يتم العثور على دور الفني' }
+      }
+
+      // 2. إنشاء المستخدم
+      const { data, error } = await callEdgeFunction<{ user_id: string }>('create_user_with_role', {
+        email: input.email,
+        password: input.password,
+        full_name: input.full_name,
+        phone: input.phone || null,
+        role_id: techRole.id,
+        is_active: true
+      })
+
+      if (error) throw new Error(error)
+
+      // 3. ربط المستخدم بالعامل
+      const { error: linkError } = await supabase
+        .from('workers')
+        .update({ user_id: data!.user_id, updated_at: new Date().toISOString() })
+        .eq('id', input.workerId)
+
+      if (linkError) {
+        console.error('Error linking user to worker:', linkError)
+        // المستخدم تم إنشاؤه لكن الربط فشل
+        return {
+          success: false,
+          error: 'تم إنشاء المستخدم لكن فشل ربطه بالعامل. يرجى ربطه يدوياً من قائمة المستخدمين الموجودين.'
+        }
+      }
+
+      return { success: true, data: data!, message: 'تم إنشاء المستخدم وربطه بالعامل بنجاح' }
+    } catch (error) {
+      return { success: false, error: handleSupabaseError(error) }
+    }
+  }
+
+  /**
    * ربط عامل موجود بمستخدم موجود
    */
   static async linkWorkerToUser(workerId: string, userId: string): Promise<ApiResponse<void>> {

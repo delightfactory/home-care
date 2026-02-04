@@ -193,8 +193,31 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
           // إلغاء الربط
           await UsersAPI.unlinkWorkerFromUser(worker.id)
         } else if (userLinkOption === 'existing' && selectedUserId && selectedUserId !== worker?.user_id) {
-          // ربط جديد
+          // ربط بمستخدم موجود
           await UsersAPI.linkWorkerToUser(worker!.id, selectedUserId)
+        } else if (userLinkOption === 'new') {
+          // إنشاء مستخدم جديد وربطه بالعامل
+          if (!newUserEmail || !newUserPassword) {
+            toast.error('يرجى إدخال البريد الإلكتروني وكلمة المرور')
+            setLoading(false)
+            return
+          }
+
+          const createResult = await UsersAPI.createUserForExistingWorker({
+            email: newUserEmail,
+            password: newUserPassword,
+            full_name: formData.name,
+            phone: formData.phone,
+            workerId: worker!.id
+          })
+
+          if (!createResult.success) {
+            toast.error(createResult.error || 'فشل في إنشاء المستخدم')
+            setLoading(false)
+            return
+          }
+
+          toast.success('تم إنشاء حساب المستخدم وربطه بالعامل بنجاح')
         }
 
         await WorkersAPI.updateWorker(worker!.id, updateData)

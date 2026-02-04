@@ -13,7 +13,8 @@ import {
     ChevronDown,
     ChevronUp,
     AlertTriangle,
-    X
+    X,
+    Phone
 } from 'lucide-react'
 import { TechnicianOrder } from '../../api/technician'
 
@@ -212,6 +213,31 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                                 </p>
                             </div>
                         </div>
+
+                        {/* Phone - للقادة فقط */}
+                        {isLeader && order.customer?.phone && (
+                            <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                    <Phone className="w-5 h-5 text-emerald-500" />
+                                </div>
+                                <div className="flex-1 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-500">رقم الهاتف</p>
+                                        <p className="font-medium text-gray-800" dir="ltr">{order.customer.phone}</p>
+                                        {order.customer.extra_phone && (
+                                            <p className="text-sm text-gray-500" dir="ltr">{order.customer.extra_phone}</p>
+                                        )}
+                                    </div>
+                                    <a
+                                        href={`tel:${order.customer.phone}`}
+                                        className="p-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/30 active:scale-95"
+                                        title="اتصال"
+                                    >
+                                        <Phone className="w-5 h-5" />
+                                    </a>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Address */}
                         <div className="flex items-start gap-3">
