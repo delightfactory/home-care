@@ -75,7 +75,14 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
   }, [isUpdating]);
 
   const handleUpdate = async () => {
-    if (!registration || !registration.waiting) return;
+    if (!registration) return;
+
+    // حتى لو لم يكن هناك waiting، نحاول إعادة التحميل
+    if (!registration.waiting) {
+      console.log('UpdateNotification: No waiting SW, forcing reload');
+      window.location.reload();
+      return;
+    }
 
     setIsUpdating(true);
 
@@ -83,22 +90,30 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
       // Tell the waiting service worker to skip waiting
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-      // Wait for the new service worker to take control
-      await new Promise<void>((resolve) => {
-        const handleControllerChange = () => {
-          navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-          resolve();
-        };
-        navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-      });
+      // Wait for the new service worker to take control (with timeout)
+      const controllerChanged = await Promise.race([
+        new Promise<boolean>((resolve) => {
+          const handleControllerChange = () => {
+            navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+            resolve(true);
+          };
+          navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+        }),
+        // Timeout after 3 seconds
+        new Promise<boolean>((resolve) => {
+          setTimeout(() => resolve(false), 3000);
+        })
+      ]);
 
       onUpdate?.();
 
-      // Reload the page to get the latest version
+      // Reload regardless of whether controllerchange happened
+      console.log('UpdateNotification: Reloading...', controllerChanged ? 'after controller change' : 'after timeout');
       window.location.reload();
     } catch (error) {
       console.error('Error updating service worker:', error);
-      setIsUpdating(false);
+      // Force reload even on error
+      window.location.reload();
     }
   };
 
@@ -197,22 +212,36 @@ export const useAppUpdate = () => {
 
       try {
         const registration = await navigator.serviceWorker.getRegistration();
-        if (registration && registration.waiting) {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-          // Wait for controller change
-          await new Promise<void>((resolve) => {
+        if (!registration) {
+          window.location.reload();
+          return;
+        }
+
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        // Wait for controller change with timeout
+        await Promise.race([
+          new Promise<void>((resolve) => {
             const handleControllerChange = () => {
               navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
               resolve();
             };
             navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-          });
+          }),
+          // Timeout after 3 seconds
+          new Promise<void>((resolve) => {
+            setTimeout(() => resolve(), 3000);
+          })
+        ]);
 
-          window.location.reload();
-        }
+        window.location.reload();
       } catch (error) {
         console.error('Error updating app:', error);
+        // Force reload even on error
+        window.location.reload();
         setIsUpdating(false);
       }
     }
