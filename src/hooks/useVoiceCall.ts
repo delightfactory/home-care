@@ -98,11 +98,27 @@ export function useVoiceCall(): UseVoiceCallReturn {
     }, [user?.id])
 
     // معالجة مكالمة واردة
-    const handleIncomingCall = useCallback((call: any) => {
+    const handleIncomingCall = useCallback(async (call: any) => {
         if (statusRef.current !== 'idle') {
             // مشغول، رفض تلقائي
             rejectCall()
             return
+        }
+
+        // جلب اسم المتصل من جدول users
+        let callerName = 'مستخدم'
+        try {
+            const { data: callerData } = await supabase
+                .from('users')
+                .select('full_name')
+                .eq('id', call.caller_id)
+                .single()
+
+            if (callerData?.full_name) {
+                callerName = callerData.full_name
+            }
+        } catch (error) {
+            console.warn('فشل جلب اسم المتصل:', error)
         }
 
         setState(prev => ({
@@ -112,7 +128,7 @@ export function useVoiceCall(): UseVoiceCallReturn {
                 id: call.id,
                 channelName: call.channel_name,
                 callerId: call.caller_id,
-                callerName: call.caller_name || 'مستخدم',
+                callerName,
                 calleeId: call.callee_id,
                 calleeName: '',
                 status: 'ringing'

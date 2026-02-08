@@ -203,29 +203,62 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const options = {
-    body: notificationData.body,
-    icon: notificationData.icon,
-    badge: notificationData.badge,
-    vibrate: [200, 100, 200],
-    dir: 'rtl',
-    lang: 'ar',
-    tag: 'home-care-notification-' + Date.now(),
-    requireInteraction: true,
-    data: notificationData.data,
-    actions: [
-      {
-        action: 'view',
-        title: 'عرض',
-        icon: '/icons/favicon-32x32.png'
-      },
-      {
-        action: 'close',
-        title: 'إغلاق',
-        icon: '/icons/favicon-32x32.png'
-      }
-    ]
-  };
+  // تحديد نوع الإشعار
+  const isIncomingCall = notificationData.data?.type === 'incoming_call';
+
+  // إعدادات مختلفة للمكالمات
+  let options;
+  if (isIncomingCall) {
+    options = {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: [500, 200, 500, 200, 500, 200, 500], // نمط اهتزاز طويل للمكالمات
+      dir: 'rtl',
+      lang: 'ar',
+      tag: 'incoming-call-' + (notificationData.data.call_id || Date.now()),
+      requireInteraction: true, // يبقى حتى التفاعل
+      renotify: true, // إعادة الإشعار حتى لو نفس الـ tag
+      silent: false, // لا يكون صامت
+      data: notificationData.data,
+      actions: [
+        {
+          action: 'answer',
+          title: 'رد 📞',
+          icon: '/icons/favicon-32x32.png'
+        },
+        {
+          action: 'decline',
+          title: 'رفض',
+          icon: '/icons/favicon-32x32.png'
+        }
+      ]
+    };
+  } else {
+    options = {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: [200, 100, 200],
+      dir: 'rtl',
+      lang: 'ar',
+      tag: 'home-care-notification-' + Date.now(),
+      requireInteraction: true,
+      data: notificationData.data,
+      actions: [
+        {
+          action: 'view',
+          title: 'عرض',
+          icon: '/icons/favicon-32x32.png'
+        },
+        {
+          action: 'close',
+          title: 'إغلاق',
+          icon: '/icons/favicon-32x32.png'
+        }
+      ]
+    };
+  }
 
   event.waitUntil(
     self.registration.showNotification(notificationData.title, options)
@@ -236,22 +269,69 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('Service Worker: Notification clicked:', event.action);
 
+  const notificationData = event.notification.data || {};
+  const isIncomingCall = notificationData.type === 'incoming_call';
+
   event.notification.close();
 
-  // Get URL from notification data or default to home
-  const targetUrl = event.notification.data?.url || '/';
+  // معالجة إجراءات المكالمات
+  if (isIncomingCall) {
+    if (event.action === 'answer' || event.action === '') {
+      // فتح التطبيق للرد على المكالمة
+      event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+          for (const client of clientList) {
+            if (client.url.includes(self.location.origin) && 'focus' in client) {
+              // إرسال رسالة للتطبيق للرد على المكالمة
+              client.postMessage({
+                type: 'INCOMING_CALL_ACTION',
+                action: 'answer',
+                callId: notificationData.call_id,
+                callerId: notificationData.caller_id,
+                callerName: notificationData.caller_name,
+                channelName: notificationData.channel_name
+              });
+              return client.focus();
+            }
+          }
+          // فتح نافذة جديدة إذا التطبيق مغلق
+          if (clients.openWindow) {
+            return clients.openWindow('/');
+          }
+        })
+      );
+    } else if (event.action === 'decline') {
+      // إرسال رسالة لرفض المكالمة
+      event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+          for (const client of clientList) {
+            if (client.url.includes(self.location.origin)) {
+              client.postMessage({
+                type: 'INCOMING_CALL_ACTION',
+                action: 'decline',
+                callId: notificationData.call_id
+              });
+              return;
+            }
+          }
+        })
+      );
+    }
+    return;
+  }
+
+  // معالجة الإشعارات العادية
+  const targetUrl = notificationData.url || '/';
 
   if (event.action === 'view' || event.action === '') {
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        // Check if app is already open
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             client.navigate(targetUrl);
             return client.focus();
           }
         }
-        // Open new window if app is not open
         if (clients.openWindow) {
           return clients.openWindow(targetUrl);
         }
