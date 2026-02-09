@@ -14,7 +14,8 @@ import {
     ChevronUp,
     AlertTriangle,
     X,
-    Phone
+    Phone,
+    MessageCircle
 } from 'lucide-react'
 import { TechnicianOrder } from '../../api/technician'
 
@@ -228,13 +229,26 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                                             <p className="text-sm text-gray-500" dir="ltr">{order.customer.extra_phone}</p>
                                         )}
                                     </div>
-                                    <a
-                                        href={`tel:${order.customer.phone}`}
-                                        className="p-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/30 active:scale-95"
-                                        title="اتصال"
-                                    >
-                                        <Phone className="w-5 h-5" />
-                                    </a>
+                                    <div className="flex items-center gap-2">
+                                        {/* زر الاتصال */}
+                                        <a
+                                            href={`tel:${order.customer.phone}`}
+                                            className="p-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/30 active:scale-95"
+                                            title="اتصال"
+                                        >
+                                            <Phone className="w-5 h-5" />
+                                        </a>
+                                        {/* زر واتساب */}
+                                        <a
+                                            href={`https://wa.me/${order.customer.phone.replace(/[\s\-\(\)]/g, '').replace(/^0/, '20')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all shadow-lg shadow-green-500/30 active:scale-95"
+                                            title="واتساب"
+                                        >
+                                            <MessageCircle className="w-5 h-5" />
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         )}

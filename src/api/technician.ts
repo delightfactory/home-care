@@ -39,6 +39,13 @@ export interface TechnicianProgress {
     percentage: number
 }
 
+// عضو الفريق
+export interface TeamMember {
+    id: string
+    name: string
+    isLeader: boolean
+}
+
 // حالة الفني - للتحقق من العضوية والقيادة
 export interface TechnicianStatus {
     workerId: string | null       // معرف العامل
@@ -48,6 +55,7 @@ export interface TechnicianStatus {
     isLeader: boolean             // هل هو قائد الفريق؟
     hasLeader: boolean            // هل الفريق له قائد؟
     leaderName: string | null     // اسم قائد الفريق
+    teamMembers: TeamMember[]     // أعضاء الفريق
 }
 
 export class TechnicianAPI {
@@ -107,7 +115,8 @@ export class TechnicianAPI {
             isTeamMember: false,
             isLeader: false,
             hasLeader: false,
-            leaderName: null
+            leaderName: null,
+            teamMembers: []
         }
 
         try {
@@ -153,11 +162,44 @@ export class TechnicianAPI {
                 isTeamMember: true,
                 isLeader: team?.leader_id === worker.id,
                 hasLeader: !!team?.leader_id,
-                leaderName: team?.leader?.name || null
+                leaderName: team?.leader?.name || null,
+                teamMembers: await this.getTeamMembers(team?.id, team?.leader_id)
             }
         } catch (error) {
             console.error('Error getting technician status:', error)
             return defaultStatus
+        }
+    }
+
+    /**
+     * جلب أعضاء الفريق
+     */
+    static async getTeamMembers(teamId: string | null, leaderId: string | null): Promise<TeamMember[]> {
+        if (!teamId) return []
+
+        try {
+            const { data, error } = await supabase
+                .from('team_members')
+                .select(`
+                    worker_id,
+                    worker:workers(id, name)
+                `)
+                .eq('team_id', teamId)
+                .is('left_at', null)
+
+            if (error || !data) {
+                console.error('Error fetching team members:', error)
+                return []
+            }
+
+            return data.map((member: any) => ({
+                id: member.worker?.id || member.worker_id,
+                name: member.worker?.name || 'غير معروف',
+                isLeader: member.worker?.id === leaderId
+            })).filter((m: TeamMember) => m.id)
+        } catch (error) {
+            console.error('Error getting team members:', error)
+            return []
         }
     }
 

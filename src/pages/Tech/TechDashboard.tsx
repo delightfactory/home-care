@@ -4,6 +4,7 @@ import { ClipboardList, AlertCircle, RefreshCw, Users, UserX, Crown } from 'luci
 import TechLayout from '../../components/Layout/TechLayout'
 import TechProgressBar from '../../components/Tech/TechProgressBar'
 import TechOrderCard from '../../components/Tech/TechOrderCard'
+import TechTeamInfo from '../../components/Tech/TechTeamInfo'
 import { useTechnicianData } from '../../hooks/useTechnicianData'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 
@@ -225,6 +226,14 @@ const TechDashboard: React.FC = () => {
                         isLeader={status.isLeader}
                     />
                 )}
+
+                {/* Team Info */}
+                <TechTeamInfo
+                    isLeader={status.isLeader}
+                    leaderName={status.leaderName}
+                    teamMembers={status.teamMembers}
+                    teamName={status.teamName}
+                />
             </div>
         </TechLayout>
     )

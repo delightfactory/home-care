@@ -43,7 +43,8 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         isTeamMember: false,
         isLeader: false,
         hasLeader: false,
-        leaderName: null
+        leaderName: null,
+        teamMembers: []
     })
 
     // حالات التحميل
