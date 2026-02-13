@@ -185,12 +185,12 @@ const TechExpenseForm: React.FC<TechExpenseFormProps> = ({ isOpen, onClose, onSu
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/60 z-50"
+                className="fixed inset-0 bg-black/60 z-[60]"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 max-h-[90vh] overflow-hidden">
+            <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-[60] max-h-[90vh] overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-5 py-4">
                     <div className="flex items-center justify-between">

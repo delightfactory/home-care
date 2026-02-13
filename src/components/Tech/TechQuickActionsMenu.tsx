@@ -29,14 +29,14 @@ const TechQuickActionsMenu: React.FC<TechQuickActionsMenuProps> = ({ isOpen, onC
             {/* Backdrop */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-50 animate-fade-in"
+                    className="fixed inset-0 bg-black/50 z-[60] animate-fade-in"
                     onClick={onClose}
                 />
             )}
 
             {/* Bottom Sheet */}
             {isOpen && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50 animate-slide-up safe-area-pb">
+                <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[60] animate-slide-up safe-area-pb pb-20">
                     {/* Handle */}
                     <div className="flex justify-center pt-3 pb-2">
                         <div className="w-12 h-1.5 bg-gray-300 rounded-full" />

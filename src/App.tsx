@@ -40,6 +40,7 @@ const SurveyFormPage = React.lazy(() => import('./pages/Survey/SurveyFormPage'))
 const SurveysPage = React.lazy(() => import('./pages/Surveys/SurveysPage'))
 const NotificationsPage = React.lazy(() => import('./pages/Notifications/NotificationsPage'))
 const MessagesPage = React.lazy(() => import('./pages/MessagesPage'))
+const FinancePage = React.lazy(() => import('./pages/Finance/FinancePage'))
 
 // Technician App - تطبيق الفنى (منفصل)
 const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
@@ -213,6 +214,14 @@ const AppRoutes: React.FC = () => {
           element={
             <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
               <RolesPage />
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="finance"
+          element={
+            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+              <FinancePage />
             </AdminGuard>
           }
         />

@@ -16,7 +16,8 @@ import {
   Shield,
   Settings,
   X,
-  MessageSquare
+  MessageSquare,
+  Landmark
 } from 'lucide-react'
 import { clsx } from '../../lib/clsx'
 
@@ -45,6 +46,7 @@ const navigation: NavigationItem[] = [
   { name: 'الفرق', href: '/teams', icon: Users2 },
   { name: 'خطوط السير', href: '/routes', icon: Map },
   { name: 'المصروفات', href: '/expenses', icon: Receipt },
+  { name: 'النظام المالي', href: '/finance', icon: Landmark, adminOnly: true },
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3, adminOnly: true },
   { name: 'استبيانات العملاء', href: '/surveys', icon: MessageSquare, adminOnly: true },

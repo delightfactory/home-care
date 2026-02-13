@@ -580,3 +580,154 @@ export interface FileUpload {
 
 // Export all database types
 export * from './database.types'
+
+// =====================
+// Financial System Types
+// =====================
+
+// Database table types - Financial
+export type Invoice = Database['public']['Tables']['invoices']['Row']
+export type InvoiceItem = Database['public']['Tables']['invoice_items']['Row']
+export type Vault = Database['public']['Tables']['vaults']['Row']
+export type VaultTransaction = Database['public']['Tables']['vault_transactions']['Row']
+export type CustodyAccount = Database['public']['Tables']['custody_accounts']['Row']
+export type CustodyTransaction = Database['public']['Tables']['custody_transactions']['Row']
+
+// Insert types - Financial
+export type InvoiceInsert = Database['public']['Tables']['invoices']['Insert']
+export type InvoiceItemInsert = Database['public']['Tables']['invoice_items']['Insert']
+export type VaultInsert = Database['public']['Tables']['vaults']['Insert']
+export type VaultTransactionInsert = Database['public']['Tables']['vault_transactions']['Insert']
+export type CustodyAccountInsert = Database['public']['Tables']['custody_accounts']['Insert']
+export type CustodyTransactionInsert = Database['public']['Tables']['custody_transactions']['Insert']
+
+// Update types - Financial
+export type InvoiceUpdate = Database['public']['Tables']['invoices']['Update']
+export type InvoiceItemUpdate = Database['public']['Tables']['invoice_items']['Update']
+export type VaultUpdate = Database['public']['Tables']['vaults']['Update']
+export type CustodyAccountUpdate = Database['public']['Tables']['custody_accounts']['Update']
+
+// Financial Enums
+export enum InvoiceStatus {
+  DRAFT = 'draft',
+  PENDING = 'pending',
+  PARTIALLY_PAID = 'partially_paid',
+  PAID = 'paid',
+  CONFIRMED = 'confirmed',
+  CANCELLED = 'cancelled',
+  REFUNDED = 'refunded'
+}
+
+export enum InvoicePaymentMethod {
+  CASH = 'cash',
+  INSTAPAY = 'instapay',
+  BANK_TRANSFER = 'bank_transfer'
+}
+
+export enum VaultType {
+  MAIN = 'main',
+  BRANCH = 'branch',
+  BANK = 'bank'
+}
+
+export enum CustodyHolderType {
+  TEAM_LEADER = 'team_leader',
+  SUPERVISOR = 'supervisor'
+}
+
+export enum CustodyTransactionType {
+  ADD = 'add',
+  WITHDRAW = 'withdraw',
+  COLLECTION = 'collection',
+  SETTLEMENT_OUT = 'settlement_out',
+  SETTLEMENT_IN = 'settlement_in',
+  RESET = 'reset',
+  REFUND = 'refund'
+}
+
+export enum VaultTransactionType {
+  DEPOSIT = 'deposit',
+  WITHDRAWAL = 'withdrawal',
+  TRANSFER_IN = 'transfer_in',
+  TRANSFER_OUT = 'transfer_out',
+  COLLECTION = 'collection',
+  REFUND = 'refund'
+}
+
+// Extended types with relationships - Financial
+export interface InvoiceWithDetails extends Invoice {
+  customer?: Customer
+  team?: Team
+  order?: Order
+  items?: InvoiceItemWithService[]
+  collected_by_user?: User
+  cancelled_by_user?: User
+}
+
+export interface InvoiceItemWithService extends InvoiceItem {
+  service?: Service
+}
+
+export interface VaultWithTransactions extends Vault {
+  transactions?: VaultTransaction[]
+  created_by_user?: User
+}
+
+export interface CustodyAccountWithDetails extends CustodyAccount {
+  user?: User
+  team?: Team
+  transactions?: CustodyTransaction[]
+}
+
+export interface CustodyTransactionWithDetails extends CustodyTransaction {
+  custody_account?: CustodyAccount
+  target_custody?: CustodyAccount
+  target_vault?: Vault
+  performed_by_user?: User
+}
+
+export interface VaultTransactionWithDetails extends VaultTransaction {
+  vault?: Vault
+  target_vault?: Vault
+  performed_by_user?: User
+}
+
+// Financial Filters
+export interface InvoiceFilters {
+  status?: string[]
+  payment_method?: string
+  customer_id?: string
+  team_id?: string
+  order_id?: string
+  date_from?: string
+  date_to?: string
+  search?: string
+}
+
+export interface VaultTransactionFilters {
+  vault_id?: string
+  type?: string[]
+  date_from?: string
+  date_to?: string
+}
+
+export interface CustodyTransactionFilters {
+  custody_id?: string
+  type?: string[]
+  date_from?: string
+  date_to?: string
+}
+
+// RPC Response type for DB functions
+export interface DbFunctionResponse {
+  success: boolean
+  error?: string
+  amount?: number
+  new_balance?: number
+  from_new_balance?: number
+  to_new_balance?: number
+  custody_new_balance?: number
+  vault_new_balance?: number
+  refunded?: boolean
+  refunded_amount?: number
+}

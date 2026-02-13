@@ -92,7 +92,7 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
             </header>
 
             {/* Main Content - with bottom padding for nav bar */}
-            <main className="flex-1 overflow-y-auto pb-20">
+            <main className="flex-1 overflow-y-auto pb-24">
                 {children}
             </main>
 

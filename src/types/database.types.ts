@@ -834,10 +834,264 @@ export interface Database {
           description?: string | null
           updated_by?: string | null
           updated_at?: string
-
-
-
-
+        }
+      }
+      // =====================
+      // Financial System Tables
+      // =====================
+      invoices: {
+        Row: {
+          id: string
+          invoice_number: string
+          order_id: string | null
+          customer_id: string
+          team_id: string | null
+          subtotal: number
+          discount: number
+          total_amount: number
+          paid_amount: number
+          status: string
+          payment_method: string | null
+          payment_proof_url: string | null
+          collected_by: string | null
+          collected_at: string | null
+          cancelled_by: string | null
+          cancelled_at: string | null
+          cancellation_reason: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          invoice_number?: string
+          order_id?: string | null
+          customer_id: string
+          team_id?: string | null
+          subtotal?: number
+          discount?: number
+          total_amount?: number
+          paid_amount?: number
+          status?: string
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          collected_by?: string | null
+          collected_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancellation_reason?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_number?: string
+          order_id?: string | null
+          customer_id?: string
+          team_id?: string | null
+          subtotal?: number
+          discount?: number
+          total_amount?: number
+          paid_amount?: number
+          status?: string
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          collected_by?: string | null
+          collected_at?: string | null
+          cancelled_by?: string | null
+          cancelled_at?: string | null
+          cancellation_reason?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      invoice_items: {
+        Row: {
+          id: string
+          invoice_id: string
+          service_id: string | null
+          description: string
+          quantity: number
+          unit_price: number
+          total_price: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          service_id?: string | null
+          description: string
+          quantity?: number
+          unit_price: number
+          total_price: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          service_id?: string | null
+          description?: string
+          quantity?: number
+          unit_price?: number
+          total_price?: number
+          created_at?: string
+        }
+      }
+      vaults: {
+        Row: {
+          id: string
+          name: string
+          name_ar: string
+          type: string
+          balance: number
+          is_active: boolean
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          name_ar: string
+          type?: string
+          balance?: number
+          is_active?: boolean
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          name_ar?: string
+          type?: string
+          balance?: number
+          is_active?: boolean
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      vault_transactions: {
+        Row: {
+          id: string
+          vault_id: string
+          target_vault_id: string | null
+          type: string
+          amount: number
+          balance_after: number
+          reference_type: string | null
+          reference_id: string | null
+          notes: string | null
+          performed_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          vault_id: string
+          target_vault_id?: string | null
+          type: string
+          amount: number
+          balance_after: number
+          reference_type?: string | null
+          reference_id?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          vault_id?: string
+          target_vault_id?: string | null
+          type?: string
+          amount?: number
+          balance_after?: number
+          reference_type?: string | null
+          reference_id?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          created_at?: string
+        }
+      }
+      custody_accounts: {
+        Row: {
+          id: string
+          user_id: string
+          holder_type: string
+          team_id: string | null
+          balance: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          holder_type: string
+          team_id?: string | null
+          balance?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          holder_type?: string
+          team_id?: string | null
+          balance?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      custody_transactions: {
+        Row: {
+          id: string
+          custody_id: string
+          type: string
+          amount: number
+          balance_after: number
+          target_custody_id: string | null
+          target_vault_id: string | null
+          reference_type: string | null
+          reference_id: string | null
+          notes: string | null
+          performed_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          custody_id: string
+          type: string
+          amount: number
+          balance_after: number
+          target_custody_id?: string | null
+          target_vault_id?: string | null
+          reference_type?: string | null
+          reference_id?: string | null
+          notes?: string | null
+          performed_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          custody_id?: string
+          type?: string
+          amount?: number
+          balance_after?: number
+          target_custody_id?: string | null
+          target_vault_id?: string | null
+          reference_type?: string | null
+          reference_id?: string | null
+          notes?: string | null
+          performed_by?: string
+          created_at?: string
         }
       }
     }
@@ -852,3 +1106,4 @@ export interface Database {
     }
   }
 }
+

@@ -19,6 +19,7 @@ const TechDashboard: React.FC = () => {
         error,
         startOrder,
         completeOrder,
+        moveToNextOrder,
         refresh
     } = useTechnicianData()
 
@@ -222,6 +223,7 @@ const TechDashboard: React.FC = () => {
                         order={currentOrder}
                         onStart={startOrder}
                         onComplete={completeOrder}
+                        onMoveToNext={moveToNextOrder}
                         loading={orderLoading}
                         isLeader={status.isLeader}
                     />

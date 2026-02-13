@@ -342,6 +342,34 @@ export class TechnicianAPI {
     }
 
     /**
+     * جلب طلب محدد بمعرفه (بما فى ذلك المكتمل) — لعرض فاتورة بعد الريفريش
+     */
+    static async getOrderById(orderId: string, isLeader: boolean = false): Promise<TechnicianOrder | null> {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    customer:customers(id, name, area, address, phone, extra_phone),
+                    items:order_items(
+                        *,
+                        service:services(id, name, name_ar)
+                    )
+                `)
+                .eq('id', orderId)
+                .single()
+
+            if (error) throw error
+            if (!data) return null
+
+            return this.sanitizeOrder(data as unknown as OrderWithDetails, isLeader)
+        } catch (error) {
+            console.error('Error getting order by ID:', error)
+            return null
+        }
+    }
+
+    /**
      * جلب تقدم اليوم
      */
     static async getTodayProgress(routeId: string): Promise<TechnicianProgress> {

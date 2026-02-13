@@ -12,6 +12,11 @@ export { SettingsAPI } from './settings'
 export { SurveysAPI } from './surveys'
 export { NotificationsAPI } from './notifications'
 
+// Financial System
+export { InvoicesAPI } from './invoices'
+export { VaultsAPI } from './vaults'
+export { CustodyAPI } from './custody'
+
 // Re-export Supabase client and utilities
 export { supabase, handleSupabaseError, generateOrderNumber, calculateTransportCost } from '../lib/supabase'
 
@@ -44,6 +49,30 @@ export const formatDateTime = (date: Date | string): string => {
 export const formatCurrency = (amount: number): string => {
   // تنسيق الأرقام مع فاصلة الآلاف فقط
   return new Intl.NumberFormat('ar-EG').format(amount)
+}
+
+// Financial utilities - shared across components
+export const getPaymentMethodLabel = (method: string | null, withEmoji = false): string => {
+  if (withEmoji) {
+    switch (method) {
+      case 'cash': return 'نقدي 💵'
+      case 'instapay': return 'Instapay 📱'
+      case 'bank_transfer': return 'تحويل بنكي 🏦'
+      default: return '-'
+    }
+  }
+  switch (method) {
+    case 'cash': return 'نقدي'
+    case 'instapay': return 'Instapay'
+    case 'bank_transfer': return 'تحويل بنكي'
+    default: return '-'
+  }
+}
+
+export const getUserNameFromRelation = (relation: any): string => {
+  if (Array.isArray(relation) && relation.length > 0) return relation[0].full_name || '-'
+  if (relation && typeof relation === 'object' && 'full_name' in relation) return relation.full_name || '-'
+  return '-'
 }
 
 export const formatTime = (time: string): string => {
@@ -124,19 +153,25 @@ export const getDateRange = (days: number): { start: string; end: string } => {
 // Status utilities
 export const getStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
-    pending: 'yellow',
-    scheduled: 'blue',
-    in_progress: 'purple',
-    completed: 'green',
-    cancelled: 'red',
-    approved: 'green',
-    rejected: 'red',
-    active: 'green',
-    inactive: 'gray',
-    vacation: 'orange'
+    pending: 'bg-yellow-100 text-yellow-800',
+    scheduled: 'bg-blue-100 text-blue-800',
+    in_progress: 'bg-purple-100 text-purple-800',
+    completed: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800',
+    approved: 'bg-green-100 text-green-800',
+    rejected: 'bg-red-100 text-red-800',
+    active: 'bg-green-100 text-green-800',
+    inactive: 'bg-gray-100 text-gray-600',
+    vacation: 'bg-orange-100 text-orange-800',
+    // Financial statuses
+    draft: 'bg-gray-100 text-gray-600',
+    partially_paid: 'bg-orange-100 text-orange-800',
+    paid: 'bg-green-100 text-green-800',
+    confirmed: 'bg-emerald-100 text-emerald-800',
+    refunded: 'bg-purple-100 text-purple-800'
   }
 
-  return colors[status] || 'gray'
+  return colors[status] || 'bg-gray-100 text-gray-600'
 }
 
 export const getStatusText = (status: string): string => {
@@ -153,7 +188,13 @@ export const getStatusText = (status: string): string => {
     vacation: 'إجازة',
     paid_cash: 'مدفوع نقداً',
     paid_card: 'مدفوع بالبطاقة',
-    unpaid: 'غير مدفوع'
+    unpaid: 'غير مدفوع',
+    // Financial statuses
+    draft: 'مسودة',
+    partially_paid: 'مدفوع جزئياً',
+    paid: 'مدفوع',
+    confirmed: 'مؤكد',
+    refunded: 'مسترد'
   }
 
   return texts[status] || status

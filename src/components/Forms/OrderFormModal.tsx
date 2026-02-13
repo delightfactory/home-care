@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Save, ShoppingCart, Plus, Trash2, User, Truck, FileText, CheckCircle, DollarSign, CreditCard, UserPlus } from 'lucide-react'
+import { Save, ShoppingCart, Plus, Trash2, User, Truck, FileText, CheckCircle, DollarSign, CreditCard, UserPlus, Hash } from 'lucide-react'
 import { OrdersAPI, ServicesAPI, TeamsAPI } from '../../api'
 import EnhancedAPI from '../../api/enhanced-api'
 import { useAuth } from '../../contexts/AuthContext'
@@ -435,13 +435,41 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
             </div>
 
             <div className="space-y-3">
-              {formData.services.map((serviceItem, index) => (
-                <div key={index} className="flex items-center space-x-3 space-x-reverse p-3 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
+              {formData.services.map((serviceItem, index) => {
+                const selectedService = services.find(s => s.id === serviceItem.service_id)
+                const currentPrice = serviceItem.custom_price ?? selectedService?.price ?? 0
+                const isCustomPrice = serviceItem.custom_price !== undefined &&
+                  serviceItem.custom_price !== selectedService?.price
+                const itemTotal = currentPrice * serviceItem.quantity
+
+                return (
+                  <div
+                    key={index}
+                    className="relative bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    {/* رقم الخدمة + زر الحذف */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-gray-400 bg-gray-100 rounded-full px-2.5 py-0.5">
+                        خدمة {index + 1}
+                      </span>
+                      {formData.services.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeService(index)}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          disabled={loading}
+                          title="حذف الخدمة"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* اختيار الخدمة */}
                     <select
                       value={serviceItem.service_id}
                       onChange={(e) => handleServiceChange(index, 'service_id', e.target.value)}
-                      className="input"
+                      className="input w-full mb-3"
                       disabled={loading}
                       name={index === 0 ? "services" : undefined}
                     >
@@ -452,52 +480,67 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                         </option>
                       ))}
                     </select>
-                  </div>
 
-                  <div className="w-28">
-                    <input
-                      type="number"
-                      value={serviceItem.custom_price ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                        handleServiceChange(index, 'custom_price', val)
-                      }}
-                      className={`input text-center ${serviceItem.custom_price !== undefined &&
-                          serviceItem.custom_price !== services.find(s => s.id === serviceItem.service_id)?.price
-                          ? 'border-orange-400 bg-orange-50 ring-1 ring-orange-300'
-                          : ''
-                        }`}
-                      min="0"
-                      step="0.01"
-                      placeholder={services.find(s => s.id === serviceItem.service_id)?.price?.toString() || 'السعر'}
-                      disabled={loading || !serviceItem.service_id}
-                      title="سعر الوحدة (ج.م)"
-                    />
-                  </div>
+                    {/* السعر والكمية — تصميم واضح ومنفصل */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* حقل السعر */}
+                      <div>
+                        <label className="flex items-center gap-1 text-xs font-semibold text-amber-700 mb-1.5">
+                          <DollarSign className="h-3.5 w-3.5" />
+                          سعر الوحدة (ج.م)
+                        </label>
+                        <input
+                          type="number"
+                          value={serviceItem.custom_price ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                            handleServiceChange(index, 'custom_price', val)
+                          }}
+                          className={`input w-full text-center font-semibold transition-colors ${isCustomPrice
+                            ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-300 text-amber-800'
+                            : 'border-gray-200'
+                            }`}
+                          min="0"
+                          step="0.01"
+                          placeholder={selectedService?.price?.toString() || '0'}
+                          disabled={loading || !serviceItem.service_id}
+                        />
+                        {isCustomPrice && selectedService && (
+                          <p className="text-[10px] text-amber-600 mt-1 text-center">
+                            الافتراضي: {selectedService.price} ج.م
+                          </p>
+                        )}
+                      </div>
 
-                  <div className="w-24">
-                    <input
-                      type="number"
-                      value={serviceItem.quantity}
-                      onChange={(e) => handleServiceChange(index, 'quantity', parseInt(e.target.value) || 1)}
-                      className="input text-center"
-                      min="1"
-                      disabled={loading}
-                    />
-                  </div>
+                      {/* حقل الكمية */}
+                      <div>
+                        <label className="flex items-center gap-1 text-xs font-semibold text-blue-700 mb-1.5">
+                          <Hash className="h-3.5 w-3.5" />
+                          الكمية
+                        </label>
+                        <input
+                          type="number"
+                          value={serviceItem.quantity}
+                          onChange={(e) => handleServiceChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                          className="input w-full text-center font-semibold border-gray-200"
+                          min="1"
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
 
-                  {formData.services.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeService(index)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
-                      disabled={loading}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                    {/* إجمالي البند */}
+                    {serviceItem.service_id && (
+                      <div className="mt-3 pt-2.5 border-t border-dashed border-gray-200 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">إجمالي البند</span>
+                        <span className="text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-0.5 rounded-lg">
+                          {itemTotal.toLocaleString('ar-EG')} ج.م
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {errors.services && (

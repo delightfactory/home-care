@@ -1,5 +1,5 @@
 // TechOrderCard - بطاقة الطلب الحالى للفنى
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
     User,
     MapPin,
@@ -15,14 +15,19 @@ import {
     AlertTriangle,
     X,
     Phone,
-    MessageCircle
+    MessageCircle,
+    SkipForward
 } from 'lucide-react'
 import { TechnicianOrder } from '../../api/technician'
+import { supabase } from '../../lib/supabase'
+import TechInvoicePreview from './TechInvoicePreview'
+import TechCollectionSheet from './TechCollectionSheet'
 
 interface TechOrderCardProps {
     order: TechnicianOrder
     onStart: () => Promise<void>
     onComplete: () => Promise<void>
+    onMoveToNext: () => Promise<void>
     loading?: boolean
     isLeader?: boolean  // هل المستخدم قائد الفريق؟
 }
@@ -57,7 +62,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -115,14 +120,51 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
     order,
     onStart,
     onComplete,
+    onMoveToNext,
     loading = false,
     isLeader = true  // افتراضياً قائد للتوافق العكسي
 }) => {
     const [showServices, setShowServices] = useState(true)
     const [confirmAction, setConfirmAction] = useState<'start' | 'complete' | null>(null)
+    const [showCollectionSheet, setShowCollectionSheet] = useState(false)
+    const [isCollected, setIsCollected] = useState(false)
+    const [invoiceId, setInvoiceId] = useState<string | null>(null)
+    const [invoiceItems, setInvoiceItems] = useState<any[] | null>(null)
+    const [invoiceAmount, setInvoiceAmount] = useState<number | null>(null)
 
     const isInProgress = order.status === 'in_progress'
     const isPending = order.status === 'pending' || order.status === 'scheduled'
+    const isCompleted = order.status === 'completed'
+
+    // جلب بيانات الفاتورة الحقيقية عند إكمال الطلب
+    useEffect(() => {
+        if (isCompleted && order.id) {
+            const fetchInvoiceData = async () => {
+                // تأخير بسيط لإعطاء الـ trigger وقت لإنشاء الفاتورة
+                await new Promise(r => setTimeout(r, 500))
+                const { data } = await supabase
+                    .from('invoices')
+                    .select(`
+                        id, total_amount, subtotal,
+                        items:invoice_items(
+                            id, quantity, unit_price, total_price, description,
+                            service:services(id, name, name_ar)
+                        )
+                    `)
+                    .eq('order_id', order.id)
+                    .maybeSingle()
+                if (data) {
+                    setInvoiceId(data.id)
+                    // استخدام بيانات الفاتورة الحقيقية بدل order.items
+                    if (data.items && data.items.length > 0) {
+                        setInvoiceItems(data.items)
+                        setInvoiceAmount(data.total_amount ?? data.subtotal ?? null)
+                    }
+                }
+            }
+            fetchInvoiceData()
+        }
+    }, [isCompleted, order.id])
 
     const handleStartClick = () => {
         setConfirmAction('start')
@@ -348,7 +390,15 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                 {/* Action Button - فقط للقادة */}
                 <div className="p-4 pt-0">
                     {isLeader ? (
-                        isPending ? (
+                        isCompleted ? (
+                            // ✅ بعد الإكمال — شارة نجاح
+                            <div className="w-full py-3 rounded-xl font-bold text-center text-green-700 bg-green-50 border-2 border-green-200">
+                                <div className="flex items-center justify-center gap-2">
+                                    <CheckCircle className="w-5 h-5" />
+                                    <span>تم إكمال الطلب بنجاح — قم بتحصيل الفاتورة</span>
+                                </div>
+                            </div>
+                        ) : isPending ? (
                             <button
                                 onClick={handleStartClick}
                                 disabled={loading}
@@ -402,6 +452,47 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* Invoice Preview — للقائد بعد إكمال الطلب — يعرض بيانات الفاتورة الحقيقية من DB */}
+            {isLeader && isCompleted && (invoiceItems || order.items).length > 0 && (
+                <TechInvoicePreview
+                    items={invoiceItems || order.items}
+                    totalAmount={invoiceAmount ?? order.total_amount}
+                    orderNumber={order.order_number}
+                    customerName={order.customer?.name || 'عميل'}
+                    onCollect={() => setShowCollectionSheet(true)}
+                    isCollected={isCollected}
+                />
+            )}
+
+            {/* Skip/Next button — بعد التحصيل أو للتخطي */}
+            {isLeader && isCompleted && (
+                <div className="mx-4 mt-3 mb-2">
+                    <button
+                        onClick={onMoveToNext}
+                        className={`w-full py-3 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-200 ${isCollected
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 active:scale-[0.98]'
+                            : 'bg-gray-100 text-gray-500 border-2 border-dashed border-gray-300'
+                            }`}
+                    >
+                        <SkipForward className="w-5 h-5" />
+                        {isCollected ? 'الطلب التالى' : 'تخطى التحصيل → الطلب التالى'}
+                    </button>
+                </div>
+            )}
+
+            {/* Collection Bottom Sheet */}
+            <TechCollectionSheet
+                isOpen={showCollectionSheet}
+                onClose={() => setShowCollectionSheet(false)}
+                invoiceId={invoiceId}
+                orderId={order.id}
+                amount={invoiceAmount ?? order.total_amount}
+                onSuccess={() => {
+                    setIsCollected(true)
+                    setShowCollectionSheet(false)
+                }}
+            />
         </>
     )
 }

@@ -85,7 +85,7 @@ const PushNotificationPrompt: React.FC<PushNotificationPromptProps> = ({
             <div
                 className={`
                     fixed z-[100] transition-all duration-300 ease-out
-                    bottom-4 right-4 left-4 sm:left-auto sm:w-[380px]
+                    bottom-20 right-4 left-4 sm:left-auto sm:w-[380px]
                     ${isAnimating
                         ? 'opacity-100 translate-y-0'
                         : 'opacity-0 translate-y-4'
