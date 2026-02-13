@@ -30,7 +30,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     customer_id: '',
     scheduled_date: '',
     scheduled_time: '',
-    services: [{ service_id: '', quantity: 1 }],
+    services: [{ service_id: '', quantity: 1, custom_price: undefined }],
     team_id: '',
     payment_status: 'unpaid' as any,
     payment_method: 'cash' as any,
@@ -45,7 +45,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [showCustomerModal, setShowCustomerModal] = useState(false)
- const { user } = useAuth()
+  const { user } = useAuth()
 
   useEffect(() => {
     if (isOpen) {
@@ -61,8 +61,9 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         scheduled_time: order.scheduled_time,
         services: (order as OrderWithDetails).items?.map((item: any) => ({
           service_id: item.service_id,
-          quantity: item.quantity
-        })) || [{ service_id: '', quantity: 1 }],
+          quantity: item.quantity,
+          custom_price: item.unit_price ?? undefined
+        })) || [{ service_id: '', quantity: 1, custom_price: undefined }],
         team_id: order.team_id || '',
         payment_status: (order.payment_status as any) || 'unpaid',
         payment_method: (order.payment_method as any) || 'cash',
@@ -74,7 +75,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         customer_id: '',
         scheduled_date: '',
         scheduled_time: '',
-        services: [{ service_id: '', quantity: 1 }],
+        services: [{ service_id: '', quantity: 1, custom_price: undefined }],
         team_id: '',
         payment_status: 'unpaid' as any,
         payment_method: 'cash' as any,
@@ -84,7 +85,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     }
     setErrors({})
 
-  
+
   }, [order, mode, isOpen])
 
   // Fetch detailed order items when editing and items not present
@@ -99,7 +100,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
             ...prev,
             services: (detailed.items ?? []).map(it => ({
               service_id: it.service_id ?? '',
-              quantity: it.quantity
+              quantity: it.quantity,
+              custom_price: it.unit_price ?? undefined
             }))
           }))
         }
@@ -117,7 +119,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         ServicesAPI.getServices(),
         TeamsAPI.getTeams()
       ])
-      
+
       setServices(servicesData)
       setTeams(teamsData)
     } catch (error) {
@@ -157,10 +159,10 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const validationErrors = validateForm()
     setErrors(validationErrors)
-    
+
     if (Object.keys(validationErrors).length > 0) {
       // Focus on first error field
       const firstErrorField = Object.keys(validationErrors)[0]
@@ -169,7 +171,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         errorElement.focus()
         errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
-      
+
       toast.error('يرجى تصحيح الأخطاء المذكورة أعلاه')
       return
     }
@@ -189,18 +191,19 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           notes: formData.notes,
           created_by: user?.id || undefined
         }
-        
+
         // Prepare order items with prices
         const orderItems = formData.services.map(serviceItem => {
           const service = services.find(s => s.id === serviceItem.service_id)
+          const price = serviceItem.custom_price ?? service?.price ?? 0
           return {
             service_id: serviceItem.service_id,
             quantity: serviceItem.quantity,
-            unit_price: service?.price || 0,
-            total_price: (service?.price || 0) * serviceItem.quantity
+            unit_price: price,
+            total_price: price * serviceItem.quantity
           }
         })
-        
+
         const response = await EnhancedAPI.createOrder(orderData, orderItems)
         if (response.success) {
           toast.success('تم إضافة الطلب بنجاح')
@@ -216,18 +219,19 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         // Recalculate items with prices
         const orderItems = formData.services.map(serviceItem => {
           const service = services.find(s => s.id === serviceItem.service_id)
+          const price = serviceItem.custom_price ?? service?.price ?? 0
           return {
             service_id: serviceItem.service_id,
             quantity: serviceItem.quantity,
-            unit_price: service?.price || 0,
-            total_price: (service?.price || 0) * serviceItem.quantity
+            unit_price: price,
+            total_price: price * serviceItem.quantity
           }
         })
         const replaceRes = await EnhancedAPI.replaceOrderItems(order!.id, orderItems)
         if (!replaceRes.success) throw new Error(replaceRes.error || 'Failed to update الخدمات')
         toast.success('تم تحديث بيانات الطلب بنجاح')
       }
-      
+
       onSuccess()
       onClose()
     } catch (error) {
@@ -241,10 +245,10 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
-    
+
     // Mark field as touched
     setTouched(prev => ({ ...prev, [name]: true }))
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
@@ -256,14 +260,24 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     setTouched(prev => ({ ...prev, [name]: true }))
   }
 
-  const handleServiceChange = (index: number, field: 'service_id' | 'quantity', value: string | number) => {
+  const handleServiceChange = (index: number, field: 'service_id' | 'quantity' | 'custom_price', value: string | number | undefined) => {
     const updatedServices = [...formData.services]
-    updatedServices[index] = {
-      ...updatedServices[index],
-      [field]: value
+    if (field === 'service_id') {
+      // عند تغيير الخدمة، نعيد السعر للافتراضي
+      const newService = services.find(s => s.id === value)
+      updatedServices[index] = {
+        ...updatedServices[index],
+        service_id: value as string,
+        custom_price: newService?.price ?? undefined
+      }
+    } else {
+      updatedServices[index] = {
+        ...updatedServices[index],
+        [field]: value
+      }
     }
     setFormData(prev => ({ ...prev, services: updatedServices }))
-    
+
     if (errors.services) {
       setErrors(prev => ({ ...prev, services: '' }))
     }
@@ -272,7 +286,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const addService = () => {
     setFormData(prev => ({
       ...prev,
-      services: [...prev.services, { service_id: '', quantity: 1 }]
+      services: [...prev.services, { service_id: '', quantity: 1, custom_price: undefined }]
     }))
   }
 
@@ -286,23 +300,24 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const calculateTotal = () => {
     return formData.services.reduce((total, serviceItem) => {
       const service = services.find(s => s.id === serviceItem.service_id)
-      return total + (service ? service.price * serviceItem.quantity : 0)
+      const price = serviceItem.custom_price ?? service?.price ?? 0
+      return total + (price * serviceItem.quantity)
     }, 0)
   }
 
   const handleCustomerCreated = async (newCustomer?: any) => {
     setShowCustomerModal(false)
-    
+
     if (newCustomer) {
       // Automatically set the new customer in the order form
       setFormData(prev => ({ ...prev, customer_id: newCustomer.id }))
       setTouched(prev => ({ ...prev, customer_id: true }))
-      
+
       // Clear any customer selection errors
       if (errors.customer_id) {
         setErrors(prev => ({ ...prev, customer_id: '' }))
       }
-      
+
       toast.success(`تم إنشاء العميل "${newCustomer.name}" بنجاح وتم تحديده في الطلب!`)
     }
   }
@@ -339,318 +354,339 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
               </div>
             </div>
           </div>
-          
-            {/* Customer Selection */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="label label-required text-gray-700 font-medium">
-                  العميل
-                </label>
-                {mode === 'create' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomerModal(true)}
-                    className="flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    disabled={loading}
-                  >
-                    <UserPlus className="h-4 w-4 ml-1" />
-                    إضافة عميل جديد
-                  </button>
-                )}
-              </div>
-              <CustomerSearchInput
-                value={formData.customer_id}
-                onChange={(customerId, _customer) => {
-                  setFormData(prev => ({ ...prev, customer_id: customerId }))
-                  setTouched(prev => ({ ...prev, customer_id: true }))
-                  // Clear error when customer is selected
-                  if (customerId && errors.customer_id) {
-                    setErrors(prev => ({ ...prev, customer_id: '' }))
-                  }
-                }}
-                onBlur={() => setTouched(prev => ({ ...prev, customer_id: true }))}
-                error={touched.customer_id ? errors.customer_id : undefined}
-                disabled={loading}
-                readOnly={mode === 'edit'}
-                required
-              />
-            </div>
 
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <DateTimePicker
-                type="date"
-                value={formData.scheduled_date}
-                onChange={(value) => setFormData(prev => ({ ...prev, scheduled_date: value }))}
-                label="تاريخ الخدمة"
-                placeholder="اختر تاريخ الخدمة"
-                required
-                disabled={loading}
-                error={errors.scheduled_date}
-                minDate={new Date().toISOString().split('T')[0]}
-                name="scheduled_date"
-              />
-
-              <DateTimePicker
-                type="time"
-                value={formData.scheduled_time}
-                onChange={(value) => setFormData(prev => ({ ...prev, scheduled_time: value }))}
-                label="وقت الخدمة"
-                placeholder="اختر وقت الخدمة"
-                required
-                disabled={loading}
-                error={errors.scheduled_time}
-                name="scheduled_time"
-              />
-            </div>
-
-            {/* Services */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="label label-required">الخدمات المطلوبة</label>
+          {/* Customer Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="label label-required text-gray-700 font-medium">
+                العميل
+              </label>
+              {mode === 'create' && (
                 <button
                   type="button"
-                  onClick={addService}
-                  className="btn-secondary text-sm"
+                  onClick={() => setShowCustomerModal(true)}
+                  className="flex items-center px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                   disabled={loading}
                 >
-                  <Plus className="h-4 w-4 ml-1" />
-                  إضافة خدمة
+                  <UserPlus className="h-4 w-4 ml-1" />
+                  إضافة عميل جديد
                 </button>
-              </div>
-
-              <div className="space-y-3">
-                {formData.services.map((serviceItem, index) => (
-                  <div key={index} className="flex items-center space-x-3 space-x-reverse p-3 border border-gray-200 rounded-lg">
-                    <div className="flex-1">
-                      <select
-                        value={serviceItem.service_id}
-                        onChange={(e) => handleServiceChange(index, 'service_id', e.target.value)}
-                        className="input"
-                        disabled={loading}
-                        name={index === 0 ? "services" : undefined}
-                      >
-                        <option value="">اختر الخدمة</option>
-                        {services.map(service => (
-                          <option key={service.id} value={service.id}>
-                            {service.name_ar} - {service.price} ج.م/{service.unit}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="w-24">
-                      <input
-                        type="number"
-                        value={serviceItem.quantity}
-                        onChange={(e) => handleServiceChange(index, 'quantity', parseInt(e.target.value) || 1)}
-                        className="input text-center"
-                        min="1"
-                        disabled={loading}
-                      />
-                    </div>
-
-                    {formData.services.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeService(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
-                        disabled={loading}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {errors.services && (
-                <p className="text-sm text-red-600 mt-1">{errors.services}</p>
-              )}
-
-              {/* Total */}
-              <div className="mt-4 p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl border border-primary-200">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <DollarSign className="h-5 w-5 text-primary-600 ml-2" />
-                    <span className="font-medium text-gray-700">إجمالي المبلغ:</span>
-                  </div>
-                  <span className="text-xl font-bold text-primary-600 bg-white px-3 py-1 rounded-lg shadow-sm">
-                    {calculateTotal().toFixed(2)} ج.م
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Team Selection */}
-            <div className="space-y-2">
-              <label className="flex items-center label text-gray-700 font-medium">
-                <User className="h-4 w-4 ml-2 text-primary-500" />
-                الفريق (اختياري)
-              </label>
-              <div className="relative">
-                <select
-                  name="team_id"
-                  value={formData.team_id}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.team_id && formData.team_id ? 'border-green-500 focus:ring-green-500' : ''}`}
-                  disabled={loading}
-                >
-                  <option value="">غير محدد</option>
-                  {teams.map(team => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                  {touched.team_id && formData.team_id ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <User className="h-4 w-4 text-gray-400" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Transport Method */}
-            <div className="space-y-2">
-              <label className="flex items-center label text-gray-700 font-medium">
-                <Truck className="h-4 w-4 ml-2 text-primary-500" />
-                وسيلة المواصلات
-              </label>
-              <div className="relative">
-                <select
-                  name="transport_method"
-                  value={formData.transport_method}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.transport_method && formData.transport_method ? 'border-green-500 focus:ring-green-500' : ''}`}
-                  disabled={loading}
-                >
-                  <option value="company_car">سيارة الشركة</option>
-                  <option value="taxi">تاكسي</option>
-                  <option value="uber">أوبر</option>
-                  <option value="public_transport">مواصلات عامة</option>
-                </select>
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                  <Truck className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Status & Method */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="flex items-center label text-gray-700 font-medium">
-                  <CreditCard className="h-4 w-4 ml-2 text-primary-500" />
-                  حالة الدفع
-                </label>
-                <div className="relative">
-                  <select
-                    name="payment_status"
-                    value={formData.payment_status}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.payment_status && formData.payment_status ? 'border-green-500 focus:ring-green-500' : ''}`}
-                    disabled={loading}
-                  >
-                    <option value="unpaid">غير مدفوع</option>
-                    <option value="paid_cash">مدفوع نقدًا</option>
-                    <option value="paid_card">مدفوع بالبطاقة</option>
-                  </select>
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <CreditCard className="h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center label text-gray-700 font-medium">
-                  <DollarSign className="h-4 w-4 ml-2 text-primary-500" />
-                  طريقة الدفع
-                </label>
-                <div className="relative">
-                  <select
-                    name="payment_method"
-                    value={formData.payment_method}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.payment_method && formData.payment_method ? 'border-green-500 focus:ring-green-500' : ''}`}
-                    disabled={loading}
-                  >
-                    <option value="cash">نقدًا</option>
-                    <option value="card">بطاقة</option>
-                  </select>
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <DollarSign className="h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <label className="flex items-center label text-gray-700 font-medium">
-                <FileText className="h-4 w-4 ml-2 text-primary-500" />
-                ملاحظات
-              </label>
-              <div className="relative">
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.notes && formData.notes ? 'border-green-500 focus:ring-green-500' : ''}`}
-                  placeholder="أدخل أي ملاحظات إضافية (اختياري)"
-                  rows={3}
-                  disabled={loading}
-                />
-                <div className="absolute left-3 top-3">
-                  {touched.notes && formData.notes ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <FileText className="h-4 w-4 text-gray-400" />
-                  )}
-                </div>
-              </div>
-              {formData.notes && (
-                <p className="text-xs text-gray-500">
-                  {formData.notes.length} حرف
-                </p>
               )}
             </div>
+            <CustomerSearchInput
+              value={formData.customer_id}
+              onChange={(customerId, _customer) => {
+                setFormData(prev => ({ ...prev, customer_id: customerId }))
+                setTouched(prev => ({ ...prev, customer_id: true }))
+                // Clear error when customer is selected
+                if (customerId && errors.customer_id) {
+                  setErrors(prev => ({ ...prev, customer_id: '' }))
+                }
+              }}
+              onBlur={() => setTouched(prev => ({ ...prev, customer_id: true }))}
+              error={touched.customer_id ? errors.customer_id : undefined}
+              disabled={loading}
+              readOnly={mode === 'edit'}
+              required
+            />
+          </div>
 
-            {/* Actions */}
-            <div className="flex justify-end space-x-3 space-x-reverse pt-6 border-t border-gray-100">
+          {/* Date and Time */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DateTimePicker
+              type="date"
+              value={formData.scheduled_date}
+              onChange={(value) => setFormData(prev => ({ ...prev, scheduled_date: value }))}
+              label="تاريخ الخدمة"
+              placeholder="اختر تاريخ الخدمة"
+              required
+              disabled={loading}
+              error={errors.scheduled_date}
+              minDate={new Date().toISOString().split('T')[0]}
+              name="scheduled_date"
+            />
+
+            <DateTimePicker
+              type="time"
+              value={formData.scheduled_time}
+              onChange={(value) => setFormData(prev => ({ ...prev, scheduled_time: value }))}
+              label="وقت الخدمة"
+              placeholder="اختر وقت الخدمة"
+              required
+              disabled={loading}
+              error={errors.scheduled_time}
+              name="scheduled_time"
+            />
+          </div>
+
+          {/* Services */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="label label-required">الخدمات المطلوبة</label>
               <button
                 type="button"
-                onClick={onClose}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                onClick={addService}
+                className="btn-secondary text-sm"
                 disabled={loading}
               >
-                إلغاء
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <LoadingSpinner size="small" />
-                    <span className="mr-2">جاري الحفظ...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Save className="h-4 w-4 ml-2" />
-                    {mode === 'create' ? 'إضافة الطلب' : 'حفظ التغييرات'}
-                  </div>
-                )}
+                <Plus className="h-4 w-4 ml-1" />
+                إضافة خدمة
               </button>
             </div>
+
+            <div className="space-y-3">
+              {formData.services.map((serviceItem, index) => (
+                <div key={index} className="flex items-center space-x-3 space-x-reverse p-3 border border-gray-200 rounded-lg">
+                  <div className="flex-1">
+                    <select
+                      value={serviceItem.service_id}
+                      onChange={(e) => handleServiceChange(index, 'service_id', e.target.value)}
+                      className="input"
+                      disabled={loading}
+                      name={index === 0 ? "services" : undefined}
+                    >
+                      <option value="">اختر الخدمة</option>
+                      {services.map(service => (
+                        <option key={service.id} value={service.id}>
+                          {service.name_ar} - {service.price} ج.م/{service.unit}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="w-28">
+                    <input
+                      type="number"
+                      value={serviceItem.custom_price ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                        handleServiceChange(index, 'custom_price', val)
+                      }}
+                      className={`input text-center ${serviceItem.custom_price !== undefined &&
+                          serviceItem.custom_price !== services.find(s => s.id === serviceItem.service_id)?.price
+                          ? 'border-orange-400 bg-orange-50 ring-1 ring-orange-300'
+                          : ''
+                        }`}
+                      min="0"
+                      step="0.01"
+                      placeholder={services.find(s => s.id === serviceItem.service_id)?.price?.toString() || 'السعر'}
+                      disabled={loading || !serviceItem.service_id}
+                      title="سعر الوحدة (ج.م)"
+                    />
+                  </div>
+
+                  <div className="w-24">
+                    <input
+                      type="number"
+                      value={serviceItem.quantity}
+                      onChange={(e) => handleServiceChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                      className="input text-center"
+                      min="1"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {formData.services.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeService(index)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded"
+                      disabled={loading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {errors.services && (
+              <p className="text-sm text-red-600 mt-1">{errors.services}</p>
+            )}
+
+            {/* Total */}
+            <div className="mt-4 p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl border border-primary-200">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <DollarSign className="h-5 w-5 text-primary-600 ml-2" />
+                  <span className="font-medium text-gray-700">إجمالي المبلغ:</span>
+                </div>
+                <span className="text-xl font-bold text-primary-600 bg-white px-3 py-1 rounded-lg shadow-sm">
+                  {calculateTotal().toFixed(2)} ج.م
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Team Selection */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <User className="h-4 w-4 ml-2 text-primary-500" />
+              الفريق (اختياري)
+            </label>
+            <div className="relative">
+              <select
+                name="team_id"
+                value={formData.team_id}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.team_id && formData.team_id ? 'border-green-500 focus:ring-green-500' : ''}`}
+                disabled={loading}
+              >
+                <option value="">غير محدد</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.team_id && formData.team_id ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <User className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Transport Method */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <Truck className="h-4 w-4 ml-2 text-primary-500" />
+              وسيلة المواصلات
+            </label>
+            <div className="relative">
+              <select
+                name="transport_method"
+                value={formData.transport_method}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.transport_method && formData.transport_method ? 'border-green-500 focus:ring-green-500' : ''}`}
+                disabled={loading}
+              >
+                <option value="company_car">سيارة الشركة</option>
+                <option value="taxi">تاكسي</option>
+                <option value="uber">أوبر</option>
+                <option value="public_transport">مواصلات عامة</option>
+              </select>
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Truck className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Status & Method */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <CreditCard className="h-4 w-4 ml-2 text-primary-500" />
+                حالة الدفع
+              </label>
+              <div className="relative">
+                <select
+                  name="payment_status"
+                  value={formData.payment_status}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.payment_status && formData.payment_status ? 'border-green-500 focus:ring-green-500' : ''}`}
+                  disabled={loading}
+                >
+                  <option value="unpaid">غير مدفوع</option>
+                  <option value="paid_cash">مدفوع نقدًا</option>
+                  <option value="paid_card">مدفوع بالبطاقة</option>
+                </select>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <CreditCard className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center label text-gray-700 font-medium">
+                <DollarSign className="h-4 w-4 ml-2 text-primary-500" />
+                طريقة الدفع
+              </label>
+              <div className="relative">
+                <select
+                  name="payment_method"
+                  value={formData.payment_method}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.payment_method && formData.payment_method ? 'border-green-500 focus:ring-green-500' : ''}`}
+                  disabled={loading}
+                >
+                  <option value="cash">نقدًا</option>
+                  <option value="card">بطاقة</option>
+                </select>
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <DollarSign className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <FileText className="h-4 w-4 ml-2 text-primary-500" />
+              ملاحظات
+            </label>
+            <div className="relative">
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.notes && formData.notes ? 'border-green-500 focus:ring-green-500' : ''}`}
+                placeholder="أدخل أي ملاحظات إضافية (اختياري)"
+                rows={3}
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-3">
+                {touched.notes && formData.notes ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <FileText className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+            {formData.notes && (
+              <p className="text-xs text-gray-500">
+                {formData.notes.length} حرف
+              </p>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 space-x-reverse pt-6 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              disabled={loading}
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <LoadingSpinner size="small" />
+                  <span className="mr-2">جاري الحفظ...</span>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <Save className="h-4 w-4 ml-2" />
+                  {mode === 'create' ? 'إضافة الطلب' : 'حفظ التغييرات'}
+                </div>
+              )}
+            </button>
+          </div>
         </form>
       )}
-      
+
       {/* Customer Creation Modal */}
       <CustomerFormModal
         isOpen={showCustomerModal}

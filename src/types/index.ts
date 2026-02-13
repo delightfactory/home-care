@@ -295,6 +295,7 @@ export interface OrderForm {
   services: {
     service_id: string
     quantity: number
+    custom_price?: number
   }[]
   team_id?: string
   payment_status?: PaymentStatus
