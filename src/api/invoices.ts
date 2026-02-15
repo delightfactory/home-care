@@ -38,7 +38,8 @@ export class InvoicesAPI {
           customer:customers(id, name, phone),
           team:teams(id, name),
           order:orders(id, order_number),
-          items:invoice_items(*, service:services(id, name, name_ar))
+          items:invoice_items(*, service:services(id, name, name_ar)),
+          collected_by_user:users!invoices_collected_by_fkey(id, full_name)
         `, { count: 'exact' })
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1)

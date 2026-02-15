@@ -1,9 +1,9 @@
 // Expenses API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
-import { 
-  Expense, 
+import {
+  Expense,
   ExpenseCategory,
-  ExpenseInsert, 
+  ExpenseInsert,
   ExpenseUpdate,
   ExpenseWithDetails,
   ExpenseFilters,
@@ -67,7 +67,7 @@ export class ExpensesAPI {
   ): Promise<PaginatedResponse<ExpenseWithDetails>> {
     try {
       const offset = (page - 1) * limit;
-      
+
       // Basic query using indexed columns
       let query = supabase
         .from('expenses')
@@ -134,17 +134,17 @@ export class ExpensesAPI {
             .from('expense_categories')
             .select('id, name, name_ar')
             .in('id', categoryIds) : Promise.resolve({ data: [], error: null }),
-          
+
           orderIds.length ? supabase
             .from('orders')
             .select('id, order_number, customer:customers(name)')
             .in('id', orderIds) : Promise.resolve({ data: [], error: null }),
-          
+
           teamIds.length ? supabase
             .from('teams')
             .select('id, name')
             .in('id', teamIds) : Promise.resolve({ data: [], error: null }),
-          
+
           userIds.length ? supabase
             .from('users')
             .select('id, full_name')
@@ -268,7 +268,7 @@ export class ExpensesAPI {
     }
   }
 
-  // Approve expense
+  // Approve expense (legacy - بدون خصم مالي)
   static async approveExpense(
     id: string,
     approvedBy: string
@@ -289,6 +289,86 @@ export class ExpensesAPI {
       return {
         success: true,
         message: 'تم الموافقة على المصروف بنجاح'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  // اعتماد مصروف مع خصم من عهدة المنشئ (RPC ذري)
+  static async approveExpenseFromCustody(
+    expenseId: string,
+    approvedBy: string
+  ): Promise<ApiResponse<{ new_custody_balance: number; deducted_amount: number; custody_id: string }>> {
+    try {
+      const { data, error } = await supabase.rpc('approve_expense_from_custody', {
+        p_expense_id: expenseId,
+        p_approved_by: approvedBy
+      })
+
+      if (error) throw error
+
+      const result = data as any
+      if (!result?.success) {
+        return {
+          success: false,
+          error: result?.error || 'فشل في اعتماد المصروف',
+          data: result
+        } as any
+      }
+
+      return {
+        success: true,
+        data: {
+          new_custody_balance: result.new_custody_balance,
+          deducted_amount: result.deducted_amount,
+          custody_id: result.custody_id
+        },
+        message: result.message || 'تم اعتماد المصروف وخصمه من العهدة'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: handleSupabaseError(error)
+      }
+    }
+  }
+
+  // اعتماد مصروف مع خصم من خزنة (RPC ذري)
+  static async approveExpenseFromVault(
+    expenseId: string,
+    vaultId: string,
+    approvedBy: string
+  ): Promise<ApiResponse<{ new_vault_balance: number; deducted_amount: number; vault_id: string }>> {
+    try {
+      const { data, error } = await supabase.rpc('approve_expense_from_vault', {
+        p_expense_id: expenseId,
+        p_vault_id: vaultId,
+        p_approved_by: approvedBy
+      })
+
+      if (error) throw error
+
+      const result = data as any
+      if (!result?.success) {
+        return {
+          success: false,
+          error: result?.error || 'فشل في اعتماد المصروف',
+          data: result
+        } as any
+      }
+
+      return {
+        success: true,
+        data: {
+          new_vault_balance: result.new_vault_balance,
+          deducted_amount: result.deducted_amount,
+          vault_id: result.vault_id
+        },
+        message: result.message || 'تم اعتماد المصروف وخصمه من الخزنة'
       }
     } catch (error) {
       return {

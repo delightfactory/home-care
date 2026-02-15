@@ -1,12 +1,12 @@
 // Enhanced API Integration with Full Performance Optimization
 // تكامل شامل لـ API مع تحسينات الأداء الكاملة
 
-import { 
-  performanceMonitor, 
-  CacheManager, 
+import {
+  performanceMonitor,
+  CacheManager,
   BatchProcessor,
   ConnectionManager,
-  MemoryMonitor 
+  MemoryMonitor
 } from '../utils/performance';
 
 // Import all optimized APIs
@@ -20,9 +20,9 @@ import { ExpensesAPI } from './expenses';
 import { ServicesAPI } from './services';
 import { RoutesAPI } from './routes';
 
-import { 
-  PaginatedResponse, 
-  OrderWithDetails, 
+import {
+  PaginatedResponse,
+  OrderWithDetails,
   CustomerWithOrders,
   WorkerWithTeam,
   TeamWithMembers,
@@ -45,7 +45,7 @@ import { TeamInsert, TeamUpdate } from '../types';
 
 // Enhanced API wrapper with comprehensive optimization
 export class EnhancedAPI {
-  
+
   // ===== ORDERS API =====
   static async getOrders(
     filters?: OrderFilters,
@@ -55,7 +55,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<OrderWithDetails>> {
     const cacheKey = `enhanced:orders:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<OrderWithDetails>>(cacheKey);
       if (cached) return cached;
@@ -67,13 +67,13 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           OrdersAPI.getOrders(filters, page, limit, includeDetails)
         );
-        
+
         if (useCache) {
           // Cache based on data sensitivity
           const ttl = includeDetails ? 120000 : 60000; // 2min for details, 1min for basic
           CacheManager.set(cacheKey, result, ttl);
         }
-        
+
         return result;
       }
     );
@@ -81,7 +81,7 @@ export class EnhancedAPI {
 
   static async getOrderById(id: string, useCache = true): Promise<OrderWithDetails | undefined> {
     const cacheKey = `enhanced:order:${id}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get<OrderWithDetails>(cacheKey);
       if (cached) return cached;
@@ -93,11 +93,11 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           OrdersAPI.getOrderById(id)
         );
-        
+
         if (result && useCache) {
           CacheManager.set(cacheKey, result, 300000); // 5 minutes
         }
-        
+
         return result;
       }
     );
@@ -110,14 +110,14 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           OrdersAPI.createOrder(orderData, items)
         ) as ApiResponse<OrderWithDetails>;
-        
+
         // Clear related caches
         this.clearCache('enhanced:orders');
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
         eventBus.emit('routes:changed');
-        
+
         return result;
       }
     );
@@ -130,7 +130,7 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           OrdersAPI.updateOrder(id, orderData)
         );
-        
+
         // Clear related caches
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
@@ -138,7 +138,7 @@ export class EnhancedAPI {
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
         eventBus.emit('routes:changed');
-        
+
         return result;
       }
     );
@@ -172,7 +172,7 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           OrdersAPI.updateOrderStatus(id, status as any, notes, userId)
         );
-        
+
         // Clear related caches
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
@@ -180,7 +180,7 @@ export class EnhancedAPI {
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
         eventBus.emit('routes:changed');
-        
+
         return result;
       }
     );
@@ -193,7 +193,7 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           OrdersAPI.deleteOrder(id)
         );
-        
+
         // Clear related caches
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
@@ -201,7 +201,7 @@ export class EnhancedAPI {
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
         eventBus.emit('routes:changed');
-        
+
         return result;
       }
     );
@@ -294,7 +294,7 @@ export class EnhancedAPI {
     );
   }
 
-// ===== ROUTES COUNTS =====
+  // ===== ROUTES COUNTS =====
   static async getRouteCounts(useCache = true): Promise<RouteCounts> {
     const cacheKey = 'enhanced:routes:counts';
     if (useCache) {
@@ -389,6 +389,42 @@ export class EnhancedAPI {
     );
   }
 
+  static async approveExpenseFromCustody(expenseId: string, approvedBy: string): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.approveFromCustody',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.approveExpenseFromCustody(expenseId, approvedBy)
+        );
+
+        this.clearCache('enhanced:expenses');
+        this.clearCache(`enhanced:expense:${expenseId}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result;
+      }
+    );
+  }
+
+  static async approveExpenseFromVault(expenseId: string, vaultId: string, approvedBy: string): Promise<ApiResponse<any>> {
+    return performanceMonitor.monitorQuery(
+      'enhanced.expenses.approveFromVault',
+      async () => {
+        const result = await ConnectionManager.executeWithConnection(() =>
+          ExpensesAPI.approveExpenseFromVault(expenseId, vaultId, approvedBy)
+        );
+
+        this.clearCache('enhanced:expenses');
+        this.clearCache(`enhanced:expense:${expenseId}`);
+        this.clearCache('enhanced:dashboard');
+        eventBus.emit('expenses:changed');
+
+        return result;
+      }
+    );
+  }
+
   static async rejectExpense(id: string, reason: string, rejectedBy: string): Promise<ApiResponse<void>> {
     return performanceMonitor.monitorQuery(
       'enhanced.expenses.reject',
@@ -407,7 +443,7 @@ export class EnhancedAPI {
     );
   }
 
-// ===== EXPENSES COUNTS =====
+  // ===== EXPENSES COUNTS =====
   static async getExpenseCounts(useCache = true): Promise<ExpenseCounts> {
     const cacheKey = 'enhanced:expenses:counts';
     if (useCache) {
@@ -467,7 +503,7 @@ export class EnhancedAPI {
     );
   }
 
-// ===== CUSTOMERS API =====
+  // ===== CUSTOMERS API =====
   static async getCustomers(
     filters?: CustomerFilters,
     page = 1,
@@ -475,7 +511,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<CustomerWithOrders>> {
     const cacheKey = `enhanced:customers:${JSON.stringify(filters)}:${page}:${limit}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<CustomerWithOrders>>(cacheKey);
       if (cached) return cached;
@@ -487,11 +523,11 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           CustomersAPI.getCustomers(filters, page, limit)
         );
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 180000); // 3 minutes
         }
-        
+
         return result;
       }
     );
@@ -512,7 +548,7 @@ export class EnhancedAPI {
           1,
           limit
         );
-        
+
         CacheManager.set(cacheKey, result.data, 60000); // 1 minute for search
         return result.data;
       }
@@ -521,7 +557,7 @@ export class EnhancedAPI {
 
   static async getCustomerById(id: string, useCache = true): Promise<CustomerWithOrders | undefined> {
     const cacheKey = `enhanced:customer:${id}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get<CustomerWithOrders>(cacheKey);
       if (cached) return cached;
@@ -533,11 +569,11 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           CustomersAPI.getCustomerById(id)
         );
-        
+
         if (result && useCache) {
           CacheManager.set(cacheKey, result, 300000); // 5 minutes
         }
-        
+
         return result;
       }
     );
@@ -550,11 +586,11 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           CustomersAPI.createCustomer(customerData)
         );
-        
+
         // Clear related caches
         this.clearCache('enhanced:customers');
         eventBus.emit('customers:changed');
-        
+
         return result;
       }
     );
@@ -567,12 +603,12 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           CustomersAPI.updateCustomer(id, customerData)
         );
-        
+
         // Clear related caches
         this.clearCache('enhanced:customers');
         eventBus.emit('customers:changed');
         this.clearCache(`enhanced:customer:${id}`);
-        
+
         return result;
       }
     );
@@ -585,12 +621,12 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           CustomersAPI.deleteCustomer(id)
         );
-        
+
         // Clear related caches
         this.clearCache('enhanced:customers');
         eventBus.emit('customers:changed');
         this.clearCache(`enhanced:customer:${id}`);
-        
+
         return result;
       }
     );
@@ -599,7 +635,7 @@ export class EnhancedAPI {
   // ===== WORKERS & TEAMS API =====
   static async getWorkers(filters?: WorkerFilters, useCache = true): Promise<WorkerWithTeam[]> {
     const cacheKey = `enhanced:workers:${JSON.stringify(filters)}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get<WorkerWithTeam[]>(cacheKey);
       if (cached) return cached;
@@ -611,11 +647,11 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           WorkersAPI.getWorkers(filters)
         );
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 300000); // 5 minutes
         }
-        
+
         return result;
       }
     );
@@ -623,7 +659,7 @@ export class EnhancedAPI {
 
   static async getTeams(useCache = true): Promise<TeamWithMembers[]> {
     const cacheKey = 'enhanced:teams:all';
-    
+
     if (useCache) {
       const cached = CacheManager.get<TeamWithMembers[]>(cacheKey);
       if (cached) return cached;
@@ -635,17 +671,17 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           TeamsAPI.getTeams()
         );
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 300000); // 5 minutes
         }
-        
+
         return result;
       }
     );
   }
 
-    // ===== TEAMS MUTATIONS =====
+  // ===== TEAMS MUTATIONS =====
   static async createTeam(teamData: TeamInsert, memberIds: string[] = []): Promise<ApiResponse<TeamWithMembers>> {
     return performanceMonitor.monitorQuery(
       'enhanced.teams.create',
@@ -767,7 +803,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<ExpenseWithDetails>> {
     const cacheKey = `enhanced:expenses:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<ExpenseWithDetails>>(cacheKey);
       if (cached) return cached;
@@ -779,12 +815,12 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           ExpensesAPI.getExpenses(filters, page, limit, includeDetails)
         );
-        
+
         if (useCache) {
           const ttl = includeDetails ? 120000 : 60000;
           CacheManager.set(cacheKey, result, ttl);
         }
-        
+
         return result;
       }
     );
@@ -793,7 +829,7 @@ export class EnhancedAPI {
   // ===== SERVICES API =====
   static async getServices(useCache = true): Promise<ServiceWithCategory[]> {
     const cacheKey = 'enhanced:services:all';
-    
+
     if (useCache) {
       const cached = CacheManager.get<ServiceWithCategory[]>(cacheKey);
       if (cached) return cached;
@@ -805,11 +841,11 @@ export class EnhancedAPI {
         const result = await ConnectionManager.executeWithConnection(() =>
           ServicesAPI.getServices()
         );
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 600000); // 10 minutes (services change rarely)
         }
-        
+
         return result;
       }
     );
@@ -818,7 +854,7 @@ export class EnhancedAPI {
   // ===== REPORTS API =====
   static async getDashboardData(date: string, useCache = true) {
     const cacheKey = `enhanced:dashboard:${date}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
       if (cached) return cached;
@@ -852,11 +888,11 @@ export class EnhancedAPI {
           teams: teamSummaries,
           generated_at: new Date().toISOString()
         };
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 600000); // 10 minutes
         }
-        
+
         return result;
       }
     );
@@ -865,7 +901,7 @@ export class EnhancedAPI {
   // Get comprehensive analytics dashboard
   static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', dateFrom?: string, dateTo?: string, useCache = true) {
     const cacheKey = `enhanced:analytics:${period}:${dateFrom ?? ''}:${dateTo ?? ''}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
       if (cached) return cached;
@@ -875,11 +911,11 @@ export class EnhancedAPI {
       'enhanced.reports.getAnalytics',
       async () => {
         const result = await ReportsAPI.getAnalyticsDashboard(period, dateFrom, dateTo);
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 900000); // 15 minutes
         }
-        
+
         return result;
       }
     );
@@ -908,7 +944,7 @@ export class EnhancedAPI {
 
   static async getWeeklyStats(weekOffset = 0, useCache = true) {
     const cacheKey = `enhanced:weekly:${weekOffset}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
       if (cached) return cached;
@@ -934,11 +970,11 @@ export class EnhancedAPI {
 
         // Fallback to original API
         const result = await ReportsAPI.getWeeklyStats(weekOffset);
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 1800000); // 30 minutes
         }
-        
+
         return result;
       }
     );
@@ -947,7 +983,7 @@ export class EnhancedAPI {
   // Get quarterly statistics with optimized views
   static async getQuarterlyStats(yearOffset = 0, useCache = true) {
     const cacheKey = `enhanced:quarterly:${yearOffset}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
       if (cached) return cached;
@@ -973,11 +1009,11 @@ export class EnhancedAPI {
 
         // Fallback to original API
         const result = await ReportsAPI.getQuarterlyStats(yearOffset);
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 3600000); // 1 hour
         }
-        
+
         return result;
       }
     );
@@ -986,7 +1022,7 @@ export class EnhancedAPI {
   // Get performance trends
   static async getPerformanceTrends(days = 30, useCache = true) {
     const cacheKey = `enhanced:trends:${days}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
       if (cached) return cached;
@@ -996,11 +1032,11 @@ export class EnhancedAPI {
       'enhanced.reports.getTrends',
       async () => {
         const result = await ReportsAPI.getPerformanceTrends(days);
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 1200000); // 20 minutes
         }
-        
+
         return result;
       }
     );
@@ -1009,7 +1045,7 @@ export class EnhancedAPI {
   // Get worker performance analytics
   static async getWorkerPerformanceAnalytics(workerId?: string, days = 30, useCache = true) {
     const cacheKey = `enhanced:worker-analytics:${workerId || 'all'}:${days}`;
-    
+
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
       if (cached) return cached;
@@ -1019,11 +1055,11 @@ export class EnhancedAPI {
       'enhanced.reports.getWorkerAnalytics',
       async () => {
         const result = await ReportsAPI.getWorkerPerformanceAnalytics(workerId, days);
-        
+
         if (useCache) {
           CacheManager.set(cacheKey, result, 1800000); // 30 minutes
         }
-        
+
         return result;
       }
     );
@@ -1035,12 +1071,12 @@ export class EnhancedAPI {
       'enhanced.reports.refreshViews',
       async () => {
         const result = await ReportsAPI.refreshMaterializedViews();
-        
+
         // Clear related caches after refresh
         this.clearCache('enhanced:weekly');
         this.clearCache('enhanced:quarterly');
         this.clearCache('enhanced:analytics');
-        
+
         return result;
       }
     );
@@ -1082,19 +1118,19 @@ export class EnhancedAPI {
           batchSize,
           async (batch) => {
             const { supabase } = await import('../lib/supabase');
-            
+
             const { error } = await supabase
               .from('orders')
               .update({ status, updated_at: new Date().toISOString() })
               .in('id', batch);
-            
+
             if (error) throw error;
-            
+
             // Invalidate related cache entries
             batch.forEach(id => {
               CacheManager.set(`enhanced:order:${id}`, null, 0);
             });
-            
+
             return batch;
           }
         );
@@ -1110,7 +1146,7 @@ export class EnhancedAPI {
       'enhanced.expenses.bulkCreate',
       async () => {
         await BatchProcessor.bulkInsert('expenses', expenses, batchSize);
-        
+
         // Clear expenses cache
         const cacheStats = CacheManager.getStats();
         cacheStats.keys
@@ -1126,7 +1162,7 @@ export class EnhancedAPI {
       'enhanced.system.health',
       async () => {
         const { supabase } = await import('../lib/supabase');
-        
+
         // Test database connectivity
         const dbStart = performance.now();
         const { error: dbError } = await supabase
@@ -1137,10 +1173,10 @@ export class EnhancedAPI {
 
         // Check memory usage
         const memoryStatus = MemoryMonitor.checkMemoryUsage();
-        
+
         // Get cache stats
         const cacheStats = CacheManager.getStats();
-        
+
         // Get connection stats
         const connectionStats = ConnectionManager.getStats();
 
@@ -1165,13 +1201,13 @@ export class EnhancedAPI {
       async () => {
         // Clean up expired entries
         CacheManager.cleanup();
-        
+
         // Force garbage collection if available
         MemoryMonitor.forceGarbageCollection();
-        
+
         // Get updated stats
         const stats = CacheManager.getStats();
-        
+
         return {
           cache_cleaned: true,
           remaining_entries: stats.size,
@@ -1188,14 +1224,14 @@ export class EnhancedAPI {
       async () => {
         // Preload frequently accessed data
         const today = new Date().toISOString().split('T')[0];
-        
+
         await Promise.all([
           this.getServices(true), // Services (rarely change)
           this.getTeams(true), // Teams
           this.getDashboardData(today, true), // Today's dashboard
           this.getOrders({ date_from: today }, 1, 20, false, true) // Today's orders
         ]);
-        
+
         return {
           preloaded: ['services', 'teams', 'dashboard', 'recent_orders'],
           timestamp: new Date().toISOString()

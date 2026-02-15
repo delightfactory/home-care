@@ -1,6 +1,6 @@
 // PaymentsTab - تبويب المدفوعات المعلقة (instapay/bank)
 // الأدمن يراجع إثبات الدفع ويؤكد مع تحديد الخزنة / يرفض
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
     CheckCircle, XCircle, Loader2,
     ImageIcon, ExternalLink, RefreshCw, CreditCard, AlertTriangle,
@@ -10,6 +10,7 @@ import { InvoicesAPI } from '../../api/invoices'
 import { VaultsAPI } from '../../api/vaults'
 import { InvoiceWithDetails, Vault } from '../../types'
 import { getStatusColor, getStatusText } from '../../api'
+import PaymentsFilterBar, { PaymentsFiltersUI } from './PaymentsFilterBar'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -17,7 +18,14 @@ const PaymentsTab: React.FC = () => {
     const { user } = useAuth()
     const [payments, setPayments] = useState<InvoiceWithDetails[]>([])
     const [loading, setLoading] = useState(true)
-    const [filter, setFilter] = useState<'pending' | 'confirmed' | 'all'>('pending')
+    const [filters, setFilters] = useState<PaymentsFiltersUI>({
+        status: ['pending', 'partially_paid'],
+        paymentMethod: [],
+        dateFrom: '',
+        dateTo: '',
+        teamId: '',
+        search: ''
+    })
     const [selectedProof, setSelectedProof] = useState<string | null>(null)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -27,26 +35,51 @@ const PaymentsTab: React.FC = () => {
     const [selectedVault, setSelectedVault] = useState<string>('')
     const [vaultsLoading, setVaultsLoading] = useState(false)
 
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+
+    const handleFiltersChange = (changes: Partial<PaymentsFiltersUI>) => {
+        if ('search' in changes) {
+            setFilters(prev => ({ ...prev, search: changes.search || '' }))
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+            searchTimerRef.current = setTimeout(() => {
+                setDebouncedSearch(changes.search || '')
+            }, 500)
+        } else {
+            setFilters(prev => ({ ...prev, ...changes }))
+        }
+    }
+
     const fetchPayments = useCallback(async () => {
         setLoading(true)
         try {
             // تحديد الحالات المطلوبة حسب الفلتر
-            let statuses: string[]
-            if (filter === 'pending') {
-                statuses = ['pending', 'partially_paid']
-            } else if (filter === 'confirmed') {
-                statuses = ['confirmed']
-            } else {
-                statuses = ['pending', 'confirmed', 'partially_paid']
-            }
+            const statuses = filters.status.length > 0
+                ? filters.status
+                : ['pending', 'partially_paid', 'paid', 'cancelled']
 
-            const result = await InvoicesAPI.getInvoices({ status: statuses }, 1, 200)
+            const apiFilters: any = { status: statuses }
+            if (filters.dateFrom) apiFilters.date_from = filters.dateFrom
+            if (filters.dateTo) apiFilters.date_to = filters.dateTo
+            if (debouncedSearch.trim()) apiFilters.search = debouncedSearch.trim()
+            if (filters.teamId) apiFilters.team_id = filters.teamId
+
+            const result = await InvoicesAPI.getInvoices(apiFilters, 1, 200)
 
             // فلتر: instapay + bank_transfer فقط + pending يجب أن يكون له proof
-            let filtered = (result.data || []).filter(inv =>
-                (inv.payment_method === 'instapay' || inv.payment_method === 'bank_transfer') &&
-                (inv.status !== 'pending' || inv.payment_proof_url)
-            )
+            let filtered = (result.data || []).filter(inv => {
+                // فلتر طريقة الدفع الإلكترونية
+                const isElectronic = inv.payment_method === 'instapay' || inv.payment_method === 'bank_transfer'
+                if (!isElectronic) return false
+
+                // فلتر طريقة الدفع المحددة من المستخدم
+                if (filters.paymentMethod.length > 0 && !filters.paymentMethod.includes(inv.payment_method || '')) return false
+
+                // pending يجب أن يكون له proof
+                if (inv.status === 'pending' && !inv.payment_proof_url) return false
+
+                return true
+            })
 
             setPayments(filtered)
         } catch (err) {
@@ -55,7 +88,7 @@ const PaymentsTab: React.FC = () => {
         } finally {
             setLoading(false)
         }
-    }, [filter])
+    }, [filters.status, filters.paymentMethod, filters.dateFrom, filters.dateTo, filters.teamId, debouncedSearch])
 
     useEffect(() => {
         fetchPayments()
@@ -144,36 +177,18 @@ const PaymentsTab: React.FC = () => {
                             </span>
                         </div>
                     )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {/* Filter Tabs */}
-                    <div className="flex bg-gray-100 rounded-lg p-0.5">
-                        {[
-                            { id: 'pending' as const, label: 'معلّقة' },
-                            { id: 'confirmed' as const, label: 'مؤكدة' },
-                            { id: 'all' as const, label: 'الكل' },
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setFilter(tab.id)}
-                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${filter === tab.id
-                                    ? 'bg-white text-gray-800 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
                     <button
                         onClick={fetchPayments}
-                        className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm text-gray-600"
                     >
-                        <RefreshCw className="w-4 h-4 text-gray-600" />
+                        <RefreshCw className="w-4 h-4" />
+                        تحديث
                     </button>
                 </div>
             </div>
+
+            {/* Filter Bar */}
+            <PaymentsFilterBar filters={filters} onFiltersChange={handleFiltersChange} />
 
             {/* Payments List */}
             {loading ? (
@@ -196,72 +211,105 @@ const PaymentsTab: React.FC = () => {
                                 : 'border-gray-200'
                                 }`}
                         >
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                {/* Payment Info */}
-                                <div className="flex-1 space-y-2">
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        <span className="text-sm font-bold text-gray-800">
-                                            {payment.invoice_number || '-'}
-                                        </span>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
-                                            {payment.status === 'pending' ? 'بانتظار المراجعة' : getStatusText(payment.status)}
-                                        </span>
-                                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                                            {payment.payment_method === 'instapay' ? 'Instapay' : 'تحويل بنكي'}
-                                        </span>
-                                    </div>
+                            {/* Row 1: Invoice # + Status + Payment Method */}
+                            <div className="flex items-center gap-3 flex-wrap mb-3">
+                                <span className="text-sm font-bold text-gray-800">
+                                    {payment.invoice_number || '-'}
+                                </span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
+                                    {payment.status === 'pending' ? 'بانتظار المراجعة' : getStatusText(payment.status)}
+                                </span>
+                                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                                    {payment.payment_method === 'instapay' ? 'Instapay' : 'تحويل بنكي'}
+                                </span>
+                            </div>
 
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <span className="text-gray-600">
-                                            {(payment as any).customer?.name || 'عميل'}
-                                        </span>
-                                        <span className="font-bold text-gray-800">
-                                            {payment.total_amount?.toLocaleString('ar-EG')} ج.م
-                                        </span>
-                                        <span className="text-xs text-gray-400">
-                                            {formatDate(payment.created_at)}
-                                        </span>
+                            {/* Row 2: Rich Info Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                                {/* Customer */}
+                                <div className="min-w-0">
+                                    <div className="text-xs text-gray-400 mb-0.5">العميل</div>
+                                    <div className="text-sm font-medium text-gray-800 truncate">
+                                        {(payment as any).customer?.name || '-'}
                                     </div>
                                 </div>
 
-                                {/* Actions */}
-                                <div className="flex items-center gap-2">
-                                    {/* View Proof */}
-                                    {payment.payment_proof_url && (
+                                {/* Amount */}
+                                <div className="min-w-0">
+                                    <div className="text-xs text-gray-400 mb-0.5">المبلغ</div>
+                                    <div className="text-sm font-bold text-gray-800">
+                                        {payment.total_amount?.toLocaleString('ar-EG')} ج.م
+                                    </div>
+                                </div>
+
+                                {/* Team */}
+                                <div className="min-w-0">
+                                    <div className="text-xs text-gray-400 mb-0.5">الفريق</div>
+                                    <div className="text-sm text-gray-700 truncate">
+                                        {(payment as any).team?.name || '-'}
+                                    </div>
+                                </div>
+
+                                {/* Order # */}
+                                <div className="min-w-0">
+                                    <div className="text-xs text-gray-400 mb-0.5">رقم الطلب</div>
+                                    <div className="text-sm text-gray-700 truncate">
+                                        {(payment as any).order?.order_number || '-'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Row 3: Collector + Date */}
+                            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mb-3">
+                                {(payment as any).collected_by_user?.full_name && (
+                                    <span className="flex items-center gap-1">
+                                        <CreditCard className="w-3 h-3" />
+                                        محصّل: <span className="text-gray-600 font-medium">{(payment as any).collected_by_user.full_name}</span>
+                                    </span>
+                                )}
+                                <span>{formatDate(payment.created_at)}</span>
+                                {payment.collected_at && (
+                                    <span>تحصيل: {formatDate(payment.collected_at)}</span>
+                                )}
+                            </div>
+
+                            {/* Row 4: Actions */}
+                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                                {/* View Proof */}
+                                {payment.payment_proof_url && (
+                                    <button
+                                        onClick={() => setSelectedProof(payment.payment_proof_url)}
+                                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors"
+                                    >
+                                        <ImageIcon className="w-3.5 h-3.5" />
+                                        الإثبات
+                                    </button>
+                                )}
+
+                                {payment.status === 'pending' && payment.payment_proof_url && (
+                                    <>
                                         <button
-                                            onClick={() => setSelectedProof(payment.payment_proof_url)}
-                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors"
+                                            onClick={() => openConfirmDialog(payment.id)}
+                                            disabled={actionLoading === payment.id}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
                                         >
-                                            <ImageIcon className="w-3.5 h-3.5" />
-                                            الإثبات
+                                            {actionLoading === payment.id ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <CheckCircle className="w-3.5 h-3.5" />
+                                            )}
+                                            تأكيد
                                         </button>
-                                    )}
-
-                                    {payment.status === 'pending' && payment.payment_proof_url && (
-                                        <>
-                                            <button
-                                                onClick={() => openConfirmDialog(payment.id)}
-                                                disabled={actionLoading === payment.id}
-                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                {actionLoading === payment.id ? (
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                ) : (
-                                                    <CheckCircle className="w-3.5 h-3.5" />
-                                                )}
-                                                تأكيد
-                                            </button>
-                                            <button
-                                                onClick={() => handleReject(payment.id)}
-                                                disabled={actionLoading === payment.id}
-                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                <XCircle className="w-3.5 h-3.5" />
-                                                رفض
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
+                                        <button
+                                            onClick={() => handleReject(payment.id)}
+                                            disabled={actionLoading === payment.id}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                                        >
+                                            <XCircle className="w-3.5 h-3.5" />
+                                            رفض
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ))}

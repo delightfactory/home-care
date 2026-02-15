@@ -40,21 +40,24 @@ import {
 import html2canvas from 'html2canvas'
 import ConfirmStatusModal from '../../components/UI/ConfirmStatusModal'
 import ConfirmationStatusPickerModal from '../../components/UI/ConfirmationStatusPickerModal'
-import { 
-  RouteWithOrders, 
-  ExpenseWithDetails, 
+import {
+  RouteWithOrders,
+  ExpenseWithDetails,
   OrderWithDetails,
   WorkerWithTeam,
-  ConfirmationStatus 
+  ConfirmationStatus,
+  Vault
 } from '../../types'
+import { VaultsAPI } from '../../api/vaults'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import { useAuth } from '../../contexts/AuthContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import toast from 'react-hot-toast'
-import { 
-  useRoutes, 
-  useTeams, 
-  useExpenses, 
-  useSystemHealth 
+import {
+  useRoutes,
+  useTeams,
+  useExpenses,
+  useSystemHealth
 } from '../../hooks/useEnhancedAPI'
 import EnhancedAPI from '../../api/enhanced-api'
 import { eventBus } from '../../utils/EventBus'
@@ -110,13 +113,20 @@ const OperationsPage: React.FC = () => {
   const [selectedExpense, setSelectedExpense] = useState<ExpenseWithDetails | null>(null)
   const [selectedRoute, setSelectedRoute] = useState<RouteWithOrders | null>(null)
   const [routeForOrders, setRouteForOrders] = useState<RouteWithOrders | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<{type: string, id: string, name: string} | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ type: string, id: string, name: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [sendingSurvey, setSendingSurvey] = useState(false)
+
+  // Vault selection state for expense approval fallback
+  const [showVaultModal, setShowVaultModal] = useState(false)
+  const [vaults, setVaults] = useState<Vault[]>([])
+  const [pendingExpenseForVault, setPendingExpenseForVault] = useState<ExpenseWithDetails | null>(null)
+  const [vaultLoading, setVaultLoading] = useState(false)
+  const [vaultModalInfo, setVaultModalInfo] = useState<{ code: string; currentBalance?: number; requiredAmount?: number } | null>(null)
   const orderExportRef = useRef<HTMLDivElement>(null)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
-  
+
   // Additional states for imported functionality from OrdersPage
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showFormModal, setShowFormModal] = useState(false)
@@ -132,6 +142,7 @@ const OperationsPage: React.FC = () => {
   const [selectedConfirmationOrder, setSelectedConfirmationOrder] = useState<OrderWithDetails | null>(null)
 
   const { user } = useAuth()
+  const { canApproveExpense } = usePermissions()
 
   // Data hooks
   const { routes, loading: routesLoading, refresh: refreshRoutes } = useRoutes(
@@ -151,12 +162,12 @@ const OperationsPage: React.FC = () => {
 
   // Smart real-time updates with debouncing
   const debounceTimeouts = useRef<{ [key: string]: NodeJS.Timeout }>({})
-  
+
   const debouncedRefresh = (key: string, refreshFn: () => void, delay = 300) => {
     if (debounceTimeouts.current[key]) {
       clearTimeout(debounceTimeouts.current[key])
     }
-    
+
     debounceTimeouts.current[key] = setTimeout(() => {
       refreshFn()
       delete debounceTimeouts.current[key]
@@ -167,16 +178,16 @@ const OperationsPage: React.FC = () => {
     const unsubscribeRoutes = eventBus.on('routes:changed', () => {
       debouncedRefresh('routes', refreshRoutes)
     })
-    
+
     const unsubscribeOrders = eventBus.on('orders:changed', () => {
       // Only refresh routes if orders change, with debouncing
       debouncedRefresh('orders-routes', refreshRoutes)
     })
-    
+
     const unsubscribeExpenses = eventBus.on('expenses:changed', () => {
       debouncedRefresh('expenses', refreshExpenses)
     })
-    
+
     const unsubscribeTeams = eventBus.on('teams:changed', () => {
       debouncedRefresh('teams', refreshTeams)
     })
@@ -185,7 +196,7 @@ const OperationsPage: React.FC = () => {
       // Clear all pending timeouts
       Object.values(debounceTimeouts.current).forEach(timeout => clearTimeout(timeout))
       debounceTimeouts.current = {}
-      
+
       unsubscribeRoutes()
       unsubscribeOrders()
       unsubscribeExpenses()
@@ -320,7 +331,7 @@ const OperationsPage: React.FC = () => {
         undefined,
         undefined
       );
-      
+
       if (response.success) {
         toast.success('تم تحديث حالة التأكيد بنجاح');
         setShowConfirmationPicker(false);
@@ -380,7 +391,7 @@ const OperationsPage: React.FC = () => {
   const exportOrderAsImage = async (order: OrderWithDetails, teamName?: string) => {
     try {
       setIsExporting(true)
-      
+
       // Create a temporary container with the same structure as OrderDetailsModal
       const tempContainer = document.createElement('div')
       tempContainer.style.position = 'absolute'
@@ -388,7 +399,7 @@ const OperationsPage: React.FC = () => {
       tempContainer.style.top = '0'
       tempContainer.style.width = '400px'
       tempContainer.style.backgroundColor = 'white'
-      
+
       // Use the same template structure from OrderDetailsModal
       tempContainer.innerHTML = `
         <div class="bg-white mobile-export">
@@ -485,12 +496,11 @@ const OperationsPage: React.FC = () => {
                 </div>
                 <div class="flex items-center justify-between p-2 rounded bg-white border border-green-100">
                   <span class="font-semibold text-gray-700">الحالة:</span>
-                  <span class="px-2 py-1 rounded text-xs font-medium ${
-                    order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                    order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }">${getOrderStatusText(order.status)}</span>
+                  <span class="px-2 py-1 rounded text-xs font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' :
+          order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+              'bg-yellow-100 text-yellow-800'
+        }">${getOrderStatusText(order.status)}</span>
                 </div>
                 <div class="flex items-center justify-between p-2 rounded bg-green-25 border border-green-100">
                   <span class="font-semibold text-gray-700">المبلغ الإجمالي:</span>
@@ -532,9 +542,9 @@ const OperationsPage: React.FC = () => {
           </div>
         </div>
       `
-      
+
       document.body.appendChild(tempContainer)
-      
+
       // Create mobile-friendly styles
       const exportStyles = document.createElement('style')
       exportStyles.textContent = `
@@ -730,7 +740,7 @@ const OperationsPage: React.FC = () => {
         }
       `
       document.head.appendChild(exportStyles)
-      
+
       const canvas = await html2canvas(tempContainer.firstElementChild as HTMLElement, {
         scale: 2,
         useCORS: true,
@@ -739,19 +749,19 @@ const OperationsPage: React.FC = () => {
         width: 400,
         height: (tempContainer.firstElementChild as HTMLElement).scrollHeight
       })
-      
+
       // Clean up
       document.body.removeChild(tempContainer)
       document.head.removeChild(exportStyles)
-      
+
       // Create download link
       const link = document.createElement('a')
       link.download = `order-${order.order_number || order.id}-${new Date().toISOString().split('T')[0]}.png`
       link.href = canvas.toDataURL()
-      
+
       // Auto-download
       link.click()
-      
+
       // Send via WhatsApp if customer phone is available
       if (order.customer?.phone) {
         const whatsappMessage = `مرحباً ${order.customer.name || 'عزيزي العميل'},\n\nإليك تفاصيل طلبك رقم: ${order.order_number}\n\nشكراً لثقتكم بنا 🌟`
@@ -779,15 +789,15 @@ const OperationsPage: React.FC = () => {
         toast.error('لا يوجد رقم هاتف لإرسال الاستبيان')
         return
       }
-      
+
       setSendingSurvey(true)
-      
+
       // 1) جلب الاستبيان إن وُجد لهذا الطلب
       const res = await SurveysAPI.getSurveyByOrder(order.id)
       if (!res.success) {
         throw new Error(res.error || 'تعذر جلب بيانات الاستبيان')
       }
-      
+
       // 2) تحديد / إنشاء التوكن
       let token: string
       if (res.data) {
@@ -807,7 +817,7 @@ const OperationsPage: React.FC = () => {
         }
         token = createRes.data.survey_token
       }
-      
+
       // 3) بناء الرابط والرسالة
       const url = buildSurveyUrl(token)
       const message = buildWhatsAppSurveyMessage({
@@ -815,12 +825,12 @@ const OperationsPage: React.FC = () => {
         customerName: order.customer?.name || undefined,
         url
       })
-      
+
       // 4) فتح واتساب للأرقام المتاحة (بدون تكرار)
       const numbers = [primary, extra].filter(Boolean) as string[]
       const unique = Array.from(new Set(numbers))
       unique.forEach((num) => openWhatsAppTo(num, message))
-      
+
       toast.success('تم فتح واتساب لإرسال رابط الاستبيان')
     } catch (error) {
       console.error('sendSurveyLink error:', error)
@@ -840,41 +850,110 @@ const OperationsPage: React.FC = () => {
 
   // Handle expense actions
   const handleExpenseAction = async (action: string, expense: ExpenseWithDetails) => {
+    switch (action) {
+      case 'approve':
+        await handleApproveExpenseFinancial(expense)
+        return
+      case 'reject': {
+        const reason = window.prompt('أدخل سبب الرفض:')
+        if (reason === null) return
+        setLoading(true)
+        try {
+          const result = await EnhancedAPI.rejectExpense(expense.id, reason, user?.id || '')
+          if (result?.success) {
+            toast.success(result.message || 'تم رفض المصروف')
+          } else {
+            toast.error(result?.error || 'حدث خطأ')
+          }
+        } catch (error) {
+          toast.error('حدث خطأ أثناء رفض المصروف')
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
+      case 'edit':
+        setSelectedExpense(expense)
+        setShowExpenseModal(true)
+        return
+      case 'delete':
+        setDeleteTarget({ type: 'expense', id: expense.id, name: expense.description })
+        setShowDeleteModal(true)
+        return
+      default:
+        return
+    }
+  }
+
+  // Approve expense with financial deduction (custody first, vault fallback)
+  const handleApproveExpenseFinancial = async (expense: ExpenseWithDetails) => {
+    // Permission check
+    if (!canApproveExpense(expense.amount)) {
+      toast.error('ليس لديك صلاحية للموافقة على هذا المبلغ')
+      return
+    }
     setLoading(true)
     try {
-      let result
-      switch (action) {
-        case 'approve':
-          result = await EnhancedAPI.approveExpense(expense.id, user?.id || '')
-          break
-        case 'reject':
-          const reason = window.prompt('أدخل سبب الرفض:')
-          if (reason === null) {
-            setLoading(false)
-            return
-          }
-          result = await EnhancedAPI.rejectExpense(expense.id, reason, user?.id || '')
-          break
-        case 'edit':
-          setSelectedExpense(expense)
-          setShowExpenseModal(true)
-          return
-        case 'delete':
-          setDeleteTarget({ type: 'expense', id: expense.id, name: expense.description })
-          setShowDeleteModal(true)
-          return
-        default:
-          return
+      const res = await EnhancedAPI.approveExpenseFromCustody(expense.id, user?.id || '')
+
+      if (res.success) {
+        toast.success(`تم اعتماد المصروف وخصمه من العهدة ✅\nالرصيد الجديد: ${res.data?.new_custody_balance?.toLocaleString()} ج.م`, { duration: 4000 })
+        return
       }
-      
-      if (result?.success) {
-        toast.success(result.message || 'تم تنفيذ العملية بنجاح')
-        // EventBus will handle the refresh automatically via expenses:changed event
-      } else {
-        toast.error(result?.error || 'حدث خطأ')
+
+      // If NO_CUSTODY or INSUFFICIENT_BALANCE → show vault selector
+      const errorData = res as any
+      const errorCode = errorData?.data?.code
+      if (errorCode === 'NO_CUSTODY' || errorCode === 'INSUFFICIENT_BALANCE') {
+        const msg = errorCode === 'NO_CUSTODY'
+          ? 'لا توجد عُهدة للمنشئ — اختر خزنة للخصم'
+          : 'رصيد العهدة غير كافٍ — اختر خزنة للخصم'
+        toast(msg, { icon: '⚠️', duration: 3000 })
+        setPendingExpenseForVault(expense)
+        setVaultModalInfo({
+          code: errorCode,
+          currentBalance: errorData?.data?.current_balance,
+          requiredAmount: errorData?.data?.required_amount
+        })
+        setVaultLoading(true)
+        setShowVaultModal(true)
+        try {
+          const vaultList = await VaultsAPI.getVaults(true)
+          setVaults(vaultList)
+        } catch {
+          toast.error('تعذر تحميل الخزائن')
+          setShowVaultModal(false)
+        } finally {
+          setVaultLoading(false)
+        }
+        return
       }
+
+      toast.error(res.error || 'فشل في اعتماد المصروف')
     } catch (error) {
-      toast.error('حدث خطأ أثناء تنفيذ العملية')
+      toast.error('حدث خطأ أثناء الموافقة')
+      console.error('Approve expense error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle vault selection for expense approval
+  const handleVaultApproveOps = async (vaultId: string) => {
+    if (!pendingExpenseForVault) return
+    setLoading(true)
+    try {
+      const res = await EnhancedAPI.approveExpenseFromVault(pendingExpenseForVault.id, vaultId, user?.id || '')
+      if (!res.success) {
+        toast.error(res.error || 'فشل في اعتماد المصروف من الخزنة')
+        return
+      }
+      toast.success(`تم اعتماد المصروف وخصمه من الخزنة ✅\nالرصيد الجديد: ${res.data?.new_vault_balance?.toLocaleString()} ج.م`, { duration: 4000 })
+      setShowVaultModal(false)
+      setPendingExpenseForVault(null)
+    } catch (error) {
+      toast.error('حدث خطأ أثناء الخصم من الخزنة')
+      console.error('Vault approve error:', error)
     } finally {
       setLoading(false)
     }
@@ -925,7 +1004,7 @@ const OperationsPage: React.FC = () => {
   // Handle delete confirmation
   const handleDelete = async () => {
     if (!deleteTarget) return
-    
+
     setLoading(true)
     try {
       let result
@@ -942,7 +1021,7 @@ const OperationsPage: React.FC = () => {
         default:
           return
       }
-      
+
       if (result?.success) {
         toast.success(result.message || 'تم الحذف بنجاح')
         // EventBus will handle the refresh automatically via respective changed events
@@ -981,8 +1060,8 @@ const OperationsPage: React.FC = () => {
       }
     }
 
-    const config = statusConfig[type][status as keyof typeof statusConfig[typeof type]] || 
-                  { class: 'bg-gray-100 text-gray-800', text: status }
+    const config = statusConfig[type][status as keyof typeof statusConfig[typeof type]] ||
+      { class: 'bg-gray-100 text-gray-800', text: status }
 
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(config as any).class}`}>
@@ -1064,9 +1143,8 @@ const OperationsPage: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">حالة النظام</p>
                 <div className="flex items-center mt-1">
-                  <div className={`w-2 h-2 rounded-full ml-2 ${
-                    health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
+                  <div className={`w-2 h-2 rounded-full ml-2 ${health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                    }`} />
                   <span className="text-xs text-gray-600">
                     {health.database?.response_time_ms || 0}ms
                   </span>
@@ -1171,7 +1249,7 @@ const OperationsPage: React.FC = () => {
               {/* Legacy header (hidden) */}
               {false && (<div className="p-4">
                 {/* Main Header Row */}
-                <div 
+                <div
                   className="flex items-start justify-between cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200"
                   onClick={() => toggleRouteExpansion(route.id)}
                 >
@@ -1185,7 +1263,7 @@ const OperationsPage: React.FC = () => {
                         <ChevronDown className="h-5 w-5 text-gray-500" />
                       )}
                     </div>
-                    
+
                     {/* Route Details */}
                     <div className="flex-1 min-w-0">
                       {/* Route Name and Icon */}
@@ -1194,7 +1272,7 @@ const OperationsPage: React.FC = () => {
                         <h3 className="text-lg font-semibold text-gray-900 truncate">{route.name}</h3>
                         {getStatusBadge(route.status, 'route')}
                       </div>
-                      
+
                       {/* Route Basic Info */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-600 mb-3">
                         <span className="flex items-center">
@@ -1210,7 +1288,7 @@ const OperationsPage: React.FC = () => {
                           <span>{route.route_orders?.length || 0} طلب</span>
                         </span>
                       </div>
-                      
+
                       {/* Smart Performance Summary */}
                       {(() => {
                         const orders = route.route_orders || []
@@ -1222,9 +1300,9 @@ const OperationsPage: React.FC = () => {
                         const avgRating = orders.filter((ro: any) => ro.order.customer_rating).reduce((sum: number, ro: any, _index: number, arr: any[]) => sum + ro.order.customer_rating / arr.length, 0)
                         const hasIssues = orders.some((ro: any) => ro.order.status === 'cancelled' || ro.order.confirmation_status === 'declined')
                         const confirmedOrders = orders.filter((ro: any) => ro.order.confirmation_status === 'confirmed').length
-                        
+
                         if (totalOrders === 0) return null
-                        
+
                         return (
                           <div className="mt-2 space-y-2">
                             {/* Main Progress Bar */}
@@ -1235,7 +1313,7 @@ const OperationsPage: React.FC = () => {
                                   <span className="font-bold text-gray-800">{completionRate}%</span>
                                 </div>
                                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div 
+                                  <div
                                     className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500 ease-out"
                                     style={{ width: `${completionRate}%` }}
                                   ></div>
@@ -1248,7 +1326,7 @@ const OperationsPage: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            
+
                             {/* Compact Stats Grid */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
                               {/* Orders Status */}
@@ -1261,7 +1339,7 @@ const OperationsPage: React.FC = () => {
                                   <span className="text-blue-600 text-xs">نشط</span>
                                 </div>
                               </div>
-                              
+
                               {/* Revenue */}
                               {totalRevenue > 0 && (
                                 <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg px-2 py-1.5 border border-green-200">
@@ -1271,7 +1349,7 @@ const OperationsPage: React.FC = () => {
                                   </div>
                                 </div>
                               )}
-                              
+
                               {/* Rating */}
                               {avgRating > 0 && (
                                 <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg px-2 py-1.5 border border-yellow-200">
@@ -1283,7 +1361,7 @@ const OperationsPage: React.FC = () => {
                                   </div>
                                 </div>
                               )}
-                              
+
                               {/* Confirmation Rate */}
                               {confirmedOrders > 0 && (
                                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg px-2 py-1.5 border border-purple-200">
@@ -1299,91 +1377,91 @@ const OperationsPage: React.FC = () => {
                       })()}
                     </div>
                   </div>
-                  
+
                   {/* Right Side - Action Buttons */}
-                   <div className="flex-shrink-0">
-                     <div className="flex items-center space-x-1 space-x-reverse">
-                       {/* Primary Actions Group */}
-                       <div className="flex items-center space-x-1 space-x-reverse bg-gray-50 rounded-lg p-1">
-                         {/* Edit */}
-                         <button
-                           onClick={(e) => {
-                             e.stopPropagation()
-                             setSelectedRoute(route)
-                             setFormMode('edit')
-                             setShowRouteModal(true)
-                           }}
-                           className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-all duration-200 hover:scale-105"
-                           title="تعديل"
-                         >
-                           <Pencil className="h-4 w-4" />
-                         </button>
-                         
-                         {/* Manage Orders */}
-                         <button
-                           onClick={(e) => {
-                             e.stopPropagation()
-                             setRouteForOrders(route)
-                             setShowAssignModal(true)
-                           }}
-                           className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-md transition-all duration-200 hover:scale-105"
-                           title="إدارة الطلبات"
-                         >
-                           <ListTodo className="h-4 w-4" />
-                         </button>
-                       </div>
-                       
-                       {/* Status Actions Group */}
-                       <div className="flex items-center space-x-1 space-x-reverse">
-                         {/* Start Route */}
-                         {route.status === 'planned' && (
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation()
-                               handleStartRoute(route)
-                             }}
-                             className="p-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 hover:scale-105 shadow-sm"
-                             title="بدء الخط"
-                           >
-                             <Play className="h-4 w-4" />
-                           </button>
-                         )}
-                         
-                         {/* Complete Route */}
-                         {route.status === 'in_progress' && (
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation()
-                               handleCompleteRoute(route)
-                             }}
-                             className="p-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 hover:scale-105 shadow-sm"
-                             title="إكمال الخط"
-                           >
-                             <Check className="h-4 w-4" />
-                           </button>
-                         )}
-                         
-                         {/* Delete Route */}
-                         {route.status === 'planned' && (
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation()
-                               setSelectedRoute(route)
-                               setShowDeleteModal(true)
-                             }}
-                             className="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-all duration-200 hover:scale-105"
-                             title="حذف"
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </button>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-                 </div>
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center space-x-1 space-x-reverse">
+                      {/* Primary Actions Group */}
+                      <div className="flex items-center space-x-1 space-x-reverse bg-gray-50 rounded-lg p-1">
+                        {/* Edit */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedRoute(route)
+                            setFormMode('edit')
+                            setShowRouteModal(true)
+                          }}
+                          className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-all duration-200 hover:scale-105"
+                          title="تعديل"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+
+                        {/* Manage Orders */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setRouteForOrders(route)
+                            setShowAssignModal(true)
+                          }}
+                          className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-md transition-all duration-200 hover:scale-105"
+                          title="إدارة الطلبات"
+                        >
+                          <ListTodo className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Status Actions Group */}
+                      <div className="flex items-center space-x-1 space-x-reverse">
+                        {/* Start Route */}
+                        {route.status === 'planned' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleStartRoute(route)
+                            }}
+                            className="p-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 hover:scale-105 shadow-sm"
+                            title="بدء الخط"
+                          >
+                            <Play className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Complete Route */}
+                        {route.status === 'in_progress' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCompleteRoute(route)
+                            }}
+                            className="p-1.5 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 hover:scale-105 shadow-sm"
+                            title="إكمال الخط"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Delete Route */}
+                        {route.status === 'planned' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedRoute(route)
+                              setShowDeleteModal(true)
+                            }}
+                            className="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-all duration-200 hover:scale-105"
+                            title="حذف"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              )} 
-               {/* Expanded Content */}
+              )}
+              {/* Expanded Content */}
               {expandedSections[route.id] && (
                 <div className="border-t border-gray-200 p-4 space-y-6">
                   {/* Team Details */}
@@ -1398,7 +1476,7 @@ const OperationsPage: React.FC = () => {
                         {(() => {
                           // Create a combined list of all team members
                           const allMembers = [];
-                          
+
                           // Add leader first if exists
                           if (route.team.leader) {
                             allMembers.push({
@@ -1406,7 +1484,7 @@ const OperationsPage: React.FC = () => {
                               isLeader: true
                             });
                           }
-                          
+
                           // Add other members (excluding leader to avoid duplication)
                           if (route.team.members) {
                             route.team.members.forEach((member: any) => {
@@ -1419,25 +1497,23 @@ const OperationsPage: React.FC = () => {
                               }
                             });
                           }
-                          
+
                           return allMembers.map((member: any) => {
                             const isLeader = member.isLeader;
                             const worker = member.worker;
-                            
+
                             return (
-                              <div 
-                                key={worker.id} 
-                                className={`rounded-md p-2 flex items-center justify-between transition-colors ${
-                                  isLeader 
-                                    ? 'bg-yellow-50 border border-yellow-200' 
-                                    : 'bg-white border border-gray-200 hover:bg-gray-50'
-                                }`}
+                              <div
+                                key={worker.id}
+                                className={`rounded-md p-2 flex items-center justify-between transition-colors ${isLeader
+                                  ? 'bg-yellow-50 border border-yellow-200'
+                                  : 'bg-white border border-gray-200 hover:bg-gray-50'
+                                  }`}
                               >
                                 <div className="flex items-center gap-1 min-w-0 flex-1">
                                   <div className="relative flex-shrink-0">
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                      isLeader ? 'bg-yellow-500' : 'bg-gray-500'
-                                    }`}>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isLeader ? 'bg-yellow-500' : 'bg-gray-500'
+                                      }`}>
                                       <span className="text-white font-bold text-xs">
                                         {worker.name.charAt(0)}
                                       </span>
@@ -1506,12 +1582,11 @@ const OperationsPage: React.FC = () => {
                                     <div className="bg-gray-200 text-gray-900 px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap border border-gray-300 shadow-sm">
                                       #{routeOrder.order.order_number}
                                     </div>
-                                    <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold whitespace-nowrap border shadow-sm ${
-                                      routeOrder.order.status === 'completed' ? 'bg-green-200 text-green-900 border-green-300' :
+                                    <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold whitespace-nowrap border shadow-sm ${routeOrder.order.status === 'completed' ? 'bg-green-200 text-green-900 border-green-300' :
                                       routeOrder.order.status === 'in_progress' ? 'bg-blue-200 text-blue-900 border-blue-300' :
-                                      routeOrder.order.status === 'cancelled' ? 'bg-red-200 text-red-900 border-red-300' :
-                                      'bg-yellow-200 text-yellow-900 border-yellow-300'
-                                    }`}>
+                                        routeOrder.order.status === 'cancelled' ? 'bg-red-200 text-red-900 border-red-300' :
+                                          'bg-yellow-200 text-yellow-900 border-yellow-300'
+                                      }`}>
                                       {getOrderStatusText(routeOrder.order.status)}
                                     </span>
                                     {/* Rating - Inline with status */}
@@ -1522,7 +1597,7 @@ const OperationsPage: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Desktop: Additional info in first row */}
                                   <div className="hidden lg:flex items-center gap-3 text-xs text-gray-700">
                                     <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md whitespace-nowrap border border-gray-300 shadow-sm">
@@ -1544,7 +1619,7 @@ const OperationsPage: React.FC = () => {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 {/* Second Row - Main Content */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs sm:text-sm mb-2">
                                   {/* Customer & Location */}
@@ -1556,7 +1631,7 @@ const OperationsPage: React.FC = () => {
                                       <span className="text-blue-800 truncate text-xs lg:text-sm font-medium">{routeOrder.order.customer?.area || 'غير محدد'}</span>
                                     </div>
                                   </div>
-                                  
+
                                   {/* Time & Amount */}
                                   <div className="lg:col-span-2 flex items-center space-x-1 space-x-reverse bg-green-100 px-3 py-2 rounded-md border border-green-300 shadow-sm">
                                     <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-orange-700 flex-shrink-0" />
@@ -1567,7 +1642,7 @@ const OperationsPage: React.FC = () => {
                                     </div>
                                   </div>
                                 </div>
-                                
+
                                 {/* Mobile: Bottom Info - Only shown on mobile */}
                                 <div className="lg:hidden flex flex-wrap items-center gap-2 text-xs text-gray-700">
                                   <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md whitespace-nowrap border border-gray-300 shadow-sm">
@@ -1589,13 +1664,13 @@ const OperationsPage: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {/* Actions - Mobile Responsive */}
                               <div className="flex flex-col gap-2 lg:ml-2">
                                 {/* Primary Actions - Mobile Responsive */}
                                 <div className="flex flex-wrap gap-1 justify-start">
                                   {/* الأزرار الأساسية - تظهر دائماً */}
-                                  <button 
+                                  <button
                                     onClick={() => {
                                       setDetailsOrderId(routeOrder.order.id)
                                       setShowDetailsModal(true)
@@ -1605,7 +1680,7 @@ const OperationsPage: React.FC = () => {
                                   >
                                     <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => {
                                       setSelectedOrder(routeOrder.order)
                                       setFormMode('edit')
@@ -1616,7 +1691,7 @@ const OperationsPage: React.FC = () => {
                                   >
                                     <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
-                                  
+
                                   {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
                                   {routeOrder.order.status === 'pending' || routeOrder.order.status === 'scheduled' ? (
                                     <button
@@ -1658,7 +1733,7 @@ const OperationsPage: React.FC = () => {
                                     </button>
                                   ) : null}
                                 </div>
-                                
+
                                 {/* Secondary Actions - Mobile Optimized */}
                                 <div className="flex flex-wrap gap-1">
                                   {routeOrder.order.customer?.phone && (
@@ -1670,7 +1745,7 @@ const OperationsPage: React.FC = () => {
                                       >
                                         <Phone className="h-3.5 w-3.5" />
                                       </button>
-                                      
+
                                       <button
                                         onClick={() => {
                                           const waNumber = formatPhoneForWhatsApp(routeOrder.order.customer.phone)
@@ -1683,7 +1758,7 @@ const OperationsPage: React.FC = () => {
                                       </button>
                                     </>
                                   )}
-                                  
+
                                   <button
                                     onClick={() => copyOrderDetails(routeOrder.order, route.team?.name)}
                                     className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex-shrink-0 border border-indigo-200 hover:border-indigo-300 touch-manipulation"
@@ -1691,7 +1766,7 @@ const OperationsPage: React.FC = () => {
                                   >
                                     <Copy className="h-3.5 w-3.5" />
                                   </button>
-                                  
+
                                   <button
                                     onClick={() => exportOrderAsImage(routeOrder.order, route.team?.name)}
                                     disabled={isExporting}
@@ -1736,9 +1811,9 @@ const OperationsPage: React.FC = () => {
                     </h4>
                     {expenses?.filter((exp: any) => {
                       // Filter expenses that are linked to this route, its orders, or its team
-                      return exp.route_id === route.id || 
-                             route.route_orders?.some((routeOrder: any) => routeOrder.order.id === exp.order_id) ||
-                             exp.team_id === route.team?.id
+                      return exp.route_id === route.id ||
+                        route.route_orders?.some((routeOrder: any) => routeOrder.order.id === exp.order_id) ||
+                        exp.team_id === route.team?.id
                     }).length === 0 ? (
                       <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                         <DollarSign className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -1748,9 +1823,9 @@ const OperationsPage: React.FC = () => {
                       <div className="space-y-3">
                         {expenses?.filter((exp: any) => {
                           // Filter expenses that are linked to this route, its orders, or its team
-                          return exp.route_id === route.id || 
-                                 route.route_orders?.some((routeOrder: any) => routeOrder.order.id === exp.order_id) ||
-                                 exp.team_id === route.team?.id
+                          return exp.route_id === route.id ||
+                            route.route_orders?.some((routeOrder: any) => routeOrder.order.id === exp.order_id) ||
+                            exp.team_id === route.team?.id
                         }).map((expense: any) => (
                           <div key={expense.id} className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
                             <div className="flex items-center justify-between">
@@ -1791,12 +1866,12 @@ const OperationsPage: React.FC = () => {
                                     </button>
                                   </>
                                 )}
-                                
-                                
-                                
-                                
-                                
-                                
+
+
+
+
+
+
                                 {/* Standard Actions */}
                                 <button
                                   onClick={() => handleExpenseAction('edit', expense)}
@@ -1855,6 +1930,66 @@ const OperationsPage: React.FC = () => {
         order={selectedOrder || undefined}
         mode={selectedOrder ? 'edit' : 'create'}
       />
+
+      {/* Vault Selection Modal for expense approval */}
+      {showVaultModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              <h3 className="text-lg font-bold">اختر خزنة للخصم</h3>
+              {vaultModalInfo?.code === 'INSUFFICIENT_BALANCE' ? (
+                <div className="mt-1 space-y-1">
+                  <p className="text-sm text-white/90">رصيد العهدة غير كافٍ لتغطية المصروف</p>
+                  <div className="flex items-center gap-3 mt-2 p-2 bg-white/20 rounded-lg text-sm">
+                    <span>رصيد العهدة: <strong>{vaultModalInfo.currentBalance?.toLocaleString('ar-EG')} ج.م</strong></span>
+                    <span>|</span>
+                    <span>المطلوب: <strong>{vaultModalInfo.requiredAmount?.toLocaleString('ar-EG')} ج.م</strong></span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-white/80 mt-1">لا توجد عُهدة لمنشئ المصروف — اختر خزنة بديلة</p>
+              )}
+              {pendingExpenseForVault && (
+                <div className="mt-2 p-2 bg-white/20 rounded-lg text-sm">
+                  <span className="font-bold">{pendingExpenseForVault.description}</span>
+                  <span className="mr-2">— {pendingExpenseForVault.amount.toLocaleString('ar-EG')} ج.م</span>
+                </div>
+              )}
+            </div>
+            <div className="p-4 max-h-80 overflow-y-auto">
+              {vaultLoading ? (
+                <div className="text-center py-8"><LoadingSpinner size="small" text="جاري تحميل الخزائن..." /></div>
+              ) : vaults.length === 0 ? (
+                <p className="text-center py-8 text-gray-500">لا توجد خزائن نشطة</p>
+              ) : (
+                <div className="space-y-2">
+                  {vaults.map(vault => (
+                    <button
+                      key={vault.id}
+                      onClick={() => handleVaultApproveOps(vault.id)}
+                      className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all text-right"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-800">{vault.name}</p>
+                        <p className="text-sm text-gray-500">رصيد: {Number(vault.balance).toLocaleString('ar-EG')} ج.م</p>
+                      </div>
+                      <DollarSign className="h-5 w-5 text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => { setShowVaultModal(false); setPendingExpenseForVault(null); setVaultModalInfo(null) }}
+                className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ExpenseFormModal
         isOpen={showExpenseModal}
@@ -1953,10 +2088,10 @@ const OperationsPage: React.FC = () => {
           setRatingOrderId(undefined)
         }}
         onSuccess={() => {
-           // مسح كاش الطلبات لضمان تحديث التقييم الظاهر فوراً
-           EnhancedAPI.clearCache('enhanced:orders')
-           // EventBus will handle the refresh automatically via orders:changed event
-         }}
+          // مسح كاش الطلبات لضمان تحديث التقييم الظاهر فوراً
+          EnhancedAPI.clearCache('enhanced:orders')
+          // EventBus will handle the refresh automatically via orders:changed event
+        }}
         orderId={ratingOrderId || ''}
         orderNumber={routes.flatMap(r => r.orders || []).find(o => o.id === ratingOrderId)?.order_number}
         customerName={routes.flatMap(r => r.orders || []).find(o => o.id === ratingOrderId)?.customer?.name}
@@ -2053,9 +2188,9 @@ const OperationsPage: React.FC = () => {
         customerName={selectedConfirmationOrder?.customer_name}
         customerArea={selectedConfirmationOrder?.customer?.area || undefined}
       />
-      
+
       {/* Hidden Order Export Template */}
-      <div 
+      <div
         ref={orderExportRef}
         className="fixed -top-[9999px] left-0 bg-white p-6 w-96 border border-gray-200 rounded-lg shadow-lg"
         style={{ fontFamily: 'Arial, sans-serif' }}
@@ -2063,73 +2198,73 @@ const OperationsPage: React.FC = () => {
         <div className="text-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">تفاصيل الطلب</h2>
         </div>
-        
+
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">رقم الطلب:</span>
             <span id="export-order-number" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">اسم العميل:</span>
             <span id="export-customer-name" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">رقم الهاتف:</span>
             <span id="export-customer-phone" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">المنطقة:</span>
             <span id="export-customer-area" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">العنوان:</span>
             <span id="export-customer-address" className="text-gray-800 text-right"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">التاريخ:</span>
             <span id="export-order-date" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">الوقت المحدد:</span>
             <span id="export-scheduled-time" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">المدة:</span>
             <span id="export-duration" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">حالة الطلب:</span>
             <span id="export-order-status" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">حالة التأكيد:</span>
             <span id="export-confirmation-status" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">المبلغ الإجمالي:</span>
             <span id="export-total-amount" className="text-gray-800 font-bold"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">الفريق:</span>
             <span id="export-team-name" className="text-gray-800"></span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="font-semibold text-gray-600">التقييم:</span>
             <span id="export-rating" className="text-gray-800"></span>
           </div>
-          
+
           <div className="mt-4 pt-3 border-t border-gray-200">
             <div className="text-xs text-gray-500 text-center">
               تم إنشاء هذا التقرير في {new Date().toLocaleDateString('ar-EG')}

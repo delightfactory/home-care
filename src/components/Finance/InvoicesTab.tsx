@@ -1,8 +1,8 @@
 // InvoicesTab - تبويب الفواتير في النظام المالي الإداري
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
-    Search, Filter, Eye, XCircle, FileText,
-    ChevronDown, ChevronLeft, ChevronRight, Loader2,
+    Eye, XCircle, FileText,
+    ChevronLeft, ChevronRight, Loader2,
     Clock, CheckCircle, Ban, RefreshCw, Plus, Pencil, Banknote
 } from 'lucide-react'
 import { InvoicesAPI } from '../../api/invoices'
@@ -11,6 +11,7 @@ import { getStatusColor, getStatusText, getPaymentMethodLabel } from '../../api'
 import InvoiceDetailsModal from './InvoiceDetailsModal'
 import InvoiceFormModal from './InvoiceFormModal'
 import InvoiceCollectModal from './InvoiceCollectModal'
+import InvoicesFilterBar, { InvoicesFiltersUI } from './InvoicesFilterBar'
 import { useAuth } from '../../hooks/useAuth'
 import toast from 'react-hot-toast'
 
@@ -20,10 +21,9 @@ const InvoicesTab: React.FC = () => {
     const [loading, setLoading] = useState(true)
     const [page, setPage] = useState(1)
     const [totalCount, setTotalCount] = useState(0)
-    const [searchTerm, setSearchTerm] = useState('')
-    const [statusFilter, setStatusFilter] = useState<string>('')
-    const [paymentFilter, setPaymentFilter] = useState<string>('')
-    const [showFilters, setShowFilters] = useState(false)
+    const [filters, setFilters] = useState<InvoicesFiltersUI>({
+        status: [], paymentMethod: [], dateFrom: '', dateTo: '', teamId: '', search: ''
+    })
     const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithDetails | null>(null)
     const [stats, setStats] = useState<{
         total: number; paid: number; pending: number; cancelled: number
@@ -35,19 +35,44 @@ const InvoicesTab: React.FC = () => {
     const [collectingInvoice, setCollectingInvoice] = useState<InvoiceWithDetails | null>(null)
 
     const pageSize = 20
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+
+    const handleFiltersChange = (changes: Partial<InvoicesFiltersUI>) => {
+        // Debounce search, apply other filters immediately
+        if ('search' in changes) {
+            setFilters(prev => ({ ...prev, search: changes.search || '' }))
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+            searchTimerRef.current = setTimeout(() => {
+                setDebouncedSearch(changes.search || '')
+                setPage(1)
+            }, 500)
+        } else {
+            setFilters(prev => ({ ...prev, ...changes }))
+            setPage(1)
+        }
+    }
 
     const fetchInvoices = useCallback(async () => {
         setLoading(true)
         try {
-            const filters: InvoiceFilters = {}
-            if (statusFilter) filters.status = [statusFilter]
-            if (paymentFilter) filters.payment_method = paymentFilter as any
-            if (searchTerm.trim()) filters.search = searchTerm.trim()
+            const apiFilters: InvoiceFilters = {}
+            if (filters.status.length > 0) apiFilters.status = filters.status
+            if (filters.paymentMethod.length === 1) apiFilters.payment_method = filters.paymentMethod[0] as any
+            if (debouncedSearch.trim()) apiFilters.search = debouncedSearch.trim()
+            if (filters.dateFrom) apiFilters.date_from = filters.dateFrom
+            if (filters.dateTo) apiFilters.date_to = filters.dateTo
+            if (filters.teamId) apiFilters.team_id = filters.teamId
 
-            const result = await InvoicesAPI.getInvoices(filters, page, pageSize)
+            const result = await InvoicesAPI.getInvoices(apiFilters, page, pageSize)
             if (result.data) {
-                setInvoices(result.data)
-                setTotalCount(result.total || 0)
+                // client-side filter for multiple payment methods
+                let data = result.data
+                if (filters.paymentMethod.length > 1) {
+                    data = data.filter(inv => filters.paymentMethod.includes(inv.payment_method || ''))
+                }
+                setInvoices(data)
+                setTotalCount(filters.paymentMethod.length > 1 ? data.length : (result.total || 0))
             }
         } catch (err) {
             console.error('Error fetching invoices:', err)
@@ -55,7 +80,7 @@ const InvoicesTab: React.FC = () => {
         } finally {
             setLoading(false)
         }
-    }, [page, statusFilter, paymentFilter, searchTerm])
+    }, [page, filters.status, filters.paymentMethod, filters.dateFrom, filters.dateTo, filters.teamId, debouncedSearch])
 
     const fetchStats = useCallback(async () => {
         try {
@@ -182,73 +207,19 @@ const InvoicesTab: React.FC = () => {
                 })}
             </div>
 
-            {/* Search & Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search */}
-                <div className="relative flex-1">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="بحث برقم الفاتورة أو اسم العميل..."
-                        value={searchTerm}
-                        onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
-                        className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
-                    />
-                </div>
+            {/* Filter Bar */}
+            <InvoicesFilterBar filters={filters} onFiltersChange={handleFiltersChange} />
 
-                {/* Filter Toggle */}
-                <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                >
-                    <Filter className="w-4 h-4" />
-                    فلتر
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Refresh */}
+            {/* Refresh */}
+            <div className="flex justify-end">
                 <button
                     onClick={() => { fetchInvoices(); fetchStats() }}
-                    className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm text-gray-600"
                 >
-                    <RefreshCw className="w-4 h-4 text-gray-600" />
+                    <RefreshCw className="w-4 h-4" />
+                    تحديث
                 </button>
             </div>
-
-            {/* Filter Panel */}
-            {showFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 animate-fade-in">
-                    <div>
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">الحالة</label>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-                            className="w-full rounded-lg border border-gray-200 py-2 px-3 text-sm"
-                        >
-                            <option value="">الكل</option>
-                            <option value="draft">مسودة</option>
-                            <option value="pending">معلّقة</option>
-                            <option value="paid">مدفوعة</option>
-                            <option value="confirmed">مؤكدة</option>
-                            <option value="cancelled">ملغاة</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-gray-500 mb-1 block">طريقة الدفع</label>
-                        <select
-                            value={paymentFilter}
-                            onChange={(e) => { setPaymentFilter(e.target.value); setPage(1) }}
-                            className="w-full rounded-lg border border-gray-200 py-2 px-3 text-sm"
-                        >
-                            <option value="">الكل</option>
-                            <option value="cash">نقدي</option>
-                            <option value="instapay">Instapay</option>
-                            <option value="bank_transfer">تحويل بنكي</option>
-                        </select>
-                    </div>
-                </div>
-            )}
 
             {/* Invoices Table / Cards */}
             {loading ? (
@@ -269,6 +240,8 @@ const InvoicesTab: React.FC = () => {
                                 <tr>
                                     <th className="text-right px-4 py-3 font-semibold text-gray-600">رقم الفاتورة</th>
                                     <th className="text-right px-4 py-3 font-semibold text-gray-600">العميل</th>
+                                    <th className="text-right px-4 py-3 font-semibold text-gray-600">الفريق</th>
+                                    <th className="text-right px-4 py-3 font-semibold text-gray-600">الطلب</th>
                                     <th className="text-right px-4 py-3 font-semibold text-gray-600">المبلغ</th>
                                     <th className="text-right px-4 py-3 font-semibold text-gray-600">طريقة الدفع</th>
                                     <th className="text-right px-4 py-3 font-semibold text-gray-600">الحالة</th>
@@ -285,10 +258,23 @@ const InvoicesTab: React.FC = () => {
                                         <td className="px-4 py-3 text-gray-600">
                                             {(inv as any).customer?.name || '-'}
                                         </td>
-                                        <td className="px-4 py-3 font-semibold text-gray-800">
-                                            {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                        <td className="px-4 py-3 text-gray-500 text-xs">
+                                            {(inv as any).team?.name || '-'}
                                         </td>
-                                        <td className="px-4 py-3 text-gray-600">
+                                        <td className="px-4 py-3 text-gray-500 text-xs">
+                                            {(inv as any).order?.order_number || '-'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-semibold text-gray-800">
+                                                {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                            </div>
+                                            {inv.paid_amount > 0 && inv.paid_amount < inv.total_amount && (
+                                                <div className="text-xs text-emerald-600">
+                                                    مدفوع: {inv.paid_amount?.toLocaleString('ar-EG')}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-600 text-xs">
                                             {getPaymentMethodLabel(inv.payment_method)}
                                         </td>
                                         <td className="px-4 py-3">
@@ -349,9 +335,9 @@ const InvoicesTab: React.FC = () => {
                             <div
                                 key={inv.id}
                                 className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
-                                onClick={() => setSelectedInvoice(inv)}
                             >
-                                <div className="flex items-center justify-between mb-3">
+                                {/* Row 1: Invoice # + Status */}
+                                <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-bold text-gray-800">
                                         {inv.invoice_number || '-'}
                                     </span>
@@ -359,15 +345,69 @@ const InvoicesTab: React.FC = () => {
                                         {getStatusText(inv.status)}
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">{(inv as any).customer?.name || '-'}</span>
-                                    <span className="font-bold text-gray-800">
-                                        {inv.total_amount?.toLocaleString('ar-EG')} ج.م
-                                    </span>
+
+                                {/* Row 2: Customer + Amount */}
+                                <div className="flex items-center justify-between text-sm mb-1">
+                                    <span className="text-gray-600">{(inv as any).customer?.name || '-'}</span>
+                                    <div className="text-left">
+                                        <span className="font-bold text-gray-800">
+                                            {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                        </span>
+                                        {inv.paid_amount > 0 && inv.paid_amount < inv.total_amount && (
+                                            <div className="text-xs text-emerald-600">
+                                                مدفوع: {inv.paid_amount?.toLocaleString('ar-EG')}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+
+                                {/* Row 3: Team + Order + Payment + Date */}
+                                <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400 mb-3">
+                                    {(inv as any).team?.name && (
+                                        <span>🏠 {(inv as any).team.name}</span>
+                                    )}
+                                    {(inv as any).order?.order_number && (
+                                        <span>📋 {(inv as any).order.order_number}</span>
+                                    )}
                                     <span>{getPaymentMethodLabel(inv.payment_method)}</span>
                                     <span>{formatDate(inv.created_at)}</span>
+                                </div>
+
+                                {/* Row 4: Action Buttons */}
+                                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                                    <button
+                                        onClick={() => setSelectedInvoice(inv)}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors"
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        عرض
+                                    </button>
+                                    {['draft', 'pending'].includes(inv.status) && (
+                                        <button
+                                            onClick={() => setEditingInvoice(inv)}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-50 text-amber-600 text-xs font-medium hover:bg-amber-100 transition-colors"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                            تعديل
+                                        </button>
+                                    )}
+                                    {['pending', 'partially_paid'].includes(inv.status) && (
+                                        <button
+                                            onClick={() => setCollectingInvoice(inv)}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors"
+                                        >
+                                            <Banknote className="w-3.5 h-3.5" />
+                                            تحصيل
+                                        </button>
+                                    )}
+                                    {['paid', 'pending', 'confirmed', 'partially_paid'].includes(inv.status) && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleCancel(inv.id) }}
+                                            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors"
+                                        >
+                                            <XCircle className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

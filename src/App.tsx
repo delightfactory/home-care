@@ -45,6 +45,7 @@ const FinancePage = React.lazy(() => import('./pages/Finance/FinancePage'))
 // Technician App - تطبيق الفنى (منفصل)
 const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
 const TechExpensesPage = React.lazy(() => import('./pages/Tech/TechExpensesPage'))
+const TechCustodyPage = React.lazy(() => import('./pages/Tech/TechCustodyPage'))
 const TechNotificationsPage = React.lazy(() => import('./pages/Tech/TechNotificationsPage'))
 const TechMessagesPage = React.lazy(() => import('./pages/Tech/TechMessagesPage'))
 import { TechGuard } from './components/Guards/TechGuard'
@@ -241,6 +242,14 @@ const AppRoutes: React.FC = () => {
         element={
           <TechGuard>
             <TechExpensesPage />
+          </TechGuard>
+        }
+      />
+      <Route
+        path="/tech/custody"
+        element={
+          <TechGuard>
+            <TechCustodyPage />
           </TechGuard>
         }
       />

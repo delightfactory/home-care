@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react'
 import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, DollarSign, TrendingUp, Clock, FileText, Activity, Eye } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
+import { VaultsAPI } from '../../api/vaults'
 import { eventBus } from '../../utils/EventBus'
-import { ExpenseWithCategory } from '../../types'
+import { ExpenseWithCategory, Vault } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import ExpenseFormModal from '../../components/Forms/ExpenseFormModal'
@@ -12,7 +13,7 @@ import toast from 'react-hot-toast'
 import { useExpenses, useSystemHealth, useExpenseCounts, useFilteredExpenseStats } from '../../hooks/useEnhancedAPI'
 import ExpensesFilterBar, { ExpensesFiltersUI } from '../../components/Expenses/ExpensesFilterBar'
 import { ExportButton } from '../../components/UI'
-import { AdminGuard } from '../../hooks/usePermissions'
+import { AdminGuard, usePermissions } from '../../hooks/usePermissions'
 import { exportToExcel } from '../../utils/exportExcel'
 
 const ExpensesPage: React.FC = () => {
@@ -38,6 +39,14 @@ const ExpensesPage: React.FC = () => {
   const [exporting, setExporting] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const { user } = useAuth()
+  const { canApproveExpense } = usePermissions()
+
+  // Vault selection state for fallback
+  const [showVaultModal, setShowVaultModal] = useState(false)
+  const [vaults, setVaults] = useState<Vault[]>([])
+  const [pendingExpenseForApproval, setPendingExpenseForApproval] = useState<ExpenseWithCategory | null>(null)
+  const [vaultLoading, setVaultLoading] = useState(false)
+  const [vaultModalInfo, setVaultModalInfo] = useState<{ code: string; currentBalance?: number; requiredAmount?: number } | null>(null)
 
   // Use optimized hooks for data fetching
   const { data: expenses, loading, error, refresh, loadMore, hasMore, pagination } = useExpenses(apiFilters, 1, 50, true)
@@ -86,13 +95,75 @@ const ExpensesPage: React.FC = () => {
   }
 
   const handleApproveExpense = async (expenseId: string) => {
+    // Find expense to check permission
+    const expense = expenses?.find(e => e.id === expenseId)
+    if (expense && !canApproveExpense(expense.amount)) {
+      toast.error('ليس لديك صلاحية للموافقة على هذا المبلغ')
+      return
+    }
     try {
-      const res = await EnhancedAPI.approveExpense(expenseId, user?.id || '')
-      if (!res.success) throw new Error(res.error || 'Approve failed')
-      toast.success('تمت الموافقة على المصروف')
+      // محاولة الخصم من عُهدة المنشئ أولاً
+      const res = await EnhancedAPI.approveExpenseFromCustody(expenseId, user?.id || '')
+
+      if (res.success) {
+        toast.success(`تم اعتماد المصروف وخصمه من العهدة ✅\nالرصيد الجديد: ${res.data?.new_custody_balance?.toLocaleString()} ج.م`, { duration: 4000 })
+        refresh()
+        return
+      }
+
+      // إذا لا توجد عُهدة أو رصيد غير كافٍ — عرض اختيار الخزنة
+      const errorData = res as any
+      const errorCode = errorData?.data?.code
+      if (errorCode === 'NO_CUSTODY' || errorCode === 'INSUFFICIENT_BALANCE') {
+        const msg = errorCode === 'NO_CUSTODY'
+          ? 'لا توجد عُهدة للمنشئ — اختر خزنة للخصم'
+          : 'رصيد العهدة غير كافٍ — اختر خزنة للخصم'
+        toast(msg, { icon: '⚠️', duration: 3000 })
+        // Store full expense object for vault modal display
+        const fullExpense = expenses?.find(e => e.id === expenseId)
+        setPendingExpenseForApproval(fullExpense || { id: expenseId } as any)
+        setVaultModalInfo({
+          code: errorCode,
+          currentBalance: errorData?.data?.current_balance,
+          requiredAmount: errorData?.data?.required_amount
+        })
+        setVaultLoading(true)
+        setShowVaultModal(true)
+        try {
+          const vaultList = await VaultsAPI.getVaults(true)
+          setVaults(vaultList)
+        } catch {
+          toast.error('تعذر تحميل الخزائن')
+          setShowVaultModal(false)
+        } finally {
+          setVaultLoading(false)
+        }
+        return
+      }
+
+      // خطأ آخر
+      toast.error(res.error || 'فشل في اعتماد المصروف')
     } catch (error) {
       toast.error('حدث خطأ أثناء الموافقة')
       console.error('Approve expense error:', error)
+    }
+  }
+
+  const handleVaultApprove = async (vaultId: string) => {
+    if (!pendingExpenseForApproval) return
+    try {
+      const res = await EnhancedAPI.approveExpenseFromVault(pendingExpenseForApproval.id, vaultId, user?.id || '')
+      if (!res.success) {
+        toast.error(res.error || 'فشل في اعتماد المصروف من الخزنة')
+        return
+      }
+      toast.success(`تم اعتماد المصروف وخصمه من الخزنة ✅\nالرصيد الجديد: ${res.data?.new_vault_balance?.toLocaleString()} ج.م`, { duration: 4000 })
+      setShowVaultModal(false)
+      setPendingExpenseForApproval(null)
+      refresh()
+    } catch (error) {
+      toast.error('حدث خطأ أثناء الخصم من الخزنة')
+      console.error('Vault approve error:', error)
     }
   }
 
@@ -482,6 +553,66 @@ const ExpensesPage: React.FC = () => {
         </div>
         <div ref={sentinelRef} />
       </div>
+
+      {/* Vault Selection Modal */}
+      {showVaultModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              <h3 className="text-lg font-bold">اختر خزنة للخصم</h3>
+              {vaultModalInfo?.code === 'INSUFFICIENT_BALANCE' ? (
+                <div className="mt-1 space-y-1">
+                  <p className="text-sm text-white/90">رصيد العهدة غير كافٍ لتغطية المصروف</p>
+                  <div className="flex items-center gap-3 mt-2 p-2 bg-white/20 rounded-lg text-sm">
+                    <span>رصيد العهدة: <strong>{vaultModalInfo.currentBalance?.toLocaleString('ar-EG')} ج.م</strong></span>
+                    <span>|</span>
+                    <span>المطلوب: <strong>{vaultModalInfo.requiredAmount?.toLocaleString('ar-EG')} ج.م</strong></span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-white/80 mt-1">لا توجد عُهدة لمنشئ المصروف — اختر خزنة بديلة</p>
+              )}
+              {pendingExpenseForApproval && (
+                <div className="mt-2 p-2 bg-white/20 rounded-lg text-sm">
+                  <span className="font-bold">{pendingExpenseForApproval.description}</span>
+                  <span className="mr-2">— {pendingExpenseForApproval.amount?.toLocaleString('ar-EG')} ج.م</span>
+                </div>
+              )}
+            </div>
+            <div className="p-4 max-h-80 overflow-y-auto">
+              {vaultLoading ? (
+                <div className="text-center py-8"><LoadingSpinner size="small" text="جاري تحميل الخزائن..." /></div>
+              ) : vaults.length === 0 ? (
+                <p className="text-center py-8 text-gray-500">لا توجد خزائن نشطة</p>
+              ) : (
+                <div className="space-y-2">
+                  {vaults.map(vault => (
+                    <button
+                      key={vault.id}
+                      onClick={() => handleVaultApprove(vault.id)}
+                      className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all text-right"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-800">{vault.name}</p>
+                        <p className="text-sm text-gray-500">رصيد: {Number(vault.balance).toLocaleString('ar-EG')} ج.م</p>
+                      </div>
+                      <DollarSign className="h-5 w-5 text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => { setShowVaultModal(false); setPendingExpenseForApproval(null); setVaultModalInfo(null) }}
+                className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Expense Form Modal */}
       <ExpenseFormModal

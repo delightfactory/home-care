@@ -642,7 +642,8 @@ export enum CustodyTransactionType {
   SETTLEMENT_OUT = 'settlement_out',
   SETTLEMENT_IN = 'settlement_in',
   RESET = 'reset',
-  REFUND = 'refund'
+  REFUND = 'refund',
+  EXPENSE = 'expense'
 }
 
 export enum VaultTransactionType {
@@ -651,7 +652,8 @@ export enum VaultTransactionType {
   TRANSFER_IN = 'transfer_in',
   TRANSFER_OUT = 'transfer_out',
   COLLECTION = 'collection',
-  REFUND = 'refund'
+  REFUND = 'refund',
+  EXPENSE = 'expense'
 }
 
 // Extended types with relationships - Financial

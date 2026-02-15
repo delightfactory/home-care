@@ -1046,6 +1046,243 @@ CREATE POLICY "authenticated_read_custody_tx" ON custody_transactions FOR SELECT
 DROP POLICY IF EXISTS "authenticated_insert_custody_tx" ON custody_transactions;
 CREATE POLICY "authenticated_insert_custody_tx" ON custody_transactions FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
+-- =====================================================================
+-- EXPENSE FINANCIAL INTEGRATION (دمج المصروفات مع النظام المالي)
+-- =====================================================================
+-- ⚠️ آمن لإعادة التشغيل — يستخدم CREATE OR REPLACE + DROP CONSTRAINT IF EXISTS
+-- =====================================================================
+
+-- ==================================
+-- E1: توسيع أنواع حركات العهدة لتشمل expense
+-- ==================================
+DO $$
+DECLARE
+  v_constraint_name TEXT;
+BEGIN
+  -- البحث عن اسم القيد الفعلي (قد يكون مولّداً تلقائياً)
+  SELECT con.conname INTO v_constraint_name
+  FROM pg_constraint con
+  JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+  WHERE con.conrelid = 'custody_transactions'::regclass
+    AND con.contype = 'c'
+    AND att.attname = 'type'
+  LIMIT 1;
+
+  IF v_constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE custody_transactions DROP CONSTRAINT %I', v_constraint_name);
+  END IF;
+
+  ALTER TABLE custody_transactions ADD CONSTRAINT custody_transactions_type_check
+    CHECK (type IN ('add', 'withdraw', 'collection', 'settlement_out', 'settlement_in', 'reset', 'refund', 'expense'));
+END $$;
+
+-- ==================================
+-- E2: توسيع أنواع حركات الخزائن لتشمل expense
+-- ==================================
+DO $$
+DECLARE
+  v_constraint_name TEXT;
+BEGIN
+  SELECT con.conname INTO v_constraint_name
+  FROM pg_constraint con
+  JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+  WHERE con.conrelid = 'vault_transactions'::regclass
+    AND con.contype = 'c'
+    AND att.attname = 'type'
+  LIMIT 1;
+
+  IF v_constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE vault_transactions DROP CONSTRAINT %I', v_constraint_name);
+  END IF;
+
+  ALTER TABLE vault_transactions ADD CONSTRAINT vault_transactions_type_check
+    CHECK (type IN ('deposit', 'withdrawal', 'transfer_in', 'transfer_out', 'refund', 'collection', 'expense'));
+END $$;
+
+-- ==================================
+-- E3: اعتماد مصروف وخصمه من عهدة المنشئ
+-- ⚠️ لا يشترط أن تكون العهدة مفعّلة (is_active)
+-- ⚠️ يبحث بالمنشئ (created_by) وليس القائد الحالي
+-- ==================================
+CREATE OR REPLACE FUNCTION approve_expense_from_custody(
+  p_expense_id UUID,
+  p_approved_by UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_expense RECORD;
+  v_custody RECORD;
+  v_new_balance NUMERIC(14,2);
+BEGIN
+  -- 1. قفل المصروف والتحقق من حالته
+  SELECT * INTO v_expense
+  FROM expenses
+  WHERE id = p_expense_id
+  FOR UPDATE;
+  
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'المصروف غير موجود');
+  END IF;
+  
+  IF v_expense.status <> 'pending' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'لا يمكن اعتماد مصروف بحالة: ' || v_expense.status);
+  END IF;
+  
+  IF v_expense.amount <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'مبلغ المصروف غير صالح');
+  END IF;
+  
+  -- 2. البحث عن عهدة المنشئ (بدون شرط is_active)
+  SELECT * INTO v_custody
+  FROM custody_accounts
+  WHERE user_id = v_expense.created_by
+  FOR UPDATE;
+  
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'لا توجد عهدة للمستخدم المنشئ — يرجى استخدام الخصم من الخزنة',
+      'code', 'NO_CUSTODY'
+    );
+  END IF;
+  
+  -- 3. التحقق من كفاية الرصيد
+  IF v_custody.balance < v_expense.amount THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'رصيد العهدة غير كافٍ. الرصيد الحالي: ' || v_custody.balance || ' - المطلوب: ' || v_expense.amount,
+      'code', 'INSUFFICIENT_BALANCE',
+      'current_balance', v_custody.balance,
+      'required_amount', v_expense.amount
+    );
+  END IF;
+  
+  -- 4. خصم المبلغ من العهدة
+  v_new_balance := v_custody.balance - v_expense.amount;
+  UPDATE custody_accounts
+  SET balance = v_new_balance, updated_at = NOW()
+  WHERE id = v_custody.id;
+  
+  -- 5. تسجيل حركة العهدة
+  INSERT INTO custody_transactions (
+    custody_id, type, amount, balance_after,
+    reference_type, reference_id, performed_by, notes
+  ) VALUES (
+    v_custody.id, 'expense', v_expense.amount, v_new_balance,
+    'expense', p_expense_id, p_approved_by,
+    'خصم مصروف: ' || v_expense.description
+  );
+  
+  -- 6. تحديث حالة المصروف
+  UPDATE expenses
+  SET status = 'approved',
+      approved_by = p_approved_by,
+      approved_at = NOW(),
+      updated_at = NOW()
+  WHERE id = p_expense_id;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'تم اعتماد المصروف وخصمه من العهدة',
+    'new_custody_balance', v_new_balance,
+    'deducted_amount', v_expense.amount,
+    'custody_id', v_custody.id
+  );
+END;
+$$;
+
+-- ==================================
+-- E4: اعتماد مصروف وخصمه من خزنة (للأدمن أو عند عدم وجود عهدة)
+-- ==================================
+CREATE OR REPLACE FUNCTION approve_expense_from_vault(
+  p_expense_id UUID,
+  p_vault_id UUID,
+  p_approved_by UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_expense RECORD;
+  v_vault_balance NUMERIC(14,2);
+  v_new_vault_balance NUMERIC(14,2);
+BEGIN
+  -- 1. قفل المصروف والتحقق من حالته
+  SELECT * INTO v_expense
+  FROM expenses
+  WHERE id = p_expense_id
+  FOR UPDATE;
+  
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'المصروف غير موجود');
+  END IF;
+  
+  IF v_expense.status <> 'pending' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'لا يمكن اعتماد مصروف بحالة: ' || v_expense.status);
+  END IF;
+  
+  IF v_expense.amount <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'مبلغ المصروف غير صالح');
+  END IF;
+  
+  -- 2. قفل الخزنة والتحقق من الرصيد
+  SELECT balance INTO v_vault_balance
+  FROM vaults
+  WHERE id = p_vault_id AND is_active = true
+  FOR UPDATE;
+  
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'الخزنة غير موجودة أو غير مفعّلة');
+  END IF;
+  
+  IF v_vault_balance < v_expense.amount THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'رصيد الخزنة غير كافٍ. الرصيد الحالي: ' || v_vault_balance || ' - المطلوب: ' || v_expense.amount,
+      'code', 'INSUFFICIENT_BALANCE'
+    );
+  END IF;
+  
+  -- 3. خصم من الخزنة
+  v_new_vault_balance := v_vault_balance - v_expense.amount;
+  UPDATE vaults
+  SET balance = v_new_vault_balance, updated_at = NOW()
+  WHERE id = p_vault_id;
+  
+  -- 4. تسجيل حركة الخزنة
+  INSERT INTO vault_transactions (
+    vault_id, type, amount, balance_after,
+    reference_type, reference_id, performed_by, notes
+  ) VALUES (
+    p_vault_id, 'expense', v_expense.amount, v_new_vault_balance,
+    'expense', p_expense_id, p_approved_by,
+    'خصم مصروف: ' || v_expense.description
+  );
+  
+  -- 5. تحديث حالة المصروف
+  UPDATE expenses
+  SET status = 'approved',
+      approved_by = p_approved_by,
+      approved_at = NOW(),
+      updated_at = NOW()
+  WHERE id = p_expense_id;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'تم اعتماد المصروف وخصمه من الخزنة',
+    'new_vault_balance', v_new_vault_balance,
+    'deducted_amount', v_expense.amount,
+    'vault_id', p_vault_id
+  );
+END;
+$$;
+
 
 -- =====================================================================
 -- DOWN MIGRATION (للتراجع الآمن — تشغيل يدوياً عند الحاجة)
