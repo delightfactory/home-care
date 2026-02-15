@@ -1,11 +1,13 @@
 // TechLayout - تخطيط مبسط للموبايل خاص بالفنى
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+// تم نقل الرسائل والاتصالات للهيدر + زر اتصال عائم
+import React, { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Home, LogOut, RefreshCw, MapPin } from 'lucide-react'
+import { Home, LogOut, RefreshCw, MapPin, MessageSquare, Phone } from 'lucide-react'
 import TechBottomNav from '../Tech/TechBottomNav'
 import NotificationBell from '../Notifications/NotificationBell'
 import { PushNotificationPrompt } from '../Notifications'
+import { CallsModal } from '../VoiceCall'
 
 interface TechLayoutProps {
     children: React.ReactNode
@@ -17,6 +19,8 @@ interface TechLayoutProps {
 export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isLeader = false, routeName }) => {
     const { user, signOut } = useAuth()
     const navigate = useNavigate()
+    const location = useLocation()
+    const [showCallsModal, setShowCallsModal] = useState(false)
 
     const today = new Date().toLocaleDateString('ar-EG', {
         weekday: 'long',
@@ -29,6 +33,8 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
         await signOut()
         navigate('/login')
     }
+
+    const isMessagesActive = location.pathname.startsWith('/tech/messages')
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
@@ -47,8 +53,20 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
                             </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-2">
+                        {/* Actions — الإشعارات + الرسائل + التحديث + الخروج */}
+                        <div className="flex items-center gap-1.5">
+                            {/* Messages — منقول من النافبار */}
+                            <button
+                                onClick={() => navigate('/tech/messages')}
+                                className={`p-2 rounded-lg transition-colors relative ${isMessagesActive
+                                    ? 'bg-blue-100 text-blue-600'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                                    }`}
+                                title="الرسائل"
+                            >
+                                <MessageSquare className="w-5 h-5" />
+                            </button>
+
                             {/* Notification Bell */}
                             <NotificationBell />
 
@@ -96,8 +114,23 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
                 {children}
             </main>
 
+            {/* Floating Call Button — زر اتصال عائم */}
+            <button
+                onClick={() => setShowCallsModal(true)}
+                className="fixed left-4 bottom-20 z-40 w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95"
+                title="اتصال"
+            >
+                <Phone className="w-5 h-5 text-white" />
+            </button>
+
             {/* Bottom Navigation */}
             <TechBottomNav isLeader={isLeader} />
+
+            {/* Calls Modal */}
+            <CallsModal
+                isOpen={showCallsModal}
+                onClose={() => setShowCallsModal(false)}
+            />
 
             {/* Push Notification Prompt - للفنيين */}
             <PushNotificationPrompt delay={3000} variant="floating" />
@@ -106,4 +139,3 @@ export const TechLayout: React.FC<TechLayoutProps> = ({ children, onRefresh, isL
 }
 
 export default TechLayout
-

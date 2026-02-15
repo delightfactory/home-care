@@ -49,6 +49,7 @@ export interface TeamMember {
 // حالة الفني - للتحقق من العضوية والقيادة
 export interface TechnicianStatus {
     workerId: string | null       // معرف العامل
+    workerName: string | null     // اسم العامل
     teamId: string | null         // معرف الفريق
     teamName: string | null       // اسم الفريق
     isTeamMember: boolean         // هل عضو في فريق؟
@@ -110,6 +111,7 @@ export class TechnicianAPI {
     static async getTechnicianStatus(userId: string): Promise<TechnicianStatus> {
         const defaultStatus: TechnicianStatus = {
             workerId: null,
+            workerName: null,
             teamId: null,
             teamName: null,
             isTeamMember: false,
@@ -123,7 +125,7 @@ export class TechnicianAPI {
             // 1. جلب معرف العامل
             const { data: worker, error: workerError } = await supabase
                 .from('workers')
-                .select('id')
+                .select('id, name')
                 .eq('user_id', userId)
                 .single()
 
@@ -132,6 +134,7 @@ export class TechnicianAPI {
             }
 
             defaultStatus.workerId = worker.id
+            defaultStatus.workerName = worker.name || null
 
             // 2. جلب عضوية الفريق
             const { data: membership, error: memberError } = await supabase
@@ -157,6 +160,7 @@ export class TechnicianAPI {
 
             return {
                 workerId: worker.id,
+                workerName: worker.name || null,
                 teamId: team?.id || null,
                 teamName: team?.name || null,
                 isTeamMember: true,

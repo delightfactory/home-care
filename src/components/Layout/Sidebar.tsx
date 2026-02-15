@@ -17,7 +17,9 @@ import {
   Settings,
   X,
   MessageSquare,
-  Landmark
+  Landmark,
+  Briefcase,
+  PieChart
 } from 'lucide-react'
 import { clsx } from '../../lib/clsx'
 
@@ -47,6 +49,8 @@ const navigation: NavigationItem[] = [
   { name: 'خطوط السير', href: '/routes', icon: Map },
   { name: 'المصروفات', href: '/expenses', icon: Receipt },
   { name: 'النظام المالي', href: '/finance', icon: Landmark, adminOnly: true },
+  { name: 'الموارد البشرية', href: '/hr', icon: Briefcase, adminOnly: true },
+  { name: 'الأرباح والخسائر', href: '/profit-loss', icon: PieChart, adminOnly: true },
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3, adminOnly: true },
   { name: 'استبيانات العملاء', href: '/surveys', icon: MessageSquare, adminOnly: true },

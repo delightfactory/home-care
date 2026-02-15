@@ -41,6 +41,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
     // حالة الفني
     const [status, setStatus] = useState<TechnicianStatus>({
         workerId: null,
+        workerName: null,
         teamId: null,
         teamName: null,
         isTeamMember: false,

@@ -41,6 +41,8 @@ const SurveysPage = React.lazy(() => import('./pages/Surveys/SurveysPage'))
 const NotificationsPage = React.lazy(() => import('./pages/Notifications/NotificationsPage'))
 const MessagesPage = React.lazy(() => import('./pages/MessagesPage'))
 const FinancePage = React.lazy(() => import('./pages/Finance/FinancePage'))
+const HrPage = React.lazy(() => import('./pages/Hr/HrPage'))
+const ProfitLossPage = React.lazy(() => import('./pages/ProfitLoss/ProfitLossPage'))
 
 // Technician App - تطبيق الفنى (منفصل)
 const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
@@ -48,6 +50,8 @@ const TechExpensesPage = React.lazy(() => import('./pages/Tech/TechExpensesPage'
 const TechCustodyPage = React.lazy(() => import('./pages/Tech/TechCustodyPage'))
 const TechNotificationsPage = React.lazy(() => import('./pages/Tech/TechNotificationsPage'))
 const TechMessagesPage = React.lazy(() => import('./pages/Tech/TechMessagesPage'))
+const TechAttendancePage = React.lazy(() => import('./pages/Tech/TechAttendancePage'))
+const TechProfilePage = React.lazy(() => import('./pages/Tech/TechProfilePage'))
 import { TechGuard } from './components/Guards/TechGuard'
 
 // Protected Route Component
@@ -226,6 +230,22 @@ const AppRoutes: React.FC = () => {
             </AdminGuard>
           }
         />
+        <Route
+          path="hr"
+          element={
+            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+              <HrPage />
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="profit-loss"
+          element={
+            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+              <ProfitLossPage />
+            </AdminGuard>
+          }
+        />
       </Route>
 
       {/* Technician App - تطبيق الفنى منفصل */}
@@ -250,6 +270,22 @@ const AppRoutes: React.FC = () => {
         element={
           <TechGuard>
             <TechCustodyPage />
+          </TechGuard>
+        }
+      />
+      <Route
+        path="/tech/attendance"
+        element={
+          <TechGuard>
+            <TechAttendancePage />
+          </TechGuard>
+        }
+      />
+      <Route
+        path="/tech/profile"
+        element={
+          <TechGuard>
+            <TechProfilePage />
           </TechGuard>
         }
       />
