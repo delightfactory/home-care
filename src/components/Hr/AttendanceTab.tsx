@@ -1,8 +1,8 @@
-// AttendanceTab — تبويب إدارة الحضور والانصراف
+// AttendanceTab — تبويب إدارة الحضور والانصراف (محسَّن)
 import React, { useState, useEffect, useCallback } from 'react'
 import {
     Plus, RefreshCw, Loader2, UserCheck, UserX,
-    Clock, CalendarOff, Sun, Search, X,
+    Clock, CalendarOff, Sun, Search, X, Edit3, LogOut, Users,
 } from 'lucide-react'
 import { AttendanceAPI } from '../../api/hr'
 import { CheckInMethod } from '../../types/hr.types'
@@ -31,8 +31,10 @@ const AttendanceTab: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState<string>('')
     const [searchTerm, setSearchTerm] = useState('')
     const [showAddModal, setShowAddModal] = useState(false)
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [showBulkAbsentModal, setShowBulkAbsentModal] = useState(false)
 
-    // بيانات النموذج
+    // بيانات النموذج - إضافة
     const [formWorkerId, setFormWorkerId] = useState('')
     const [formStatus, setFormStatus] = useState<AttendanceStatus>('present' as AttendanceStatus)
     const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0])
@@ -41,6 +43,18 @@ const AttendanceTab: React.FC = () => {
     const [formCheckOut, setFormCheckOut] = useState('')
     const [workers, setWorkers] = useState<{ id: string; name: string }[]>([])
     const [submitting, setSubmitting] = useState(false)
+
+    // بيانات التعديل
+    const [editingRecord, setEditingRecord] = useState<AttendanceWithWorker | null>(null)
+    const [editStatus, setEditStatus] = useState<AttendanceStatus>('present' as AttendanceStatus)
+    const [editCheckIn, setEditCheckIn] = useState('')
+    const [editCheckOut, setEditCheckOut] = useState('')
+    const [editNotes, setEditNotes] = useState('')
+
+    // بيانات تسجيل الغياب الجماعى
+    const [bulkAbsentWorkerIds, setBulkAbsentWorkerIds] = useState<string[]>([])
+    const [bulkAbsentStatus, setBulkAbsentStatus] = useState<AttendanceStatus>('absent' as AttendanceStatus)
+    const [bulkAbsentNotes, setBulkAbsentNotes] = useState('')
 
     const now = new Date()
     const [summaryMonth, setSummaryMonth] = useState(now.getMonth() + 1)
@@ -124,6 +138,97 @@ const AttendanceTab: React.FC = () => {
         setFormCheckOut('')
     }
 
+    // ⭐ تسجيل انصراف لسجل محدد
+    const handleCheckOut = async (record: AttendanceWithWorker) => {
+        const nowTime = new Date().toISOString()
+        const result = await AttendanceAPI.updateAttendance(record.id, {
+            check_out_time: nowTime,
+            check_out_method: 'manual_admin' as any,
+        })
+        if (result.success) {
+            toast.success('تم تسجيل الانصراف ✅')
+            loadData()
+        } else {
+            toast.error(result.error || 'حدث خطأ')
+        }
+    }
+
+    // ⭐ فتح modal التعديل
+    const openEditModal = (record: AttendanceWithWorker) => {
+        setEditingRecord(record)
+        setEditStatus(record.status as AttendanceStatus)
+        setEditCheckIn(record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '')
+        setEditCheckOut(record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '')
+        setEditNotes(record.notes || '')
+        setShowEditModal(true)
+    }
+
+    // ⭐ حفظ التعديل
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!editingRecord) return
+        setSubmitting(true)
+        try {
+            const updates: any = {
+                status: editStatus,
+                notes: editNotes || null,
+            }
+            if (editCheckIn) {
+                updates.check_in_time = `${editingRecord.date}T${editCheckIn}:00`
+            }
+            if (editCheckOut) {
+                updates.check_out_time = `${editingRecord.date}T${editCheckOut}:00`
+            }
+            const result = await AttendanceAPI.updateAttendance(editingRecord.id, updates)
+            if (result.success) {
+                toast.success('تم تحديث السجل ✅')
+                setShowEditModal(false)
+                setEditingRecord(null)
+                loadData()
+            } else {
+                toast.error(result.error || 'حدث خطأ')
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'حدث خطأ')
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    // ⭐ تسجيل غياب/إجازة جماعى
+    const handleBulkAbsent = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (bulkAbsentWorkerIds.length === 0) {
+            toast.error('اختر عامل واحد على الأقل')
+            return
+        }
+        setSubmitting(true)
+        try {
+            let successCount = 0
+            let failCount = 0
+            for (const workerId of bulkAbsentWorkerIds) {
+                const result = await AttendanceAPI.createAttendance({
+                    worker_id: workerId,
+                    date: selectedDate,
+                    status: bulkAbsentStatus,
+                    check_in_method: CheckInMethod.MANUAL_ADMIN,
+                    notes: bulkAbsentNotes || undefined,
+                })
+                if (result.success) successCount++
+                else failCount++
+            }
+            toast.success(`تم تسجيل ${successCount} عامل${failCount > 0 ? ` (فشل ${failCount})` : ''}`)
+            setShowBulkAbsentModal(false)
+            setBulkAbsentWorkerIds([])
+            setBulkAbsentNotes('')
+            loadData()
+        } catch (err: any) {
+            toast.error(err.message || 'حدث خطأ')
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
     const handleDeleteRecord = async (id: string) => {
         if (!confirm('هل تريد حذف هذا السجل؟')) return
         const result = await AttendanceAPI.deleteAttendance(id)
@@ -155,6 +260,10 @@ const AttendanceTab: React.FC = () => {
         leave: records.filter(r => r.status === 'leave').length,
         holiday: records.filter(r => r.status === 'holiday').length,
     }
+
+    // العمال الذين لم يسجلوا حضور اليوم
+    const registeredWorkerIds = new Set(records.map(r => r.worker_id))
+    const unregisteredWorkers = workers.filter(w => !registeredWorkerIds.has(w.id))
 
     return (
         <div className="space-y-4">
@@ -245,6 +354,24 @@ const AttendanceTab: React.FC = () => {
                     >
                         <RefreshCw className="w-4 h-4" />
                     </button>
+
+                    {/* ⭐ زر تسجيل غياب/إجازة جماعى */}
+                    {viewMode === 'daily' && (
+                        <button
+                            onClick={() => {
+                                setBulkAbsentWorkerIds([])
+                                setBulkAbsentStatus('absent' as AttendanceStatus)
+                                setBulkAbsentNotes('')
+                                setShowBulkAbsentModal(true)
+                            }}
+                            className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors border border-red-200"
+                            title="تسجيل غياب/إجازة جماعى"
+                        >
+                            <Users className="w-4 h-4" />
+                            <span className="hidden sm:inline">غياب جماعى</span>
+                        </button>
+                    )}
+
                     <button
                         onClick={() => { resetForm(); setShowAddModal(true) }}
                         className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -313,6 +440,7 @@ const AttendanceTab: React.FC = () => {
                                 filteredRecords.map((record) => {
                                     const config = statusConfig[record.status] || statusConfig.present
                                     const StatusIcon = config.icon
+                                    const canCheckOut = (record.status === 'present' || record.status === 'late') && record.check_in_time && !record.check_out_time
                                     return (
                                         <tr key={record.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="py-3 px-3 font-medium text-gray-900">
@@ -337,13 +465,34 @@ const AttendanceTab: React.FC = () => {
                                                 {record.notes || '—'}
                                             </td>
                                             <td className="py-3 px-3 text-center">
-                                                <button
-                                                    onClick={() => handleDeleteRecord(record.id)}
-                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="حذف"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex items-center justify-center gap-1">
+                                                    {/* ⭐ زر تسجيل الانصراف */}
+                                                    {canCheckOut && (
+                                                        <button
+                                                            onClick={() => handleCheckOut(record)}
+                                                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                            title="تسجيل انصراف"
+                                                        >
+                                                            <LogOut className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {/* ⭐ زر التعديل */}
+                                                    <button
+                                                        onClick={() => openEditModal(record)}
+                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                        title="تعديل"
+                                                    >
+                                                        <Edit3 className="w-4 h-4" />
+                                                    </button>
+                                                    {/* زر الحذف */}
+                                                    <button
+                                                        onClick={() => handleDeleteRecord(record.id)}
+                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="حذف"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     )
@@ -525,6 +674,222 @@ const AttendanceTab: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowAddModal(false)}
+                                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ⭐ Edit Attendance Modal */}
+            {showEditModal && editingRecord && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                تعديل سجل — {(editingRecord.worker as any)?.name || 'عامل'}
+                            </h3>
+                            <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="p-5 space-y-4">
+                            {/* الحالة */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {Object.entries(statusConfig).map(([key, config]) => {
+                                        const Icon = config.icon
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                onClick={() => setEditStatus(key as AttendanceStatus)}
+                                                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${editStatus === key
+                                                    ? `${config.bg} ${config.color} border-current`
+                                                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <Icon className="w-3.5 h-3.5" />
+                                                {config.label}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* وقت الحضور والانصراف */}
+                            {(editStatus === 'present' || editStatus === 'late') && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">وقت الحضور</label>
+                                        <input
+                                            type="time"
+                                            value={editCheckIn}
+                                            onChange={(e) => setEditCheckIn(e.target.value)}
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">وقت الانصراف</label>
+                                        <input
+                                            type="time"
+                                            value={editCheckOut}
+                                            onChange={(e) => setEditCheckOut(e.target.value)}
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ملاحظات */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
+                                <textarea
+                                    value={editNotes}
+                                    onChange={(e) => setEditNotes(e.target.value)}
+                                    rows={2}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+                                    placeholder="ملاحظات..."
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {submitting ? 'جارِ الحفظ...' : 'حفظ التعديلات'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEditModal(false)}
+                                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ⭐ Bulk Absent/Leave Modal */}
+            {showBulkAbsentModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBulkAbsentModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                            <h3 className="text-lg font-bold text-gray-900">تسجيل غياب/إجازة جماعى</h3>
+                            <button onClick={() => setShowBulkAbsentModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleBulkAbsent} className="flex-1 overflow-y-auto p-5 space-y-4">
+                            {/* التاريخ والحالة */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
+                                    <input
+                                        type="date"
+                                        value={selectedDate}
+                                        readOnly
+                                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-50"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
+                                    <select
+                                        value={bulkAbsentStatus}
+                                        onChange={(e) => setBulkAbsentStatus(e.target.value as AttendanceStatus)}
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="absent">غائب</option>
+                                        <option value="leave">إجازة</option>
+                                        <option value="holiday">عطلة</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* اختيار العمال */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium text-gray-700">
+                                        اختر العمال ({bulkAbsentWorkerIds.length} محدد)
+                                    </label>
+                                    {unregisteredWorkers.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setBulkAbsentWorkerIds(unregisteredWorkers.map(w => w.id))}
+                                            className="text-xs text-blue-600 hover:text-blue-800"
+                                        >
+                                            تحديد من لم يسجل ({unregisteredWorkers.length})
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="border border-gray-200 rounded-xl max-h-48 overflow-y-auto p-2 space-y-1">
+                                    {workers.map(w => {
+                                        const isRegistered = registeredWorkerIds.has(w.id)
+                                        const isSelected = bulkAbsentWorkerIds.includes(w.id)
+                                        return (
+                                            <label
+                                                key={w.id}
+                                                className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-red-50' : 'hover:bg-gray-50'
+                                                    } ${isRegistered ? 'opacity-50' : ''}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    disabled={isRegistered}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setBulkAbsentWorkerIds(prev => [...prev, w.id])
+                                                        } else {
+                                                            setBulkAbsentWorkerIds(prev => prev.filter(id => id !== w.id))
+                                                        }
+                                                    }}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="text-sm text-gray-900">{w.name}</span>
+                                                {isRegistered && (
+                                                    <span className="text-xs text-green-600 mr-auto">مسجل بالفعل</span>
+                                                )}
+                                            </label>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* ملاحظات */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات (اختيارى)</label>
+                                <textarea
+                                    value={bulkAbsentNotes}
+                                    onChange={(e) => setBulkAbsentNotes(e.target.value)}
+                                    rows={2}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+                                    placeholder="سبب الغياب..."
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={submitting || bulkAbsentWorkerIds.length === 0}
+                                    className="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {submitting ? 'جارِ التسجيل...' : `تسجيل ${statusConfig[bulkAbsentStatus]?.label || 'غياب'} (${bulkAbsentWorkerIds.length})`}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkAbsentModal(false)}
                                     className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                                 >
                                     إلغاء

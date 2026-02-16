@@ -4,12 +4,13 @@
 import React, { useState, useRef } from 'react'
 import {
     X, Banknote, Smartphone, Upload, CheckCircle,
-    Loader2, Camera, AlertCircle, Landmark
+    Loader2, Camera, AlertCircle, Landmark, ImageIcon
 } from 'lucide-react'
 import { InvoicesAPI } from '../../api/invoices'
 import { CustodyAPI } from '../../api/custody'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { formatAmount, compressImage } from '../../utils/formatters'
 import toast from 'react-hot-toast'
 
 interface TechCollectionSheetProps {
@@ -38,7 +39,8 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
     const [proofFile, setProofFile] = useState<File | null>(null)
     const [proofPreview, setProofPreview] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const cameraInputRef = useRef<HTMLInputElement>(null)
+    const galleryInputRef = useRef<HTMLInputElement>(null)
 
     const handleMethodSelect = (m: PaymentMethod) => {
         setMethod(m)
@@ -49,27 +51,37 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
         }
     }
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-            toast.error('يرجى اختيار صورة (JPG, PNG, WebP)')
+            toast.error('اختار صورة (JPG, PNG, WebP)')
             return
         }
-        if (file.size > 3 * 1024 * 1024) {
-            toast.error('حجم الصورة كبير — الحد الأقصى 3MB')
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('الصورة كبيرة أوى — الحد الأقصى 10MB')
             return
         }
 
-        setProofFile(file)
-        const reader = new FileReader()
-        reader.onload = (ev) => setProofPreview(ev.target?.result as string)
-        reader.readAsDataURL(file)
+        try {
+            // ضغط الصورة تلقائياً
+            const compressed = await compressImage(file, 1200, 0.7)
+            setProofFile(compressed)
+
+            const reader = new FileReader()
+            reader.onload = (ev) => setProofPreview(ev.target?.result as string)
+            reader.readAsDataURL(compressed)
+        } catch {
+            toast.error('مشكلة فى تجهيز الصورة — جرّب تانى')
+        }
+
+        // Reset input لإتاحة اختيار نفس الملف مرة أخرى
+        e.target.value = ''
     }
 
     const uploadProof = async (file: File): Promise<string> => {
-        const ext = file.name.split('.').pop()
+        const ext = file.name.split('.').pop() || 'jpg'
         const fileName = `payment-proofs/${orderId}_${Date.now()}.${ext}`
         const { error } = await supabase.storage
             .from('receipts')
@@ -88,7 +100,6 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                 // جلب عهدة القائد — أو إنشاؤها تلقائياً إن لم تكن موجودة
                 let custody = await CustodyAPI.getCustodyByUserId(user.id)
                 if (!custody) {
-                    // إنشاء عهدة تلقائية للقائد الحالي
                     try {
                         const { data: worker } = await supabase
                             .from('workers')
@@ -124,7 +135,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                     }
 
                     if (!custody) {
-                        toast.error('لا توجد عهدة مرتبطة بحسابك — تواصل مع الإدارة')
+                        toast.error('مفيش عهدة مربوطة بحسابك — كلّم الإدارة')
                         setLoading(false)
                         return
                     }
@@ -135,18 +146,17 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                         invoiceId, custody.id, user.id
                     )
                     if (!result.success) {
-                        toast.error(result.error || 'حدث خطأ في التحصيل')
+                        toast.error(result.error || 'حصل مشكلة فى التحصيل')
                         setLoading(false)
                         return
                     }
                 }
                 setStep('success')
-                toast.success('تم التحصيل النقدي بنجاح')
+                toast.success('تمام، الفلوس اتسلمت ✅')
             } else {
                 // instapay أو bank_transfer
-                // الفني يرفع الإثبات → الأدمن يؤكد ويحدد الخزنة
                 if (!proofFile) {
-                    toast.error('يرجى رفع إثبات الدفع')
+                    toast.error('ارفع صورة إثبات الدفع الأول')
                     setLoading(false)
                     return
                 }
@@ -154,8 +164,6 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                 const proofUrl = await uploadProof(proofFile)
 
                 if (invoiceId) {
-                    // تحديث الفاتورة بطريقة الدفع وإثبات الدفع فقط
-                    // الأدمن سيؤكد ويختار الخزنة لاحقاً في PaymentsTab
                     const result = await InvoicesAPI.updateInvoice(invoiceId, {
                         payment_method: method,
                         payment_proof_url: proofUrl,
@@ -163,13 +171,13 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                         collected_at: new Date().toISOString()
                     })
                     if (!result.success) {
-                        toast.error(result.error || 'حدث خطأ')
+                        toast.error(result.error || 'حصل مشكلة')
                         setLoading(false)
                         return
                     }
                 }
                 setStep('success')
-                toast.success('تم إرسال إثبات الدفع — في انتظار مراجعة الإدارة')
+                toast.success('تم إرسال الإثبات — الإدارة هتراجعه 👍')
             }
 
             setTimeout(() => {
@@ -178,7 +186,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
             }, 2000)
         } catch (err) {
             console.error('Collection error:', err)
-            toast.error('حدث خطأ أثناء التحصيل')
+            toast.error('حصل مشكلة أثناء التحصيل — جرّب تانى')
         } finally {
             setLoading(false)
         }
@@ -199,21 +207,25 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/50 z-[60] animate-fade-in"
+                className="fixed inset-0 bg-black/50 z-[60]"
                 onClick={handleClose}
+                style={{ animation: 'fadeIn 0.2s ease-out' }}
             />
 
             {/* Bottom Sheet */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[60] animate-slide-up safe-area-pb max-h-[85vh] overflow-y-auto">
+            <div
+                className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[60] safe-area-pb max-h-[85vh] overflow-y-auto"
+                style={{ animation: 'slideUp 0.3s ease-out' }}
+            >
                 {/* Handle */}
-                <div className="flex justify-center pt-3 pb-2 sticky top-0 bg-white rounded-t-3xl">
-                    <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+                <div className="flex justify-center pt-3 pb-2 sticky top-0 bg-white rounded-t-3xl z-10">
+                    <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
                 </div>
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
                     <h3 className="text-lg font-bold text-gray-800">
-                        {step === 'success' ? 'تم بنجاح' : 'تحصيل المبلغ'}
+                        {step === 'success' ? 'تم بنجاح ✅' : 'تحصيل المبلغ'}
                     </h3>
                     <button
                         onClick={handleClose}
@@ -225,10 +237,10 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
 
                 {/* Amount Display */}
                 {step !== 'success' && (
-                    <div className="mx-5 mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                    <div className="mx-5 mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
                         <p className="text-xs text-blue-500 mb-1">المبلغ المطلوب تحصيله</p>
                         <p className="text-2xl font-bold text-blue-700">
-                            {amount.toLocaleString('ar-EG')} <span className="text-sm font-normal">ج.م</span>
+                            {formatAmount(amount)} <span className="text-sm font-normal">ج.م</span>
                         </p>
                     </div>
                 )}
@@ -236,47 +248,47 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                 {/* Step: Select Method */}
                 {step === 'select' && (
                     <div className="p-5 space-y-3">
-                        <p className="text-sm text-gray-600 mb-2">اختر طريقة الدفع:</p>
+                        <p className="text-sm text-gray-600 mb-2">اختار طريقة الدفع:</p>
 
                         {/* Cash */}
                         <button
                             onClick={() => handleMethodSelect('cash')}
-                            className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-xl border border-green-200 transition-all active:scale-[0.98]"
+                            className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-2xl border border-green-200 transition-all active:scale-[0.98]"
                         >
-                            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
+                            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-md">
                                 <Banknote className="w-6 h-6 text-white" />
                             </div>
                             <div className="text-right flex-1">
-                                <h4 className="font-bold text-gray-800">نقدي</h4>
-                                <p className="text-xs text-gray-500">المبلغ يُضاف تلقائياً لعهدتك</p>
+                                <h4 className="font-bold text-gray-800">نقدى (كاش)</h4>
+                                <p className="text-xs text-gray-500">المبلغ هيتضاف لعهدتك تلقائى</p>
                             </div>
                         </button>
 
                         {/* Instapay */}
                         <button
                             onClick={() => handleMethodSelect('instapay')}
-                            className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-violet-50 hover:from-purple-100 hover:to-violet-100 rounded-xl border border-purple-200 transition-all active:scale-[0.98]"
+                            className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-violet-50 hover:from-purple-100 hover:to-violet-100 rounded-2xl border border-purple-200 transition-all active:scale-[0.98]"
                         >
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-md">
+                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-md">
                                 <Smartphone className="w-6 h-6 text-white" />
                             </div>
                             <div className="text-right flex-1">
                                 <h4 className="font-bold text-gray-800">Instapay</h4>
-                                <p className="text-xs text-gray-500">يتطلب رفع إثبات — تتم المراجعة من الإدارة</p>
+                                <p className="text-xs text-gray-500">ارفع الإثبات والإدارة هتراجعه</p>
                             </div>
                         </button>
 
                         {/* Bank Transfer */}
                         <button
                             onClick={() => handleMethodSelect('bank_transfer')}
-                            className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 rounded-xl border border-blue-200 transition-all active:scale-[0.98]"
+                            className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 rounded-2xl border border-blue-200 transition-all active:scale-[0.98]"
                         >
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-md">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-md">
                                 <Landmark className="w-6 h-6 text-white" />
                             </div>
                             <div className="text-right flex-1">
-                                <h4 className="font-bold text-gray-800">تحويل بنكي</h4>
-                                <p className="text-xs text-gray-500">يتطلب رفع إثبات — تتم المراجعة من الإدارة</p>
+                                <h4 className="font-bold text-gray-800">تحويل بنكى</h4>
+                                <p className="text-xs text-gray-500">ارفع الإثبات والإدارة هتراجعه</p>
                             </div>
                         </button>
                     </div>
@@ -285,13 +297,13 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                 {/* Step: Confirm Cash */}
                 {step === 'confirm' && method === 'cash' && (
                     <div className="p-5 space-y-4">
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                             <div className="flex items-start gap-3">
                                 <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                                 <div>
-                                    <p className="text-sm font-medium text-amber-800">تأكيد التحصيل النقدي</p>
+                                    <p className="text-sm font-medium text-amber-800">تأكيد التحصيل النقدى</p>
                                     <p className="text-xs text-amber-600 mt-1">
-                                        سيتم إضافة مبلغ <strong>{amount.toLocaleString('ar-EG')} ج.م</strong> إلى عهدتك تلقائياً
+                                        هيتضاف مبلغ <strong>{formatAmount(amount)} ج.م</strong> لعهدتك تلقائى
                                     </p>
                                 </div>
                             </div>
@@ -300,14 +312,14 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                         <div className="flex gap-3">
                             <button
                                 onClick={() => { setStep('select'); setMethod(null) }}
-                                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors active:scale-[0.98]"
                             >
                                 رجوع
                             </button>
                             <button
                                 onClick={handleCollect}
                                 disabled={loading}
-                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg hover:shadow-xl disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg hover:shadow-xl disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {loading ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -327,39 +339,54 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                     <div className="p-5 space-y-4">
                         <p className="text-sm text-gray-600">ارفع صورة إثبات الدفع:</p>
 
-                        {/* Upload Area */}
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofPreview
-                                ? 'border-green-300 bg-green-50'
-                                : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
-                                }`}
-                        >
-                            {proofPreview ? (
-                                <div className="space-y-3">
-                                    <img
-                                        src={proofPreview}
-                                        alt="إثبات الدفع"
-                                        className="max-h-40 mx-auto rounded-lg shadow-md"
-                                    />
-                                    <p className="text-xs text-green-600 font-medium">✅ تم اختيار الصورة — اضغط لتغييرها</p>
+                        {/* Preview */}
+                        {proofPreview && (
+                            <div className="border-2 border-green-300 bg-green-50 rounded-2xl p-3 text-center">
+                                <img
+                                    src={proofPreview}
+                                    alt="إثبات الدفع"
+                                    className="max-h-48 mx-auto rounded-xl shadow-md"
+                                />
+                                <p className="text-xs text-green-600 font-medium mt-2">✅ الصورة جاهزة</p>
+                            </div>
+                        )}
+
+                        {/* Upload Buttons — كاميرا + معرض */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => cameraInputRef.current?.click()}
+                                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-2xl border-2 border-dashed border-blue-300 transition-all active:scale-[0.97]"
+                            >
+                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <Camera className="w-6 h-6 text-blue-600" />
                                 </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <div className="w-14 h-14 mx-auto bg-gray-200 rounded-full flex items-center justify-center">
-                                        <Camera className="w-7 h-7 text-gray-500" />
-                                    </div>
-                                    <p className="text-sm text-gray-600 font-medium">اضغط لرفع الصورة</p>
-                                    <p className="text-xs text-gray-400">JPG, PNG — الحد الأقصى 3MB</p>
+                                <span className="text-sm font-medium text-blue-700">كاميرا</span>
+                            </button>
+
+                            <button
+                                onClick={() => galleryInputRef.current?.click()}
+                                className="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-2xl border-2 border-dashed border-purple-300 transition-all active:scale-[0.97]"
+                            >
+                                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <ImageIcon className="w-6 h-6 text-purple-600" />
                                 </div>
-                            )}
+                                <span className="text-sm font-medium text-purple-700">معرض الصور</span>
+                            </button>
                         </div>
 
+                        {/* Hidden file inputs */}
                         <input
-                            ref={fileInputRef}
+                            ref={cameraInputRef}
                             type="file"
                             accept="image/*"
                             capture="environment"
+                            onChange={handleFileChange}
+                            className="hidden"
+                        />
+                        <input
+                            ref={galleryInputRef}
+                            type="file"
+                            accept="image/*"
                             onChange={handleFileChange}
                             className="hidden"
                         />
@@ -372,14 +399,14 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                                     setProofFile(null)
                                     setProofPreview(null)
                                 }}
-                                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                className="flex-1 py-3.5 rounded-2xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors active:scale-[0.98]"
                             >
                                 رجوع
                             </button>
                             <button
                                 onClick={handleCollect}
                                 disabled={loading || !proofFile}
-                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-bold shadow-lg hover:shadow-xl disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-bold shadow-lg hover:shadow-xl disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {loading ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -397,35 +424,35 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                 {/* Step: Success */}
                 {step === 'success' && (
                     <div className="p-8 text-center space-y-4">
-                        <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center animate-bounce-in">
+                        <div
+                            className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center"
+                            style={{ animation: 'bounceIn 0.5s ease-out' }}
+                        >
                             <CheckCircle className="w-10 h-10 text-green-600" />
                         </div>
-                        <h4 className="text-lg font-bold text-gray-800">تم بنجاح!</h4>
+                        <h4 className="text-lg font-bold text-gray-800">تمام كده! 🎉</h4>
                         <p className="text-sm text-gray-500">
                             {method === 'cash'
-                                ? 'تم تحصيل المبلغ نقدياً وإضافته لعهدتك'
-                                : 'تم إرسال إثبات الدفع — في انتظار تأكيد الإدارة'
+                                ? 'الفلوس اتسلمت واتضافت لعهدتك'
+                                : 'الإثبات اتبعت — الإدارة هتراجعه وتأكده'
                             }
                         </p>
                     </div>
                 )}
 
-                {/* Extra padding — يضمن عدم اختفاء الأزرار خلف الناف بار */}
+                {/* Extra padding */}
                 <div className="h-20" />
             </div>
 
             {/* Animations */}
             <style>{`
-                @keyframes bounce-in {
+                @keyframes bounceIn {
                     0% { transform: scale(0); opacity: 0; }
                     50% { transform: scale(1.2); }
                     100% { transform: scale(1); opacity: 1; }
                 }
-                .animate-bounce-in { animation: bounce-in 0.5s ease-out; }
-                @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
-                @keyframes slide-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
-                .animate-fade-in { animation: fade-in 0.2s ease-out; }
-                .animate-slide-up { animation: slide-up 0.3s ease-out; }
+                @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+                @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
             `}</style>
         </>
     )

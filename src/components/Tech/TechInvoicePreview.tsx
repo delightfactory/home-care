@@ -1,7 +1,8 @@
 // TechInvoicePreview - عرض فاتورة مختصرة ومرتبة للفنى
 // يُعرض بعد إكمال الطلب ليناقشه الفنى مع العميل
 import React from 'react'
-import { FileText, Tag, Minus, Calculator } from 'lucide-react'
+import { FileText, Tag, Minus, Calculator, Banknote } from 'lucide-react'
+import { formatAmount, formatNumber } from '../../utils/formatters'
 
 interface InvoiceItem {
     id: string
@@ -37,12 +38,12 @@ const TechInvoicePreview: React.FC<TechInvoicePreviewProps> = ({
     const finalAmount = totalAmount || (subtotal - discount)
 
     return (
-        <div className="mx-4 mt-4 animate-fade-in">
+        <div className="mx-4 mt-4" style={{ animation: 'fadeIn 0.3s ease-out' }}>
             {/* Invoice Header */}
             <div className="bg-white rounded-t-2xl border border-b-0 border-gray-200 px-4 py-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center">
                             <FileText className="w-4 h-4 text-blue-600" />
                         </div>
                         <div>
@@ -68,20 +69,19 @@ const TechInvoicePreview: React.FC<TechInvoicePreviewProps> = ({
                 {items.map((item, index) => (
                     <div
                         key={item.id}
-                        className={`grid grid-cols-12 gap-1 px-4 py-2.5 text-sm ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                            }`}
+                        className={`grid grid-cols-12 gap-1 px-4 py-2.5 text-sm ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                     >
                         <span className="col-span-6 text-gray-800 font-medium truncate">
                             {item.service?.name_ar || item.service?.name || 'خدمة'}
                         </span>
                         <span className="col-span-2 text-center text-gray-600">
-                            {item.quantity}
+                            {formatNumber(item.quantity)}
                         </span>
                         <span className="col-span-2 text-center text-gray-600">
-                            {item.unit_price.toLocaleString('ar-EG')}
+                            {formatAmount(item.unit_price)}
                         </span>
                         <span className="col-span-2 text-left font-medium text-gray-800">
-                            {(item.quantity * item.unit_price).toLocaleString('ar-EG')}
+                            {formatAmount(item.quantity * item.unit_price)}
                         </span>
                     </div>
                 ))}
@@ -95,7 +95,7 @@ const TechInvoicePreview: React.FC<TechInvoicePreviewProps> = ({
                         <Calculator className="w-3.5 h-3.5" />
                         الإجمالي الفرعي
                     </span>
-                    <span className="text-gray-700">{subtotal.toLocaleString('ar-EG')} ج.م</span>
+                    <span className="text-gray-700">{formatAmount(subtotal)} ج.م</span>
                 </div>
 
                 {/* Discount */}
@@ -107,7 +107,7 @@ const TechInvoicePreview: React.FC<TechInvoicePreviewProps> = ({
                         </span>
                         <span className="text-green-600 flex items-center gap-1">
                             <Minus className="w-3 h-3" />
-                            {discount.toLocaleString('ar-EG')} ج.م
+                            {formatAmount(discount)} ج.م
                         </span>
                     </div>
                 )}
@@ -118,7 +118,7 @@ const TechInvoicePreview: React.FC<TechInvoicePreviewProps> = ({
                 <div>
                     <p className="text-xs text-blue-200">المبلغ المطلوب</p>
                     <p className="text-xl font-bold text-white">
-                        {finalAmount.toLocaleString('ar-EG')} <span className="text-sm font-normal">ج.م</span>
+                        {formatAmount(finalAmount)} <span className="text-sm font-normal">ج.م</span>
                     </p>
                 </div>
 
@@ -129,12 +129,15 @@ const TechInvoicePreview: React.FC<TechInvoicePreviewProps> = ({
                 ) : (
                     <button
                         onClick={onCollect}
-                        className="bg-white text-blue-600 font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all duration-200"
+                        className="bg-white text-blue-600 font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center gap-1.5"
                     >
-                        تحصيل المبلغ
+                        <Banknote className="w-4 h-4" />
+                        حصّل المبلغ
                     </button>
                 )}
             </div>
+
+            <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }`}</style>
         </div>
     )
 }

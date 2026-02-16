@@ -26,10 +26,12 @@ export class ProfitLossAPI {
                     total_revenue: 0,
                     total_expenses: 0,
                     total_payroll: 0,
+                    total_advances: 0,
                     net_profit: 0,
                     revenue_details: [],
                     expense_details: [],
                     payroll_details: [],
+                    advance_details: [],
                 }
             }
 
@@ -37,10 +39,12 @@ export class ProfitLossAPI {
                 total_revenue: Number(row.total_revenue) || 0,
                 total_expenses: Number(row.total_expenses) || 0,
                 total_payroll: Number(row.total_payroll) || 0,
+                total_advances: Number(row.total_advances) || 0,
                 net_profit: Number(row.net_profit) || 0,
                 revenue_details: row.revenue_details || [],
                 expense_details: row.expense_details || [],
                 payroll_details: row.payroll_details || [],
+                advance_details: row.advance_details || [],
             }
         } catch (error) {
             throw new Error(handleSupabaseError(error))

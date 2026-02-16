@@ -1,11 +1,18 @@
-// useTechnicianData - Hook لإدارة بيانات الفنى
+// useTechnicianData - Hook لإدارة بيانات الفنى + فحص الحضور + انصراف تلقائى
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { TechnicianAPI, TechnicianOrder, TechnicianProgress, TechnicianStatus } from '../api/technician'
+import { AttendanceAPI } from '../api/hr'
 import { RouteWithOrders } from '../types'
+import type { AttendanceRecord } from '../types/hr.types'
 import toast from 'react-hot-toast'
 
-const PENDING_COLLECTION_KEY = 'tech_pending_collection_order'
+interface AttendanceState {
+    checkedIn: boolean
+    checkedOut: boolean
+    todayRecord: AttendanceRecord | null
+    loading: boolean
+}
 
 interface UseTechnicianDataReturn {
     // البيانات
@@ -16,6 +23,9 @@ interface UseTechnicianDataReturn {
     // حالة الفني
     status: TechnicianStatus
 
+    // حالة الحضور
+    attendance: AttendanceState
+
     // حالات التحميل
     loading: boolean
     orderLoading: boolean
@@ -23,40 +33,76 @@ interface UseTechnicianDataReturn {
     // الأخطاء
     error: string | null
 
+    // هل أنهى كل الطلبات
+    allOrdersDone: boolean
+
     // الإجراءات
     startOrder: () => Promise<void>
     completeOrder: () => Promise<void>
     moveToNextOrder: () => Promise<void>
     refresh: () => Promise<void>
+    refreshAttendance: () => Promise<void>
 }
 
 export const useTechnicianData = (): UseTechnicianDataReturn => {
     const { user } = useAuth()
 
-    // البيانات
     const [route, setRoute] = useState<RouteWithOrders | null>(null)
     const [currentOrder, setCurrentOrder] = useState<TechnicianOrder | null>(null)
     const [progress, setProgress] = useState<TechnicianProgress>({ completed: 0, total: 0, percentage: 0 })
+    const [allOrdersDone, setAllOrdersDone] = useState(false)
 
-    // حالة الفني
+    // قراءة القيم المحفوظة من sessionStorage لمنع flickering الناف بار
+    const cachedIsLeader = sessionStorage.getItem('tech_isLeader') === 'true'
+    const cachedIsTeamMember = sessionStorage.getItem('tech_isTeamMember') === 'true'
+
     const [status, setStatus] = useState<TechnicianStatus>({
         workerId: null,
         workerName: null,
         teamId: null,
         teamName: null,
-        isTeamMember: false,
-        isLeader: false,
+        isTeamMember: cachedIsTeamMember,
+        isLeader: cachedIsLeader,
         hasLeader: false,
         leaderName: null,
         teamMembers: []
     })
 
-    // حالات التحميل
+    const [attendance, setAttendance] = useState<AttendanceState>({
+        checkedIn: false,
+        checkedOut: false,
+        todayRecord: null,
+        loading: true
+    })
+
     const [loading, setLoading] = useState(true)
     const [orderLoading, setOrderLoading] = useState(false)
-
-    // الأخطاء
     const [error, setError] = useState<string | null>(null)
+
+    // فحص حالة الحضور
+    const checkAttendance = useCallback(async (wId: string) => {
+        setAttendance(prev => ({ ...prev, loading: true }))
+        try {
+            const record = await AttendanceAPI.getTodayAttendance(wId)
+            setAttendance({
+                checkedIn: record?.check_in_time != null,
+                checkedOut: record?.check_out_time != null,
+                todayRecord: record,
+                loading: false
+            })
+            return record
+        } catch {
+            setAttendance(prev => ({ ...prev, loading: false }))
+            return null
+        }
+    }, [])
+
+    // تحديث حالة الحضور
+    const refreshAttendance = useCallback(async () => {
+        if (status.workerId) {
+            await checkAttendance(status.workerId)
+        }
+    }, [status.workerId, checkAttendance])
 
     // جلب جميع البيانات
     const fetchData = useCallback(async () => {
@@ -69,16 +115,24 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
             setLoading(true)
             setError(null)
 
-            // جلب حالة الفني أولاً
             const techStatus = await TechnicianAPI.getTechnicianStatus(user.id)
             setStatus(techStatus)
 
-            // إذا لم يكن عضواً في فريق، لا داعي لجلب الباقي
+            // تخزين مؤقت لمنع flickering عند التنقل
+            sessionStorage.setItem('tech_isLeader', String(techStatus.isLeader))
+            sessionStorage.setItem('tech_isTeamMember', String(techStatus.isTeamMember))
+
             if (!techStatus.isTeamMember) {
                 setRoute(null)
                 setCurrentOrder(null)
                 setProgress({ completed: 0, total: 0, percentage: 0 })
+                setAllOrdersDone(false)
                 return
+            }
+
+            // فحص الحضور
+            if (techStatus.workerId) {
+                await checkAttendance(techStatus.workerId)
             }
 
             // جلب خط السير
@@ -86,43 +140,26 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
             setRoute(todayRoute)
 
             if (todayRoute) {
-                // ✅ التحقق من وجود طلب بانتظار التحصيل فى localStorage
-                const pendingOrderId = localStorage.getItem(PENDING_COLLECTION_KEY)
-
-                let order: TechnicianOrder | null = null
-
-                if (pendingOrderId && techStatus.isLeader) {
-                    // جلب الطلب المكتمل الذي ينتظر التحصيل
-                    order = await TechnicianAPI.getOrderById(pendingOrderId, true)
-
-                    // إذا لم يعد الطلب موجوداً أو لم يعد مكتملاً — حذف المفتاح
-                    if (!order || order.status !== 'completed') {
-                        localStorage.removeItem(PENDING_COLLECTION_KEY)
-                        order = null
-                    }
-                }
-
-                // إذا لم يكن هناك طلب معلق — جلب الطلب التالى بالتسلسل
-                if (!order) {
-                    order = await TechnicianAPI.getCurrentOrder(todayRoute.id, techStatus.isLeader)
-                }
-
+                // جلب الطلب الحالى — بالاعتماد على حالة DB مباشرة
+                const order = await TechnicianAPI.getCurrentOrder(todayRoute.id, techStatus.isLeader)
                 const prog = await TechnicianAPI.getTodayProgress(todayRoute.id)
+
                 setCurrentOrder(order)
                 setProgress(prog)
+                setAllOrdersDone(!order && prog.total > 0 && prog.completed === prog.total)
             } else {
                 setCurrentOrder(null)
                 setProgress({ completed: 0, total: 0, percentage: 0 })
+                setAllOrdersDone(false)
             }
         } catch (err) {
             console.error('Error fetching technician data:', err)
-            setError('حدث خطأ فى جلب البيانات')
+            setError('حصل مشكلة فى جلب البيانات — جرّب تانى')
         } finally {
             setLoading(false)
         }
-    }, [user?.id])
+    }, [user?.id, checkAttendance])
 
-    // جلب البيانات عند التحميل
     useEffect(() => {
         fetchData()
     }, [fetchData])
@@ -130,70 +167,54 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
     // بدء العمل على الطلب
     const startOrder = useCallback(async () => {
         if (!currentOrder) return
-
         try {
             setOrderLoading(true)
             const result = await TechnicianAPI.startOrder(currentOrder.id)
-
             if (result.success) {
-                toast.success('تم بدء العمل على الطلب')
-                // تحديث الحالة محلياً لتفادى إعادة التحميل
+                toast.success('يلا بينا! تم بدء الطلب 🚀')
                 setCurrentOrder(prev => prev ? { ...prev, status: 'in_progress' } : null)
             } else {
-                toast.error(result.error || 'حدث خطأ')
+                toast.error(result.error || 'حصل مشكلة')
             }
         } catch (err) {
             console.error('Error starting order:', err)
-            toast.error('حدث خطأ فى بدء الطلب')
+            toast.error('حصل مشكلة فى بدء الطلب')
         } finally {
             setOrderLoading(false)
         }
     }, [currentOrder])
 
-    // إكمال الطلب — يبقى الطلب ظاهراً كـ completed لعرض الفاتورة
+    // إكمال الطلب
     const completeOrder = useCallback(async () => {
         if (!currentOrder || !route) return
-
         try {
             setOrderLoading(true)
             const result = await TechnicianAPI.completeOrder(currentOrder.id)
-
             if (result.success) {
-                toast.success('تم إكمال الطلب بنجاح — قم بتحصيل الفاتورة')
-
-                // ✅ حفظ معرف الطلب فى localStorage ليستمر بعد الريفريش
-                localStorage.setItem(PENDING_COLLECTION_KEY, currentOrder.id)
-
-                // ✅ تحديث الحالة محلياً لـ completed — يبقى الطلب ظاهراً لعرض الفاتورة
+                toast.success('شغل جامد! الطلب خلص — حصّل الفاتورة 🎯')
                 setCurrentOrder(prev => prev ? { ...prev, status: 'completed' } : null)
-
-                // تحديث التقدم
                 const newProgress = await TechnicianAPI.getTodayProgress(route.id)
                 setProgress(newProgress)
             } else {
-                toast.error(result.error || 'حدث خطأ')
+                toast.error(result.error || 'حصل مشكلة')
             }
         } catch (err) {
             console.error('Error completing order:', err)
-            toast.error('حدث خطأ فى إكمال الطلب')
+            toast.error('حصل مشكلة فى إكمال الطلب')
         } finally {
             setOrderLoading(false)
         }
     }, [currentOrder, route])
 
-    // الانتقال للطلب التالى — بعد التحصيل أو التخطي
+    // الانتقال للطلب التالى — مع انصراف تلقائى لو آخر طلب
     const moveToNextOrder = useCallback(async () => {
         if (!route) return
-
         try {
             setOrderLoading(true)
 
-            // ✅ حذف المفتاح من localStorage
-            localStorage.removeItem(PENDING_COLLECTION_KEY)
-
-            // عرض شاشة النجاح لثانيتين
+            // عرض انتقال لثانيتين
             setCurrentOrder(null)
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            await new Promise(resolve => setTimeout(resolve, 1500))
 
             // جلب الطلب التالى
             const [newOrder, newProgress] = await Promise.all([
@@ -204,18 +225,37 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
             setCurrentOrder(newOrder)
             setProgress(newProgress)
 
-            if (!newOrder) {
-                toast.success('🎉 أحسنت! أنهيت جميع طلبات اليوم', { duration: 5000 })
+            if (!newOrder && newProgress.total > 0 && newProgress.completed === newProgress.total) {
+                // آخر طلب — انصراف تلقائى
+                setAllOrdersDone(true)
+
+                if (status.workerId) {
+                    const attRecord = await AttendanceAPI.getTodayAttendance(status.workerId)
+                    if (attRecord && attRecord.check_in_time && !attRecord.check_out_time) {
+                        // تسجيل انصراف تلقائى
+                        const checkoutResult = await AttendanceAPI.checkOut(status.workerId, 'auto')
+                        if (checkoutResult.success) {
+                            toast.success('تم تسجيل انصرافك تلقائى 🏠 ريّح نفسك!', { duration: 5000 })
+                            setAttendance({
+                                checkedIn: true,
+                                checkedOut: true,
+                                todayRecord: checkoutResult.data || attRecord,
+                                loading: false
+                            })
+                        }
+                    }
+                }
+
+                toast.success('الله ينوّر يا بطل! خلّصت كل شغل النهاردة 🏆', { duration: 5000 })
             }
         } catch (err) {
             console.error('Error moving to next order:', err)
-            toast.error('حدث خطأ فى تحميل الطلب التالي')
+            toast.error('حصل مشكلة فى تحميل الطلب التالى')
         } finally {
             setOrderLoading(false)
         }
-    }, [route, status.isLeader])
+    }, [route, status.isLeader, status.workerId])
 
-    // تحديث البيانات
     const refresh = useCallback(async () => {
         await fetchData()
     }, [fetchData])
@@ -225,13 +265,16 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         currentOrder,
         progress,
         status,
+        attendance,
         loading,
         orderLoading,
         error,
+        allOrdersDone,
         startOrder,
         completeOrder,
         moveToNextOrder,
-        refresh
+        refresh,
+        refreshAttendance
     }
 }
 

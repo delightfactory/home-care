@@ -7,9 +7,10 @@ import {
 } from 'lucide-react'
 import TechLayout from '../../components/Layout/TechLayout'
 import { useTechnicianData } from '../../hooks/useTechnicianData'
-import { AttendanceAPI, AdvancesAPI, AdjustmentsAPI } from '../../api/hr'
+import { AttendanceAPI, AdvancesAPI, AdjustmentsAPI, PayrollAPI } from '../../api/hr'
 import { BonusesAPI, WorkerBonus } from '../../api/bonuses'
-import type { AttendanceRecord, SalaryAdvance, HrAdjustment } from '../../types/hr.types'
+import type { AttendanceRecord, SalaryAdvance, HrAdjustment, PayrollItem } from '../../types/hr.types'
+import { formatAmount } from '../../utils/formatters'
 import toast from 'react-hot-toast'
 
 const months = [
@@ -30,6 +31,7 @@ const TechProfilePage: React.FC = () => {
     const [advances, setAdvances] = useState<SalaryAdvance[]>([])
     const [adjustments, setAdjustments] = useState<HrAdjustment[]>([])
     const [bonus, setBonus] = useState<WorkerBonus | null>(null)
+    const [payrollItem, setPayrollItem] = useState<PayrollItem | null>(null)
     const [loading, setLoading] = useState(true)
 
     const workerId = status.workerId
@@ -38,15 +40,17 @@ const TechProfilePage: React.FC = () => {
         if (!workerId) return
         setLoading(true)
         try {
-            const [attendanceData, advancesData, adjustmentsData, bonusData] = await Promise.all([
+            const [attendanceData, advancesData, adjustmentsData, bonusData, payrollData] = await Promise.all([
                 AttendanceAPI.getAttendanceByWorker(workerId, viewMonth, viewYear),
                 AdvancesAPI.getAdvancesByWorker(workerId),
                 AdjustmentsAPI.getAdjustments({ worker_id: workerId }).catch(() => []),
                 BonusesAPI.getWorkerBonuses(`${viewYear}-${String(viewMonth).padStart(2, '0')}-01`).catch(() => []),
+                PayrollAPI.getWorkerPayrollItem(workerId, viewMonth, viewYear).catch(() => null),
             ])
             setAttendance(attendanceData)
             setAdvances(advancesData)
             setAdjustments(adjustmentsData as HrAdjustment[])
+            setPayrollItem(payrollData)
             // العثور على حافز هذا الفنى
             const myBonus = (bonusData as WorkerBonus[]).find(b => b.worker_id === workerId)
             setBonus(myBonus || null)
@@ -73,8 +77,8 @@ const TechProfilePage: React.FC = () => {
         else setViewMonth(m => m + 1)
     }
 
-    const formatCurrency = (n: number) =>
-        new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
+    // استخدام formatAmount من formatters.ts — أرقام إنجليزية
+    const formatCurrency = (n: number) => formatAmount(n)
 
     // حساب ملخص الحضور
     const presentDays = attendance.filter(a => a.status === 'present').length
@@ -123,13 +127,13 @@ const TechProfilePage: React.FC = () => {
     }
 
     return (
-        <TechLayout onRefresh={loadData} isLeader={status.isLeader}>
-            <div className="p-4 space-y-4">
+        <TechLayout isLeader={status.isLeader}>
+            <div className="p-4 pb-24 space-y-4">
 
                 {/* 1. بطاقة الملف الشخصى */}
-                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg">
+                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-5 text-white shadow-xl shadow-blue-600/20">
                     <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-inner">
                             <UserCircle className="w-10 h-10 text-white" />
                         </div>
                         <div className="flex-1">
@@ -149,7 +153,7 @@ const TechProfilePage: React.FC = () => {
                     </div>
 
                     {/* إحصائيات سريعة */}
-                    <div className="grid grid-cols-3 gap-3 mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                    <div className="grid grid-cols-3 gap-3 mt-4 bg-white/10 backdrop-blur-sm rounded-2xl p-3">
                         <div className="text-center">
                             <p className="text-2xl font-bold">{presentDays}</p>
                             <p className="text-xs text-blue-200">يوم حضور</p>
@@ -170,7 +174,7 @@ const TechProfilePage: React.FC = () => {
                 </div>
 
                 {/* منتقى الشهر */}
-                <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
                     <button
                         onClick={goToPrev}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -261,7 +265,7 @@ const TechProfilePage: React.FC = () => {
                                 ) : (
                                     <div className="text-center py-6 text-gray-400">
                                         <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">لا توجد بيانات أداء لهذا الشهر</p>
+                                        <p className="text-sm">مفيش بيانات أداء الشهر ده</p>
                                     </div>
                                 )}
                             </div>
@@ -344,7 +348,112 @@ const TechProfilePage: React.FC = () => {
                                 ) : (
                                     <div className="text-center py-6 text-gray-400">
                                         <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">لا توجد سجلات حضور لهذا الشهر</p>
+                                        <p className="text-sm">مفيش سجلات حضور الشهر ده</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 3.5 بطاقة كشف الراتب */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                                <Banknote className="w-5 h-5 text-emerald-500" />
+                                <h3 className="font-bold text-gray-900">كشف الراتب</h3>
+                                {payrollItem && (
+                                    <span className={`text-xs px-2 py-0.5 rounded-full mr-auto font-medium ${isCurrentMonth ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                                        }`}>
+                                        {isCurrentMonth ? 'مؤقت' : months[viewMonth - 1]} {isCurrentMonth ? '' : viewYear}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="p-4">
+                                {payrollItem ? (
+                                    <div className="space-y-3">
+                                        {/* الراتب الأساسى */}
+                                        <div className="flex items-center justify-between py-2">
+                                            <div>
+                                                <span className="text-sm text-gray-600">الراتب الأساسى</span>
+                                                {isCurrentMonth && payrollItem.total_month_days > 0 && (() => {
+                                                    const elapsed = Math.min(
+                                                        payrollItem.total_month_days,
+                                                        Math.max(0, Math.floor((Date.now() - new Date(viewYear, viewMonth - 1, 1).getTime()) / 86400000) + 1)
+                                                    )
+                                                    return elapsed < payrollItem.total_month_days ? (
+                                                        <p className="text-xs text-amber-600 mt-0.5">
+                                                            {elapsed} من {payrollItem.total_month_days} يوم
+                                                        </p>
+                                                    ) : null
+                                                })()}
+                                            </div>
+                                            <span className="text-sm font-semibold text-gray-800">{formatCurrency(payrollItem.base_salary)} ج.م</span>
+                                        </div>
+
+                                        {/* الخصومات */}
+                                        {(payrollItem.absence_deduction > 0 || payrollItem.advance_deduction > 0 || payrollItem.manual_deductions > 0 || payrollItem.manual_penalties > 0) && (
+                                            <div className="bg-red-50 rounded-xl p-3 space-y-2">
+                                                <p className="text-xs font-semibold text-red-700 mb-1">الخصومات</p>
+                                                {payrollItem.absence_deduction > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-red-600">خصم غياب ({payrollItem.unpaid_absent_days} يوم)</span>
+                                                        <span className="font-medium text-red-700">-{formatCurrency(payrollItem.absence_deduction)}</span>
+                                                    </div>
+                                                )}
+                                                {payrollItem.advance_deduction > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-red-600">قسط سلفة</span>
+                                                        <span className="font-medium text-red-700">-{formatCurrency(payrollItem.advance_deduction)}</span>
+                                                    </div>
+                                                )}
+                                                {payrollItem.manual_deductions > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-red-600">خصومات يدوية</span>
+                                                        <span className="font-medium text-red-700">-{formatCurrency(payrollItem.manual_deductions)}</span>
+                                                    </div>
+                                                )}
+                                                {payrollItem.manual_penalties > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-red-600">جزاءات</span>
+                                                        <span className="font-medium text-red-700">-{formatCurrency(payrollItem.manual_penalties)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* الإضافات */}
+                                        {(payrollItem.calculated_bonus > 0 || payrollItem.manual_bonuses > 0) && (
+                                            <div className="bg-green-50 rounded-xl p-3 space-y-2">
+                                                <p className="text-xs font-semibold text-green-700 mb-1">الإضافات</p>
+                                                {payrollItem.calculated_bonus > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-green-600">حافز التقييم</span>
+                                                        <span className="font-medium text-green-700">+{formatCurrency(payrollItem.calculated_bonus)}</span>
+                                                    </div>
+                                                )}
+                                                {payrollItem.manual_incentives > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-green-600">حوافز يدوية</span>
+                                                        <span className="font-medium text-green-700">+{formatCurrency(payrollItem.manual_incentives)}</span>
+                                                    </div>
+                                                )}
+                                                {payrollItem.manual_bonuses > 0 && (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-green-600">مكافآت</span>
+                                                        <span className="font-medium text-green-700">+{formatCurrency(payrollItem.manual_bonuses)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* صافى الراتب */}
+                                        <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-3 flex items-center justify-between border border-green-200">
+                                            <span className="text-sm font-bold text-green-800">صافى الراتب</span>
+                                            <span className="text-lg font-bold text-green-700">{formatCurrency(payrollItem.net_salary)} ج.م</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-gray-400">
+                                        <Banknote className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">لسه ما اتحسبش الراتب الشهر ده</p>
                                     </div>
                                 )}
                             </div>
@@ -365,42 +474,55 @@ const TechProfilePage: React.FC = () => {
                                 {activeAdvances.length > 0 ? (
                                     <div className="space-y-3">
                                         {activeAdvances.map((adv) => {
-                                            const progress = ((adv.total_amount - adv.remaining_amount) / adv.total_amount) * 100
-                                            const statusLabel = adv.status === 'pending' ? 'معلقة' : 'نشطة'
+                                            const paidAmount = adv.total_amount - adv.remaining_amount
+                                            const progress = (paidAmount / adv.total_amount) * 100
+                                            const paidInstallments = adv.installments_count > 1
+                                                ? Math.round((paidAmount / adv.installment_amount))
+                                                : (paidAmount > 0 ? 1 : 0)
+                                            const statusLabel = adv.status === 'pending' ? 'في انتظار الاعتماد' :
+                                                adv.status === 'completed' ? 'مكتملة' : 'نشطة'
                                             const statusColor = adv.status === 'pending'
                                                 ? 'bg-orange-100 text-orange-700'
-                                                : 'bg-blue-100 text-blue-700'
+                                                : adv.status === 'completed'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-blue-100 text-blue-700'
                                             return (
                                                 <div key={adv.id} className="border border-gray-100 rounded-xl p-3">
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>
-                                                                {statusLabel}
-                                                            </span>
-                                                            {adv.reason && (
-                                                                <span className="text-xs text-gray-500 truncate max-w-[120px]">
-                                                                    {adv.reason}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>
+                                                            {statusLabel}
+                                                        </span>
                                                         <span className="text-sm font-bold text-gray-800">
                                                             {formatCurrency(adv.total_amount)} ج.م
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-amber-500 rounded-full transition-all"
-                                                                style={{ width: `${Math.min(progress, 100)}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs text-gray-500 whitespace-nowrap">
-                                                            متبقى {formatCurrency(adv.remaining_amount)}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-400 mt-1">
-                                                        {adv.installments_count} قسط — يبدأ {months[adv.start_month - 1]} {adv.start_year}
-                                                    </p>
+                                                    {adv.status === 'active' && (
+                                                        <>
+                                                            <div className="flex items-center gap-3 mb-1.5">
+                                                                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-amber-500 rounded-full transition-all"
+                                                                        style={{ width: `${Math.min(progress, 100)}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-xs text-gray-500 whitespace-nowrap">
+                                                                    {paidInstallments}/{adv.installments_count} قسط
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs text-gray-500">
+                                                                <span>القسط: {formatCurrency(adv.installment_amount)} ج.م/شهر</span>
+                                                                <span>متبقى: {formatCurrency(adv.remaining_amount)} ج.م</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {adv.status === 'pending' && (
+                                                        <p className="text-xs text-orange-500 mt-1">
+                                                            {adv.advance_type === 'immediate' ? 'فورية' : 'مجدولة'} — {adv.installments_count} قسط × {formatCurrency(adv.installment_amount)} ج.م
+                                                        </p>
+                                                    )}
+                                                    {adv.reason && (
+                                                        <p className="text-xs text-gray-400 mt-1 truncate">{adv.reason}</p>
+                                                    )}
                                                 </div>
                                             )
                                         })}
@@ -408,7 +530,7 @@ const TechProfilePage: React.FC = () => {
                                 ) : (
                                     <div className="text-center py-6 text-gray-400">
                                         <Banknote className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">لا توجد سلف نشطة</p>
+                                        <p className="text-sm">مفيش سلف نشطة حالياً</p>
                                     </div>
                                 )}
                             </div>
@@ -437,7 +559,7 @@ const TechProfilePage: React.FC = () => {
                                                             {adj.reason || (isBonus ? 'مكافأة' : 'خصم')}
                                                         </p>
                                                         <p className="text-xs text-gray-500 mt-0.5">
-                                                            {new Date(adj.created_at).toLocaleDateString('ar-EG')}
+                                                            {new Date(adj.created_at).toLocaleDateString('en-GB')}
                                                         </p>
                                                     </div>
                                                     <span className={`text-sm font-bold ${isBonus ? 'text-green-700' : 'text-red-700'}`}>
@@ -450,7 +572,7 @@ const TechProfilePage: React.FC = () => {
                                 ) : (
                                     <div className="text-center py-6 text-gray-400">
                                         <Award className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">لا توجد تسويات مسجلة</p>
+                                        <p className="text-sm">مفيش تسويات مسجّلة</p>
                                     </div>
                                 )}
                             </div>

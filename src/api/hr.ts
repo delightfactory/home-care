@@ -141,7 +141,7 @@ export class AttendanceAPI {
     /** تسجيل انصراف */
     static async checkOut(
         workerId: string,
-        method: 'manual_gps' | 'manual_admin',
+        method: 'manual_gps' | 'manual_admin' | 'auto',
         location?: { lat: number; lng: number; accuracy?: number }
     ): Promise<ApiResponse<AttendanceRecord>> {
         try {
@@ -172,6 +172,25 @@ export class AttendanceAPI {
                 success: false,
                 error: handleSupabaseError(error)
             }
+        }
+    }
+
+    /** جلب سجل حضور اليوم لعامل محدد (فحص سريع) */
+    static async getTodayAttendance(
+        workerId: string
+    ): Promise<AttendanceRecord | null> {
+        try {
+            const today = new Date().toISOString().split('T')[0]
+            const { data, error } = await supabase
+                .from('attendance_records')
+                .select('*')
+                .eq('worker_id', workerId)
+                .eq('date', today)
+                .maybeSingle()
+            if (error) throw error
+            return data || null
+        } catch {
+            return null
         }
     }
 
@@ -732,6 +751,37 @@ export class PayrollAPI {
                 success: false,
                 error: handleSupabaseError(error)
             }
+        }
+    }
+
+    /** جلب بند عامل محدد لشهر واحد */
+    static async getWorkerPayrollItem(
+        workerId: string,
+        month: number,
+        year: number
+    ): Promise<PayrollItemWithWorker | null> {
+        try {
+            // أولاً نجد المسير للشهر المطلوب
+            const { data: period } = await supabase
+                .from('payroll_periods')
+                .select('id')
+                .eq('month', month)
+                .eq('year', year)
+                .maybeSingle()
+
+            if (!period) return null
+
+            const { data, error } = await supabase
+                .from('payroll_items')
+                .select('*, worker:workers!payroll_items_worker_id_fkey(id, name, phone)')
+                .eq('payroll_period_id', period.id)
+                .eq('worker_id', workerId)
+                .maybeSingle()
+
+            if (error) throw error
+            return data as PayrollItemWithWorker | null
+        } catch (error) {
+            throw new Error(handleSupabaseError(error))
         }
     }
 

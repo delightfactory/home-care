@@ -247,8 +247,8 @@ CREATE TABLE IF NOT EXISTS salary_advances (
   start_year INT NOT NULL CHECK (start_year >= 2024),
 
   -- الحالة
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN (
-    'active', 'completed', 'cancelled'
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+    'pending', 'active', 'completed', 'cancelled'
   )),
 
   reason TEXT,
@@ -661,7 +661,8 @@ BEGIN
       AND date BETWEEN v_month_start AND v_month_end
       AND is_processed = false;
 
-    v_manual_incentives := v_calculated_bonus + COALESCE(v_manual_bonuses, 0);
+    -- ⭐ الحوافز اليدوية — لا يوجد مصدر مستقل لها (المكافآت موجودة فى manual_bonuses)
+    v_manual_incentives := 0;
 
     -- أقساط السلف المستحقة هذا الشهر
     SELECT COALESCE(SUM(ai.amount), 0)
@@ -675,9 +676,10 @@ BEGIN
       AND ai.status = 'pending';
 
     -- ⭐ حساب الصافي
-    -- الصافي = الراتب + حوافز − خصم_الغياب − خصومات − جزاءات − سلف
-    v_net_salary := COALESCE(v_worker.salary, 0)
-                  + COALESCE(v_manual_incentives, 0)
+    -- القاعدة = اليومية × الأيام المنقضية + حافز_التقييم + مكافآت − خصم_غياب − خصومات − جزاءات − سلف
+    v_net_salary := ROUND(v_daily_rate * v_elapsed_days, 2)
+                  + COALESCE(v_calculated_bonus, 0)
+                  + COALESCE(v_manual_bonuses, 0)
                   - v_absence_deduction
                   - COALESCE(v_manual_deductions, 0)
                   - COALESCE(v_manual_penalties, 0)
@@ -704,8 +706,8 @@ BEGIN
     );
 
     -- تجميع الإجماليات
-    v_total_salaries := v_total_salaries + COALESCE(v_worker.salary, 0);
-    v_total_incentives := v_total_incentives + COALESCE(v_manual_incentives, 0);
+    v_total_salaries := v_total_salaries + ROUND(v_daily_rate * v_elapsed_days, 2);
+    v_total_incentives := v_total_incentives + COALESCE(v_calculated_bonus, 0);
     v_total_deductions := v_total_deductions + COALESCE(v_manual_deductions, 0);
     v_total_penalties := v_total_penalties + COALESCE(v_manual_penalties, 0);
     v_total_bonuses := v_total_bonuses + COALESCE(v_manual_bonuses, 0);
@@ -1018,8 +1020,15 @@ $$;
 
 
 -- ==================================
--- 3.3 تقرير الأرباح والخسائر
+-- 3.3 تقرير الأرباح والخسائر (مُحدَّث)
 -- ==================================
+-- 📋 التغييرات:
+--   1. الرواتب تُقرأ من payroll_disbursements (المصروف الفعلى) بدلاً من payroll_periods.net_total
+--   2. إضافة قسم السلف المصروفة كبند منفصل (من vault_transactions)
+--   3. استثناء فئة salary_advances من المصروفات العامة (تظهر فى قسمها الخاص)
+--   4. صافى الربح = إيرادات − مصروفات − رواتب_مصروفة − سلف
+-- ==================================
+DROP FUNCTION IF EXISTS get_profit_loss_report(DATE, DATE);
 CREATE OR REPLACE FUNCTION get_profit_loss_report(
   p_date_from DATE,
   p_date_to DATE
@@ -1028,10 +1037,12 @@ RETURNS TABLE (
   total_revenue NUMERIC(14,2),
   total_expenses NUMERIC(14,2),
   total_payroll NUMERIC(14,2),
+  total_advances NUMERIC(14,2),
   net_profit NUMERIC(14,2),
   revenue_details JSONB,
   expense_details JSONB,
-  payroll_details JSONB
+  payroll_details JSONB,
+  advance_details JSONB
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1041,11 +1052,15 @@ DECLARE
   v_total_revenue NUMERIC(14,2);
   v_total_expenses NUMERIC(14,2);
   v_total_payroll NUMERIC(14,2);
+  v_total_advances NUMERIC(14,2);
   v_revenue_details JSONB;
   v_expense_details JSONB;
   v_payroll_details JSONB;
+  v_advance_details JSONB;
 BEGIN
-  -- الإيرادات من الفواتير المدفوعة
+  -- ════════════════════════════════════════════
+  -- 1. الإيرادات من الفواتير المدفوعة
+  -- ════════════════════════════════════════════
   SELECT
     COALESCE(SUM(total_amount), 0),
     COALESCE(
@@ -1063,7 +1078,9 @@ BEGIN
   WHERE status IN ('paid', 'confirmed', 'partially_paid')
     AND created_at::DATE BETWEEN p_date_from AND p_date_to;
 
-  -- المصروفات (باستثناء الرواتب — نعرضها منفصلة)
+  -- ════════════════════════════════════════════
+  -- 2. المصروفات (باستثناء الرواتب والسلف — يُعرضان منفصلين)
+  -- ════════════════════════════════════════════
   SELECT
     COALESCE(SUM(e.amount), 0),
     COALESCE(
@@ -1082,38 +1099,80 @@ BEGIN
   LEFT JOIN expense_categories ec ON ec.id = e.category_id
   WHERE e.status = 'approved'
     AND e.created_at::DATE BETWEEN p_date_from AND p_date_to
-    AND ec.name IS DISTINCT FROM 'salaries';
+    AND ec.name IS DISTINCT FROM 'salaries'
+    AND ec.name IS DISTINCT FROM 'salary_advances';
 
-  -- الرواتب المعتمدة في الفترة
+  -- ════════════════════════════════════════════
+  -- 3. الرواتب المصروفة فعلياً (من payroll_disbursements)
+  --    ⭐ هذا هو الإصلاح الرئيسى: نقرأ الدفعات الفعلية بدلاً من net_total
+  -- ════════════════════════════════════════════
   SELECT
-    COALESCE(SUM(pp.net_total), 0),
+    COALESCE(SUM(pd.amount), 0),
     COALESCE(
       jsonb_agg(jsonb_build_object(
-        'id', pp.id,
+        'id', pd.id,
         'month', pp.month,
         'year', pp.year,
+        'amount', pd.amount,
         'net_total', pp.net_total,
+        'total_disbursed', pp.total_disbursed,
         'total_salaries', pp.total_salaries,
         'total_incentives', pp.total_incentives,
         'total_deductions', pp.total_deductions,
+        'total_advances', pp.total_advances,
         'total_absence_deductions', pp.total_absence_deductions,
-        'approved_at', pp.approved_at
-      ) ORDER BY pp.year DESC, pp.month DESC),
+        'status', pp.status,
+        'date', pd.created_at::DATE
+      ) ORDER BY pd.created_at DESC),
       '[]'::JSONB
     )
   INTO v_total_payroll, v_payroll_details
-  FROM payroll_periods pp
-  WHERE pp.status = 'approved'
-    AND pp.approved_at::DATE BETWEEN p_date_from AND p_date_to;
+  FROM payroll_disbursements pd
+  JOIN payroll_periods pp ON pp.id = pd.payroll_period_id
+  WHERE pd.created_at::DATE BETWEEN p_date_from AND p_date_to;
 
+  -- ════════════════════════════════════════════
+  -- 4. السلف المصروفة (من vault_transactions بنوع salary_advance)
+  --    ⭐ تُعامل كمصروف مقدم: خرجت من الخزنة ولن تعود
+  --       (يُسترد قيمتها عبر خصم أقساط من الراتب)
+  -- ════════════════════════════════════════════
+  SELECT
+    COALESCE(SUM(vt.amount), 0),
+    COALESCE(
+      jsonb_agg(jsonb_build_object(
+        'id', vt.id,
+        'amount', vt.amount,
+        'notes', vt.notes,
+        'vault_name', v.name,
+        'date', vt.created_at::DATE,
+        'worker_name', COALESCE(w.name, 'غير معروف')
+      ) ORDER BY vt.created_at DESC),
+      '[]'::JSONB
+    )
+  INTO v_total_advances, v_advance_details
+  FROM vault_transactions vt
+  JOIN vaults v ON v.id = vt.vault_id
+  INNER JOIN salary_advances sa ON sa.id = vt.reference_id
+  LEFT JOIN workers w ON w.id = sa.worker_id
+  WHERE vt.reference_type = 'salary_advance'
+    AND vt.type = 'withdrawal'
+    AND vt.created_at::DATE BETWEEN p_date_from AND p_date_to
+    AND sa.status IN ('active', 'completed');
+
+  -- ════════════════════════════════════════════
+  -- 5. حساب صافى الربح
+  --    صافى = إيرادات − مصروفات − رواتب_مصروفة − سلف
+  -- ════════════════════════════════════════════
   RETURN QUERY SELECT
     v_total_revenue,
     v_total_expenses,
     v_total_payroll,
-    v_total_revenue - v_total_expenses - v_total_payroll,
+    v_total_advances,
+    v_total_revenue - v_total_expenses - v_total_payroll - v_total_advances,
     v_revenue_details,
     v_expense_details,
-    v_payroll_details;
+    v_payroll_details,
+    v_advance_details;
 END;
 $$;
 
@@ -1296,6 +1355,9 @@ DECLARE
   v_advance RECORD;
   v_vault RECORD;
   v_new_balance NUMERIC(12,2);
+  v_category_id UUID;
+  v_worker_name TEXT;
+  v_period_id UUID;
 BEGIN
   -- 1. جلب السلفة والتحقق من حالتها
   SELECT * INTO v_advance FROM salary_advances WHERE id = p_advance_id FOR UPDATE;
@@ -1353,14 +1415,59 @@ BEGIN
     v_new_balance,
     p_approved_by
   );
+
+  -- 5. ⭐ تسجيل السلفة كمصروف (مصروف مقدم)
+  --    يُسترد عبر أقساط تُخصم من الراتب
+  SELECT name INTO v_worker_name FROM workers WHERE id = v_advance.worker_id;
+
+  SELECT id INTO v_category_id
+  FROM expense_categories
+  WHERE name = 'salary_advances'
+  LIMIT 1;
+
+  IF v_category_id IS NULL THEN
+    INSERT INTO expense_categories (name, name_ar, description, requires_approval, is_active)
+    VALUES ('salary_advances', 'سلف مقدمة', 'سلف رواتب مصروفة للعمال', false, true)
+    RETURNING id INTO v_category_id;
+  END IF;
+
+  INSERT INTO expenses (
+    category_id,
+    amount,
+    description,
+    status,
+    approved_by,
+    approved_at,
+    created_by
+  ) VALUES (
+    v_category_id,
+    v_advance.total_amount,
+    'سلفة — ' || COALESCE(v_worker_name, 'عامل') || ' — ' || COALESCE(v_advance.reason, 'بدون سبب'),
+    'approved',
+    p_approved_by,
+    NOW(),
+    p_approved_by
+  );
   
-  -- 5. تحديث حالة السلفة
+  -- 6. تحديث حالة السلفة
   UPDATE salary_advances
   SET status = 'active',
       vault_id = p_vault_id,
       approved_by = p_approved_by,
       updated_at = NOW()
   WHERE id = p_advance_id;
+
+  -- 7. ⭐ إعادة حساب المسير تلقائياً إذا كان موجوداً وغير معتمد
+  --    هذا يضمن ظهور خصم السلفة فوراً بدون تدخل يدوى
+  SELECT id INTO v_period_id
+  FROM payroll_periods
+  WHERE month = v_advance.start_month
+    AND year = v_advance.start_year
+    AND status = 'calculated';
+
+  IF v_period_id IS NOT NULL THEN
+    PERFORM calculate_payroll(v_advance.start_month, v_advance.start_year);
+  END IF;
   
   RETURN jsonb_build_object(
     'success', true,

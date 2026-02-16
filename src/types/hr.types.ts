@@ -390,10 +390,12 @@ export interface ProfitLossReport {
     total_revenue: number
     total_expenses: number
     total_payroll: number
+    total_advances: number
     net_profit: number
     revenue_details: RevenueDetail[]
     expense_details: ExpenseDetail[]
     payroll_details: PayrollDetail[]
+    advance_details: AdvanceDetail[]
 }
 
 export interface RevenueDetail {
@@ -417,12 +419,25 @@ export interface PayrollDetail {
     id: string
     month: number
     year: number
+    amount: number
     net_total: number
+    total_disbursed: number
     total_salaries: number
     total_incentives: number
     total_deductions: number
+    total_advances: number
     total_absence_deductions: number
-    approved_at: string
+    status: string
+    date: string
+}
+
+export interface AdvanceDetail {
+    id: string
+    amount: number
+    notes: string
+    vault_name: string
+    date: string
+    worker_name: string
 }
 
 

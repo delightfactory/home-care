@@ -1,8 +1,7 @@
-// ProfitLossPage — تقرير الأرباح والخسائر
 import React, { useState, useEffect, useCallback } from 'react'
 import {
     TrendingUp, TrendingDown, DollarSign,
-    Loader2, RefreshCw, BarChart3,
+    Loader2, RefreshCw, BarChart3, Banknote,
 } from 'lucide-react'
 import { ProfitLossAPI } from '../../api/profit-loss'
 import type { ProfitLossReport } from '../../types/hr.types'
@@ -66,13 +65,21 @@ const ProfitLossPage: React.FC = () => {
         ? ((report.net_profit / report.total_revenue) * 100).toFixed(1)
         : '0'
 
+    // تجميع المصروفات حسب الفئة
+    const expenseByCategory = report?.expense_details?.reduce((acc, exp) => {
+        const cat = exp.category || 'بدون تصنيف'
+        if (!acc[cat]) acc[cat] = 0
+        acc[cat] += exp.amount
+        return acc
+    }, {} as Record<string, number>) || {}
+
     return (
         <div className="space-y-4 sm:space-y-6">
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold text-gray-900">تقرير الأرباح والخسائر</h1>
-                    <p className="text-sm text-gray-500 mt-1">نظرة شاملة على الإيرادات والمصروفات والرواتب</p>
+                    <p className="text-sm text-gray-500 mt-1">نظرة شاملة على الإيرادات والمصروفات والرواتب والسلف</p>
                 </div>
             </div>
 
@@ -128,7 +135,7 @@ const ProfitLossPage: React.FC = () => {
             ) : report ? (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -156,7 +163,16 @@ const ProfitLossPage: React.FC = () => {
                             </div>
                             <p className="text-lg sm:text-xl font-bold text-amber-600">{formatCurrency(report.total_payroll)}</p>
                         </div>
-                        <div className={`rounded-xl shadow-sm border p-4 ${report.net_profit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <Banknote className="w-4 h-4 text-purple-600" />
+                                </div>
+                                <span className="text-xs text-gray-500">السلف</span>
+                            </div>
+                            <p className="text-lg sm:text-xl font-bold text-purple-600">{formatCurrency(report.total_advances)}</p>
+                        </div>
+                        <div className={`col-span-2 sm:col-span-1 rounded-xl shadow-sm border p-4 ${report.net_profit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
                             }`}>
                             <div className="flex items-center gap-2 mb-2">
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${report.net_profit >= 0 ? 'bg-emerald-100' : 'bg-red-100'
@@ -165,7 +181,8 @@ const ProfitLossPage: React.FC = () => {
                                 </div>
                                 <span className="text-xs text-gray-500">صافي الربح</span>
                             </div>
-                            <p className={`text-lg sm:text-xl font-bold ${report.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            <p className={`text-lg sm:text-xl font-bold ${report.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                }`}>
                                 {formatCurrency(report.net_profit)}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
@@ -203,26 +220,67 @@ const ProfitLossPage: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Expenses Section */}
+                            {/* Expenses Section with Category Breakdown */}
                             <div>
                                 <div className="flex items-center justify-between py-2 border-b border-gray-200">
                                     <span className="font-bold text-gray-900">(-) إجمالي المصروفات</span>
                                     <span className="font-bold text-red-600">{formatCurrency(report.total_expenses)}</span>
                                 </div>
+                                {Object.keys(expenseByCategory).length > 0 && (
+                                    <div className="mt-2 space-y-1 pr-4">
+                                        {Object.entries(expenseByCategory)
+                                            .sort(([, a], [, b]) => b - a)
+                                            .map(([cat, amount], i) => (
+                                                <div key={i} className="flex justify-between text-sm py-1">
+                                                    <span className="text-gray-600">{cat}</span>
+                                                    <span className="text-gray-900">{formatCurrency(amount)}</span>
+                                                </div>
+                                            ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Payroll Section */}
                             <div>
                                 <div className="flex items-center justify-between py-2 border-b border-gray-200">
-                                    <span className="font-bold text-gray-900">(-) الرواتب</span>
+                                    <span className="font-bold text-gray-900">(-) الرواتب المصروفة</span>
                                     <span className="font-bold text-amber-600">{formatCurrency(report.total_payroll)}</span>
                                 </div>
                                 {report.payroll_details.length > 0 && (
                                     <div className="mt-2 space-y-1 pr-4">
                                         {report.payroll_details.map((item, i) => (
                                             <div key={i} className="flex justify-between text-sm py-1">
-                                                <span className="text-gray-600">{months[(item.month || 1) - 1]} {item.year}</span>
-                                                <span className="text-gray-900">{formatCurrency(item.net_total)}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-600">{months[(item.month || 1) - 1]} {item.year}</span>
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${item.status === 'paid' ? 'bg-green-100 text-green-700'
+                                                            : item.status === 'partially_paid' ? 'bg-amber-100 text-amber-700'
+                                                                : 'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                        {item.status === 'paid' ? 'مكتمل' : item.status === 'partially_paid' ? 'جزئى' : item.status}
+                                                    </span>
+                                                </div>
+                                                <span className="text-gray-900">{formatCurrency(item.amount)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Advances Section */}
+                            <div>
+                                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                                    <span className="font-bold text-gray-900">(-) السلف المصروفة</span>
+                                    <span className="font-bold text-purple-600">{formatCurrency(report.total_advances)}</span>
+                                </div>
+                                {report.advance_details.length > 0 && (
+                                    <div className="mt-2 space-y-1 pr-4">
+                                        {report.advance_details.map((item, i) => (
+                                            <div key={i} className="flex justify-between text-sm py-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-600">{item.worker_name}</span>
+                                                    <span className="text-xs text-gray-400">{item.date}</span>
+                                                </div>
+                                                <span className="text-gray-900">{formatCurrency(item.amount)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -239,6 +297,9 @@ const ProfitLossPage: React.FC = () => {
                                         {formatCurrency(report.net_profit)}
                                     </span>
                                 </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    = الإيرادات ({formatCurrency(report.total_revenue)}) − المصروفات ({formatCurrency(report.total_expenses)}) − الرواتب ({formatCurrency(report.total_payroll)}) − السلف ({formatCurrency(report.total_advances)})
+                                </p>
                             </div>
                         </div>
                     </div>

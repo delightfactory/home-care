@@ -123,6 +123,15 @@ const PayrollTab: React.FC = () => {
         setShowDisbursements(false)
         setDisbursements([])
         try {
+            // ⭐ إعادة حساب تلقائى إذا كان المسير غير معتمد
+            if (period.status === 'calculated') {
+                await PayrollAPI.calculatePayroll(period.month, period.year)
+                // تحديث بيانات المسير بعد إعادة الحساب
+                const updatedPeriods = await PayrollAPI.getPayrollPeriods()
+                setPeriods(updatedPeriods)
+                const updatedPeriod = updatedPeriods.find(p => p.id === period.id)
+                if (updatedPeriod) setSelectedPeriod(updatedPeriod)
+            }
             const items = await PayrollAPI.getPayrollItems(period.id)
             setPeriodItems(items)
         } catch (err: any) {
@@ -641,6 +650,9 @@ const PayrollTab: React.FC = () => {
                                             <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">خصم غياب</th>
                                             <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">حافز محسوب</th>
                                             <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">حوافز</th>
+                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">مكافآت</th>
+                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">خصومات</th>
+                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">جزاءات</th>
                                             <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">سلف</th>
                                             <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">الصافي</th>
                                         </tr>
@@ -672,6 +684,15 @@ const PayrollTab: React.FC = () => {
                                                 <td className="py-2.5 px-2 text-center text-green-600 hidden lg:table-cell">
                                                     {item.manual_incentives > 0 ? `+${formatCurrency(item.manual_incentives)}` : '0'}
                                                 </td>
+                                                <td className="py-2.5 px-2 text-center text-teal-600 hidden lg:table-cell">
+                                                    {item.manual_bonuses > 0 ? `+${formatCurrency(item.manual_bonuses)}` : '0'}
+                                                </td>
+                                                <td className="py-2.5 px-2 text-center text-orange-600 hidden lg:table-cell">
+                                                    {item.manual_deductions > 0 ? `-${formatCurrency(item.manual_deductions)}` : '0'}
+                                                </td>
+                                                <td className="py-2.5 px-2 text-center text-rose-600 hidden lg:table-cell">
+                                                    {item.manual_penalties > 0 ? `-${formatCurrency(item.manual_penalties)}` : '0'}
+                                                </td>
                                                 <td className="py-2.5 px-2 text-center text-amber-600 hidden lg:table-cell">
                                                     {item.advance_deduction > 0 ? `-${formatCurrency(item.advance_deduction)}` : '0'}
                                                 </td>
@@ -692,6 +713,9 @@ const PayrollTab: React.FC = () => {
                                                 <td className="py-3 px-2 text-center text-red-600">{formatCurrency(selectedPeriod.total_absence_deductions)}</td>
                                                 <td className="py-3 px-2 text-center text-purple-600 hidden lg:table-cell">—</td>
                                                 <td className="py-3 px-2 text-center text-green-600 hidden lg:table-cell">{formatCurrency(selectedPeriod.total_incentives)}</td>
+                                                <td className="py-3 px-2 text-center text-teal-600 hidden lg:table-cell">—</td>
+                                                <td className="py-3 px-2 text-center text-orange-600 hidden lg:table-cell">—</td>
+                                                <td className="py-3 px-2 text-center text-rose-600 hidden lg:table-cell">—</td>
                                                 <td className="py-3 px-2 text-center text-amber-600 hidden lg:table-cell">{formatCurrency(selectedPeriod.total_advances)}</td>
                                                 <td className="py-3 px-2 text-center text-emerald-600">{formatCurrency(selectedPeriod.net_total)}</td>
                                             </tr>
