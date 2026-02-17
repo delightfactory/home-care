@@ -1,8 +1,9 @@
-// PayrollTab — تبويب إدارة الرواتب مع نظام الصرف الجزئى
+﻿// PayrollTab — تبويب إدارة الرواتب مع نظام الصرف الجزئى
 import React, { useState, useEffect, useCallback } from 'react'
 import {
     Calculator, CheckCircle2, RefreshCw, Loader2,
     Eye, X, AlertTriangle, Wallet, ChevronDown, ChevronUp,
+    Users, UserCheck, ChevronRight,
 } from 'lucide-react'
 import { PayrollAPI } from '../../api/hr'
 import { VaultsAPI } from '../../api/vaults'
@@ -52,6 +53,15 @@ const PayrollTab: React.FC = () => {
     const [selectedVaultId, setSelectedVaultId] = useState('')
     const [disburseAmount, setDisburseAmount] = useState('')
     const [disbursing, setDisbursing] = useState(false)
+
+    // صرف فردى
+    const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set())
+    const [showIndividualDisburseModal, setShowIndividualDisburseModal] = useState(false)
+    const [individualVaultId, setIndividualVaultId] = useState('')
+    const [disbursingIndividual, setDisbursingIndividual] = useState(false)
+
+    // تفاصيل قابلة للطى
+    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
     // تاريخ الصرف
     const [disbursements, setDisbursements] = useState<PayrollDisbursement[]>([])
@@ -240,6 +250,101 @@ const PayrollTab: React.FC = () => {
     /** هل يمكن الصرف؟ */
     const canDisburse = (period: PayrollPeriod) =>
         ['approved', 'partially_paid'].includes(period.status)
+
+    // ══════════════════════════════════════
+    // صرف فردى — helpers
+    // ══════════════════════════════════════
+    const unpaidItems = periodItems.filter(i => i.payment_status !== 'paid' && i.net_salary > 0)
+    const selectedTotal = periodItems
+        .filter(i => selectedWorkerIds.has(i.worker_id) && i.payment_status !== 'paid')
+        .reduce((sum, i) => sum + (i.net_salary - (i.disbursed_amount || 0)), 0)
+
+    const toggleWorker = (workerId: string) => {
+        setSelectedWorkerIds(prev => {
+            const next = new Set(prev)
+            if (next.has(workerId)) next.delete(workerId)
+            else next.add(workerId)
+            return next
+        })
+    }
+
+    const toggleAllUnpaid = () => {
+        if (selectedWorkerIds.size === unpaidItems.length) {
+            setSelectedWorkerIds(new Set())
+        } else {
+            setSelectedWorkerIds(new Set(unpaidItems.map(i => i.worker_id)))
+        }
+    }
+
+    const handleOpenIndividualDisburse = async (overrideIds?: Set<string>) => {
+        const ids = overrideIds || selectedWorkerIds
+        if (ids.size === 0) {
+            toast.error('حدد عامل واحد على الأقل')
+            return
+        }
+        if (overrideIds) setSelectedWorkerIds(overrideIds)
+        setIndividualVaultId('')
+        setShowIndividualDisburseModal(true)
+        try {
+            const vaultList = await VaultsAPI.getVaults(true)
+            setVaults(vaultList)
+        } catch {
+            toast.error('خطأ فى تحميل الخزائن')
+        }
+    }
+
+    const handleDisburseIndividual = async () => {
+        if (!user?.id || !selectedPeriod || !individualVaultId || selectedWorkerIds.size === 0) return
+
+        const selectedVault = vaults.find(v => v.id === individualVaultId)
+        if (selectedVault && selectedVault.balance < selectedTotal) {
+            toast.error(`رصيد الخزنة غير كافٍ (${formatCurrency(selectedVault.balance)})`)
+            return
+        }
+
+        setDisbursingIndividual(true)
+        try {
+            const result = await PayrollAPI.disburseWorkerSalary(
+                selectedPeriod.id,
+                Array.from(selectedWorkerIds),
+                individualVaultId,
+                user.id
+            )
+
+            if (result.success) {
+                toast.success(result.message || 'تم الصرف بنجاح')
+                setShowIndividualDisburseModal(false)
+                setSelectedWorkerIds(new Set())
+                // refresh
+                loadPeriods()
+                const items = await PayrollAPI.getPayrollItems(selectedPeriod.id)
+                setPeriodItems(items)
+                const updated = await PayrollAPI.getPayrollPeriodById(selectedPeriod.id)
+                if (updated) setSelectedPeriod(updated)
+            } else {
+                toast.error(result.error || 'حدث خطأ فى الصرف')
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'حدث خطأ')
+        } finally {
+            setDisbursingIndividual(false)
+        }
+    }
+
+    const toggleExpanded = (itemId: string) => {
+        setExpandedItems(prev => {
+            const next = new Set(prev)
+            if (next.has(itemId)) next.delete(itemId)
+            else next.add(itemId)
+            return next
+        })
+    }
+
+    // حساب نسبة الصرف
+    const paidCount = periodItems.filter(i => i.payment_status === 'paid').length
+    const disbursementProgress = selectedPeriod
+        ? Math.min(100, ((selectedPeriod.total_disbursed || 0) / Math.max(selectedPeriod.net_total, 1)) * 100)
+        : 0
 
     return (
         <div className="space-y-4">
@@ -583,177 +688,432 @@ const PayrollTab: React.FC = () => {
                 </div>
             )}
 
-            {/* Details Modal */}
-            {selectedPeriod && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedPeriod(null)}>
-                    <div className="bg-white rounded-2xl w-full max-w-5xl shadow-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-5 border-b border-gray-200 flex-shrink-0">
+            {/* Individual Disburse Modal */}
+            {showIndividualDisburseModal && selectedPeriod && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowIndividualDisburseModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">
-                                    تفاصيل مسير {months[selectedPeriod.month - 1]} {selectedPeriod.year}
-                                </h3>
+                                <h3 className="text-lg font-bold text-gray-900">صرف رواتب فردى</h3>
                                 <p className="text-sm text-gray-500 mt-0.5">
-                                    الصافي: <span className="font-bold text-emerald-600">{formatCurrency(selectedPeriod.net_total)}</span>
-                                    {(selectedPeriod.total_disbursed || 0) > 0 && (
-                                        <span className="mr-3 text-gray-400">
-                                            المصروف: <span className="font-semibold text-orange-600">{formatCurrency(selectedPeriod.total_disbursed || 0)}</span>
-                                        </span>
-                                    )}
+                                    {months[selectedPeriod.month - 1]} {selectedPeriod.year}
                                 </p>
                             </div>
-                            <button onClick={() => setSelectedPeriod(null)} className="p-1 hover:bg-gray-100 rounded-lg">
+                            <button onClick={() => setShowIndividualDisburseModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
                                 <X className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
 
-                        {/* Summary Cards */}
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-5 border-b border-gray-100 flex-shrink-0">
-                            <div className="bg-gray-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-gray-500">إجمالي الرواتب</p>
-                                <p className="font-bold text-gray-900">{formatCurrency(selectedPeriod.total_salaries)}</p>
+                        <div className="p-5 space-y-4">
+                            {/* ملخص المحدّدين */}
+                            <div className="bg-purple-50 rounded-xl p-4 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">العمال المحدّدين</span>
+                                    <span className="font-bold text-purple-800">{selectedWorkerIds.size} عامل</span>
+                                </div>
+                                <div className="flex justify-between text-sm border-t border-purple-100 pt-2">
+                                    <span className="text-gray-700 font-medium">إجمالى المبلغ</span>
+                                    <span className="font-bold text-emerald-600">{formatCurrency(selectedTotal)}</span>
+                                </div>
                             </div>
-                            <div className="bg-red-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-gray-500">خصم الغياب</p>
-                                <p className="font-bold text-red-600">{formatCurrency(selectedPeriod.total_absence_deductions)}</p>
+
+                            {/* قائمة الأسماء */}
+                            <div className="max-h-32 overflow-y-auto bg-gray-50 rounded-lg p-3 text-sm text-gray-700 space-y-1">
+                                {periodItems
+                                    .filter(i => selectedWorkerIds.has(i.worker_id) && i.payment_status !== 'paid')
+                                    .map(i => (
+                                        <div key={i.worker_id} className="flex justify-between">
+                                            <span>{(i.worker as any)?.name}</span>
+                                            <span className="font-semibold">{formatCurrency(i.net_salary - (i.disbursed_amount || 0))}</span>
+                                        </div>
+                                    ))
+                                }
                             </div>
-                            <div className="bg-amber-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-gray-500">السلف</p>
-                                <p className="font-bold text-amber-600">{formatCurrency(selectedPeriod.total_advances)}</p>
+
+                            {/* اختيار الخزنة */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الخزنة</label>
+                                <select
+                                    value={individualVaultId}
+                                    onChange={(e) => setIndividualVaultId(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500"
+                                >
+                                    <option value="">— اختر خزنة —</option>
+                                    {vaults.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name} (رصيد: {formatCurrency(v.balance)})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                            <div className="bg-blue-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-gray-500">الحوافز</p>
-                                <p className="font-bold text-blue-600">{formatCurrency(selectedPeriod.total_incentives)}</p>
+
+                            {/* تحذير رصيد الخزنة */}
+                            {individualVaultId && (() => {
+                                const vault = vaults.find(v => v.id === individualVaultId)
+                                if (vault && vault.balance < selectedTotal) {
+                                    return (
+                                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                            <div className="flex gap-2">
+                                                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                                <p className="text-xs text-red-700">
+                                                    رصيد الخزنة ({formatCurrency(vault.balance)}) غير كافٍ للمبلغ المطلوب ({formatCurrency(selectedTotal)})
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )
+                                }
+                                return null
+                            })()}
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleDisburseIndividual}
+                                    disabled={disbursingIndividual || !individualVaultId}
+                                    className="flex-1 bg-purple-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {disbursingIndividual && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    <Wallet className="w-4 h-4" />
+                                    {disbursingIndividual ? 'جارِ الصرف...' : `صرف ${formatCurrency(selectedTotal)}`}
+                                </button>
+                                <button
+                                    onClick={() => setShowIndividualDisburseModal(false)}
+                                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                                >
+                                    إلغاء
+                                </button>
                             </div>
-                            <div className="bg-emerald-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-gray-500">صافي المسير</p>
-                                <p className="font-bold text-emerald-600">{formatCurrency(selectedPeriod.net_total)}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Details Modal — Redesigned */}
+            {selectedPeriod && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => { setSelectedPeriod(null); setExpandedItems(new Set()) }}>
+                    <div
+                        className="bg-white w-full sm:rounded-2xl sm:w-full sm:max-w-2xl shadow-2xl max-h-[95vh] sm:max-h-[88vh] flex flex-col rounded-t-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* ═══════ Header ═══════ */}
+                        <div className="flex-shrink-0 p-4 sm:p-5 border-b border-gray-100">
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">
+                                        مسير {months[selectedPeriod.month - 1]} {selectedPeriod.year}
+                                    </h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusLabels[selectedPeriod.status]?.bg} ${statusLabels[selectedPeriod.status]?.color}`}>
+                                            {statusLabels[selectedPeriod.status]?.label}
+                                        </span>
+                                        {periodItems.length > 0 && (
+                                            <span className="text-xs text-gray-400">
+                                                {paidCount}/{periodItems.length} مدفوع
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button onClick={() => { setSelectedPeriod(null); setExpandedItems(new Set()) }} className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors">
+                                    <X className="w-5 h-5 text-gray-400" />
+                                </button>
+                            </div>
+
+                            {/* Progress bar */}
+                            {canDisburse(selectedPeriod) || selectedPeriod.status === 'paid' ? (
+                                <div>
+                                    <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                                        <span>المصروف: <span className="font-bold text-gray-800">{formatCurrency(selectedPeriod.total_disbursed || 0)}</span></span>
+                                        <span>المتبقى: <span className="font-bold text-gray-800">{formatCurrency(selectedPeriod.net_total - (selectedPeriod.total_disbursed || 0))}</span></span>
+                                    </div>
+                                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${disbursementProgress >= 100 ? 'bg-emerald-500' : 'bg-purple-500'}`}
+                                            style={{ width: `${disbursementProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        {/* ═══════ Summary Cards ═══════ */}
+                        <div className="flex-shrink-0 px-4 sm:px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                <div className="bg-white rounded-xl p-2.5 text-center shadow-sm border border-gray-100">
+                                    <p className="text-[10px] text-gray-400 font-medium mb-0.5">الرواتب</p>
+                                    <p className="font-bold text-sm text-gray-900">{formatCurrency(selectedPeriod.total_salaries)}</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-2.5 text-center shadow-sm border border-red-100">
+                                    <p className="text-[10px] text-red-400 font-medium mb-0.5">خصم غياب</p>
+                                    <p className="font-bold text-sm text-red-600">{formatCurrency(selectedPeriod.total_absence_deductions)}</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-2.5 text-center shadow-sm border border-amber-100">
+                                    <p className="text-[10px] text-amber-400 font-medium mb-0.5">السلف</p>
+                                    <p className="font-bold text-sm text-amber-600">{formatCurrency(selectedPeriod.total_advances)}</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-2.5 text-center shadow-sm border border-blue-100">
+                                    <p className="text-[10px] text-blue-400 font-medium mb-0.5">الحوافز</p>
+                                    <p className="font-bold text-sm text-blue-600">{formatCurrency(selectedPeriod.total_incentives)}</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-2.5 text-center shadow-sm border border-emerald-100 col-span-3 sm:col-span-1">
+                                    <p className="text-[10px] text-emerald-400 font-medium mb-0.5">صافى المسير</p>
+                                    <p className="font-bold text-sm text-emerald-600">{formatCurrency(selectedPeriod.net_total)}</p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Items Table */}
-                        <div className="overflow-auto flex-1 p-5">
+                        {/* ═══════ Worker Cards ═══════ */}
+                        <div className="overflow-y-auto flex-1 px-4 sm:px-5 py-3 space-y-2">
                             {loadingItems ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                                <div className="flex items-center justify-center py-12">
+                                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
                                 </div>
+                            ) : periodItems.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400 text-sm">لا توجد بنود فى هذا المسير</div>
                             ) : (
-                                <table className="w-full text-sm">
-                                    <thead className="sticky top-0 bg-white">
-                                        <tr className="border-b border-gray-200">
-                                            <th className="text-right py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">العامل</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">الراتب</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell">حضور</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell">غياب</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell">إجازة</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell">مسموح</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">غير مدفوع</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">خصم غياب</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">حافز محسوب</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">حوافز</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">مكافآت</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">خصومات</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">جزاءات</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap hidden lg:table-cell">سلف</th>
-                                            <th className="text-center py-2.5 px-2 font-medium text-gray-600 whitespace-nowrap">الصافي</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {periodItems.map((item) => (
-                                            <tr key={item.id} className="hover:bg-gray-50">
-                                                <td className="py-2.5 px-2 font-medium text-gray-900">
-                                                    {(item.worker as any)?.name || '—'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-gray-700">{formatCurrency(item.base_salary)}</td>
-                                                <td className="py-2.5 px-2 text-center text-green-600 hidden sm:table-cell">{item.work_days}</td>
-                                                <td className="py-2.5 px-2 text-center text-red-600 hidden sm:table-cell">{item.absent_days}</td>
-                                                <td className="py-2.5 px-2 text-center text-blue-600 hidden md:table-cell">{item.leave_days}</td>
-                                                <td className="py-2.5 px-2 text-center text-gray-500 hidden md:table-cell">{item.paid_leave_allowance}</td>
-                                                <td className="py-2.5 px-2 text-center">
-                                                    <span className={`font-semibold ${item.unpaid_absent_days > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                                                        {item.unpaid_absent_days}
-                                                    </span>
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center">
-                                                    <span className={`font-semibold ${item.absence_deduction > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                                                        {item.absence_deduction > 0 ? `-${formatCurrency(item.absence_deduction)}` : '0'}
-                                                    </span>
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-purple-600 hidden lg:table-cell">
-                                                    {item.calculated_bonus > 0 ? `+${formatCurrency(item.calculated_bonus)}` : '0'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-green-600 hidden lg:table-cell">
-                                                    {item.manual_incentives > 0 ? `+${formatCurrency(item.manual_incentives)}` : '0'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-teal-600 hidden lg:table-cell">
-                                                    {item.manual_bonuses > 0 ? `+${formatCurrency(item.manual_bonuses)}` : '0'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-orange-600 hidden lg:table-cell">
-                                                    {item.manual_deductions > 0 ? `-${formatCurrency(item.manual_deductions)}` : '0'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-rose-600 hidden lg:table-cell">
-                                                    {item.manual_penalties > 0 ? `-${formatCurrency(item.manual_penalties)}` : '0'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center text-amber-600 hidden lg:table-cell">
-                                                    {item.advance_deduction > 0 ? `-${formatCurrency(item.advance_deduction)}` : '0'}
-                                                </td>
-                                                <td className="py-2.5 px-2 text-center font-bold text-emerald-600">{formatCurrency(item.net_salary)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    {periodItems.length > 0 && (
-                                        <tfoot className="border-t-2 border-gray-300">
-                                            <tr className="font-bold">
-                                                <td className="py-3 px-2 text-gray-900">الإجمالي</td>
-                                                <td className="py-3 px-2 text-center text-gray-900">{formatCurrency(selectedPeriod.total_salaries)}</td>
-                                                <td className="py-3 px-2 text-center hidden sm:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center hidden sm:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center hidden md:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center hidden md:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center">—</td>
-                                                <td className="py-3 px-2 text-center text-red-600">{formatCurrency(selectedPeriod.total_absence_deductions)}</td>
-                                                <td className="py-3 px-2 text-center text-purple-600 hidden lg:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center text-green-600 hidden lg:table-cell">{formatCurrency(selectedPeriod.total_incentives)}</td>
-                                                <td className="py-3 px-2 text-center text-teal-600 hidden lg:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center text-orange-600 hidden lg:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center text-rose-600 hidden lg:table-cell">—</td>
-                                                <td className="py-3 px-2 text-center text-amber-600 hidden lg:table-cell">{formatCurrency(selectedPeriod.total_advances)}</td>
-                                                <td className="py-3 px-2 text-center text-emerald-600">{formatCurrency(selectedPeriod.net_total)}</td>
-                                            </tr>
-                                        </tfoot>
+                                <>
+                                    {/* Select All */}
+                                    {canDisburse(selectedPeriod) && unpaidItems.length > 0 && (
+                                        <div className="flex items-center gap-2 py-1.5 px-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedWorkerIds.size === unpaidItems.length}
+                                                onChange={toggleAllUnpaid}
+                                                className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                            />
+                                            <span className="text-xs text-gray-500">تحديد الكل ({unpaidItems.length})</span>
+                                        </div>
                                     )}
-                                </table>
+
+                                    {periodItems.map((item) => {
+                                        const isExpanded = expandedItems.has(item.id)
+                                        const workerName = (item.worker as any)?.name || '—'
+                                        const isPaid = item.payment_status === 'paid'
+                                        const isSelected = selectedWorkerIds.has(item.worker_id)
+                                        const totalDeductions = item.absence_deduction + (item.late_penalty_amount || 0) + item.manual_deductions + item.manual_penalties + item.advance_deduction
+                                        const totalAdditions = item.calculated_bonus + item.manual_incentives + item.manual_bonuses
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                className={`
+                                                    border rounded-xl transition-all duration-200 overflow-hidden
+                                                    ${isSelected ? 'border-purple-300 bg-purple-50/40 shadow-sm' : isPaid ? 'border-green-100 bg-green-50/20' : 'border-gray-200 bg-white'}
+                                                    ${!isPaid && canDisburse(selectedPeriod) ? 'hover:border-purple-200 hover:shadow-sm' : ''}
+                                                `}
+                                            >
+                                                {/* Card Header */}
+                                                <div className="flex items-center gap-3 p-3 sm:p-3.5">
+                                                    {/* Checkbox */}
+                                                    {canDisburse(selectedPeriod) && (
+                                                        <div className="flex-shrink-0">
+                                                            {!isPaid && item.net_salary > 0 ? (
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={() => toggleWorker(item.worker_id)}
+                                                                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center">
+                                                                    <UserCheck className="w-2.5 h-2.5 text-green-600" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Worker Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="font-semibold text-sm text-gray-900 truncate">{workerName}</span>
+                                                            {isPaid ? (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 flex-shrink-0">
+                                                                    <UserCheck className="w-3 h-3" />
+                                                                    مدفوع
+                                                                </span>
+                                                            ) : item.net_salary <= 0 ? (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 flex-shrink-0">
+                                                                    لا مستحقات
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 flex-shrink-0">
+                                                                    لم يُدفع
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Salary Flow */}
+                                                        <div className="flex items-center gap-1.5 mt-1.5 text-xs flex-wrap">
+                                                            <span className="text-gray-500">{formatCurrency(item.base_salary)}</span>
+                                                            {totalDeductions > 0 && (
+                                                                <span className="text-red-500">−{formatCurrency(totalDeductions)}</span>
+                                                            )}
+                                                            {totalAdditions > 0 && (
+                                                                <span className="text-green-600">+{formatCurrency(totalAdditions)}</span>
+                                                            )}
+                                                            <span className="text-gray-300 mx-0.5">→</span>
+                                                            <span className="font-bold text-emerald-600 text-sm">{formatCurrency(item.net_salary)}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expand Toggle */}
+                                                    <button
+                                                        onClick={() => toggleExpanded(item.id)}
+                                                        className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+                                                    >
+                                                        <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                                                    </button>
+                                                </div>
+
+                                                {/* Expanded Details */}
+                                                {isExpanded && (
+                                                    <div className="border-t border-gray-100 px-3 sm:px-3.5 py-3 bg-gray-50/60 space-y-3">
+                                                        {/* عقد العمل */}
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">بيانات الحساب</p>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-xs">
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">الراتب</span>
+                                                                    <span className="font-semibold text-gray-700">{formatCurrency(item.base_salary)}</span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">أيام العمل المطلوبة</span>
+                                                                    <span className="font-semibold text-gray-700">{item.required_work_days || item.total_month_days}</span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">أيام فعلية</span>
+                                                                    <span className="font-semibold text-blue-700">{item.effective_days || '—'}</span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">اليومية</span>
+                                                                    <span className="font-semibold text-gray-700">{formatCurrency(item.daily_rate)}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* الحضور والغياب */}
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">الحضور والغياب</p>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-xs">
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">أيام العمل</span>
+                                                                    <span className="font-semibold text-green-700">{item.work_days}</span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">غياب</span>
+                                                                    <span className={`font-semibold ${item.absent_days > 0 ? 'text-red-600' : 'text-gray-400'}`}>{item.absent_days}</span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">رصيد الإجازات</span>
+                                                                    <span className="font-semibold text-blue-600">
+                                                                        {item.leave_used !== undefined ? `${item.leave_used}/${item.leave_balance}` : `${item.leave_days}/${item.paid_leave_allowance}`}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">غياب بدون أجر</span>
+                                                                    <span className={`font-semibold ${item.unpaid_absent_days > 0 ? 'text-red-600' : 'text-gray-400'}`}>{item.unpaid_absent_days}</span>
+                                                                </div>
+                                                                {(item.public_holiday_days || 0) > 0 && (
+                                                                    <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                        <span className="text-gray-400">عطل رسمية</span>
+                                                                        <span className="font-semibold text-indigo-600">{item.public_holiday_days}</span>
+                                                                    </div>
+                                                                )}
+                                                                {item.late_days > 0 && (
+                                                                    <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                        <span className="text-gray-400">تأخيرات</span>
+                                                                        <span className="font-semibold text-orange-600">{item.late_days}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* الخصومات والإضافات */}
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">الخصومات والإضافات</p>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-xs">
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">خصم غياب</span>
+                                                                    <span className={`font-semibold ${item.absence_deduction > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                                                                        {item.absence_deduction > 0 ? `-${formatCurrency(item.absence_deduction)}` : '0'}
+                                                                    </span>
+                                                                </div>
+                                                                {(item.late_penalty_amount || 0) > 0 && (
+                                                                    <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                        <span className="text-gray-400">جزاء تأخير</span>
+                                                                        <span className="font-semibold text-orange-600">
+                                                                            -{formatCurrency(item.late_penalty_amount)} <span className="text-[10px] text-gray-400">({item.late_penalty_days} يوم)</span>
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">خصومات يدوية</span>
+                                                                    <span className={`font-semibold ${item.manual_deductions > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                                                                        {item.manual_deductions > 0 ? `-${formatCurrency(item.manual_deductions)}` : '0'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">جزاءات يدوية</span>
+                                                                    <span className={`font-semibold ${item.manual_penalties > 0 ? 'text-rose-600' : 'text-gray-400'}`}>
+                                                                        {item.manual_penalties > 0 ? `-${formatCurrency(item.manual_penalties)}` : '0'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">حافز محسوب</span>
+                                                                    <span className={`font-semibold ${item.calculated_bonus > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                                                                        {item.calculated_bonus > 0 ? `+${formatCurrency(item.calculated_bonus)}` : '0'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">مكافآت</span>
+                                                                    <span className={`font-semibold ${item.manual_bonuses > 0 ? 'text-teal-600' : 'text-gray-400'}`}>
+                                                                        {item.manual_bonuses > 0 ? `+${formatCurrency(item.manual_bonuses)}` : '0'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between sm:flex-col sm:items-center">
+                                                                    <span className="text-gray-400">سلف</span>
+                                                                    <span className={`font-semibold ${item.advance_deduction > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                                                                        {item.advance_deduction > 0 ? `-${formatCurrency(item.advance_deduction)}` : '0'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </>
                             )}
                         </div>
 
-                        {/* Disbursements History Toggle */}
+                        {/* ═══════ Disbursement History ═══════ */}
                         {(canDisburse(selectedPeriod) || selectedPeriod.status === 'paid') && (
-                            <div className="border-t border-gray-100">
+                            <div className="flex-shrink-0 border-t border-gray-100">
                                 <button
                                     onClick={() => handleLoadDisbursements(selectedPeriod.id)}
-                                    className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 text-xs text-gray-500 hover:bg-gray-50 transition-colors"
                                 >
-                                    {showDisbursements ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    {showDisbursements ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                     سجل الصرف ({(selectedPeriod.total_disbursed || 0) > 0 ? 'مصروف' : 'لم يُصرف بعد'})
                                 </button>
 
                                 {showDisbursements && (
-                                    <div className="px-5 pb-4">
+                                    <div className="px-4 sm:px-5 pb-3">
                                         {loadingDisbursements ? (
                                             <div className="flex justify-center py-3">
                                                 <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
                                             </div>
                                         ) : disbursements.length === 0 ? (
-                                            <p className="text-center text-sm text-gray-400 py-3">لا توجد دفعات صرف بعد</p>
+                                            <p className="text-center text-xs text-gray-400 py-3">لا توجد دفعات صرف بعد</p>
                                         ) : (
-                                            <div className="space-y-2">
+                                            <div className="space-y-1.5">
                                                 {disbursements.map((d) => (
-                                                    <div key={d.id} className="flex items-center justify-between bg-purple-50 rounded-lg px-4 py-2.5 text-sm">
+                                                    <div key={d.id} className="flex items-center justify-between bg-purple-50 rounded-lg px-3 py-2 text-xs">
                                                         <div>
                                                             <span className="font-semibold text-purple-800">{formatCurrency(d.amount)}</span>
-                                                            <span className="text-gray-500 mx-2">من</span>
+                                                            <span className="text-gray-500 mx-1.5">من</span>
                                                             <span className="text-gray-700">{(d.vault as any)?.name || 'خزنة محذوفة'}</span>
                                                         </div>
-                                                        <span className="text-xs text-gray-400">
+                                                        <span className="text-[10px] text-gray-400">
                                                             {new Date(d.created_at).toLocaleDateString('ar-EG')} — {new Date(d.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
@@ -765,28 +1125,59 @@ const PayrollTab: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Footer Actions */}
-                        <div className="flex gap-3 p-5 border-t border-gray-200 flex-shrink-0">
-                            {selectedPeriod.status === 'calculated' && (
-                                <button
-                                    onClick={() => handleApprove(selectedPeriod.id)}
-                                    disabled={approving}
-                                    className="flex-1 bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {approving && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    اعتماد المسير
-                                </button>
+                        {/* ═══════ Footer Actions ═══════ */}
+                        <div className="flex-shrink-0 border-t border-gray-200">
+                            {/* Selection Bar */}
+                            {canDisburse(selectedPeriod) && selectedWorkerIds.size > 0 && (
+                                <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 bg-purple-50 border-b border-purple-100">
+                                    <div className="text-xs text-purple-800">
+                                        <span className="font-bold">{selectedWorkerIds.size}</span> عامل — <span className="font-bold">{formatCurrency(selectedTotal)}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => handleOpenIndividualDisburse()}
+                                        className="bg-purple-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors flex items-center gap-1.5"
+                                    >
+                                        <Wallet className="w-3.5 h-3.5" />
+                                        صرف المحدّدين
+                                    </button>
+                                </div>
                             )}
-                            {canDisburse(selectedPeriod) && (
-                                <button
-                                    onClick={() => handleOpenDisburse(selectedPeriod)}
-                                    className="flex-1 bg-purple-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Wallet className="w-4 h-4" />
-                                    صرف من الخزنة
-                                </button>
-                            )}
+
+                            <div className="flex flex-wrap gap-2 p-4 sm:p-5">
+                                {selectedPeriod.status === 'calculated' && (
+                                    <button
+                                        onClick={() => handleApprove(selectedPeriod.id)}
+                                        disabled={approving}
+                                        className="flex-1 min-w-[140px] bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {approving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        اعتماد المسير
+                                    </button>
+                                )}
+                                {canDisburse(selectedPeriod) && unpaidItems.length > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            const allUnpaid = new Set(unpaidItems.map(i => i.worker_id))
+                                            handleOpenIndividualDisburse(allUnpaid)
+                                        }}
+                                        className="flex-1 min-w-[140px] bg-purple-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        صرف الكل ({unpaidItems.length})
+                                    </button>
+                                )}
+                                {canDisburse(selectedPeriod) && (
+                                    <button
+                                        onClick={() => handleOpenDisburse(selectedPeriod)}
+                                        className="flex-none border border-gray-300 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Wallet className="w-4 h-4" />
+                                        <span className="hidden sm:inline">صرف مبلغ من الخزنة</span>
+                                        <span className="sm:hidden">صرف مبلغ</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -805,3 +1196,4 @@ const Receipt = ({ className }: { className?: string }) => (
 )
 
 export default PayrollTab
+

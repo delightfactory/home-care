@@ -74,6 +74,7 @@ export interface AttendanceRecord {
     check_out_location: { lat: number; lng: number; accuracy?: number } | null
     status: AttendanceStatus
     work_hours: number | null
+    late_minutes: number
     notes: string | null
     modified_by: string | null
     created_at: string
@@ -101,6 +102,7 @@ export interface CompanyLocation {
     latitude: number
     longitude: number
     radius_meters: number
+    work_start_time: string
     is_active: boolean
     created_at: string
     updated_at: string
@@ -152,6 +154,18 @@ export interface PayrollItem {
     manual_bonuses: number
     advance_deduction: number
     net_salary: number
+    disbursed_amount: number
+    payment_status: 'unpaid' | 'paid'
+    // V2 — أعمدة النظام الجديد
+    effective_days: number
+    required_work_days: number
+    public_holiday_days: number
+    leave_balance: number
+    leave_used: number
+    late_penalty_days: number
+    late_penalty_amount: number
+    worker_start_date: string | null
+    worker_end_date: string | null
     created_at: string
     updated_at: string
 }
@@ -174,6 +188,7 @@ export interface PayrollDisbursement {
     expense_id: string | null
     notes: string | null
     disbursed_by: string | null
+    worker_ids: string[] | null
     created_at: string
     vault?: {
         id: string
@@ -268,6 +283,7 @@ export interface AttendanceInsert {
     check_in_location?: { lat: number; lng: number; accuracy?: number }
     check_out_location?: { lat: number; lng: number; accuracy?: number }
     status?: AttendanceStatus
+    late_minutes?: number
     notes?: string
     modified_by?: string
 }
@@ -280,6 +296,7 @@ export interface AttendanceUpdate {
     check_in_location?: { lat: number; lng: number; accuracy?: number } | null
     check_out_location?: { lat: number; lng: number; accuracy?: number } | null
     status?: AttendanceStatus
+    late_minutes?: number | null
     notes?: string | null
     modified_by?: string | null
 }
@@ -290,6 +307,7 @@ export interface CompanyLocationInsert {
     latitude: number
     longitude: number
     radius_meters?: number
+    work_start_time?: string
     is_active?: boolean
 }
 
@@ -299,6 +317,7 @@ export interface CompanyLocationUpdate {
     latitude?: number
     longitude?: number
     radius_meters?: number
+    work_start_time?: string
     is_active?: boolean
 }
 
@@ -478,4 +497,37 @@ export interface CompanyLocationForm {
     latitude: number
     longitude: number
     radius_meters: number
+    work_start_time: string
+}
+
+
+// =====================================================================
+// V2 Types — Migration 210
+// =====================================================================
+
+/** عطلة رسمية */
+export interface PublicHoliday {
+    id: string
+    name: string
+    date: string
+    year: number
+    is_active: boolean
+    created_at: string
+    updated_at: string
+}
+
+/** قاعدة جزاء */
+export interface PenaltyRule {
+    id: string
+    name: string
+    name_ar: string
+    type: 'late' | 'absent' | 'early_leave'
+    min_minutes: number
+    max_minutes: number | null
+    deduction_days: number
+    grace_count: number
+    is_active: boolean
+    sort_order: number
+    created_at: string
+    updated_at: string
 }

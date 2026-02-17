@@ -41,6 +41,7 @@ const AttendanceTab: React.FC = () => {
     const [formNotes, setFormNotes] = useState('')
     const [formCheckIn, setFormCheckIn] = useState('')
     const [formCheckOut, setFormCheckOut] = useState('')
+    const [formLateMinutes, setFormLateMinutes] = useState<number>(0)
     const [workers, setWorkers] = useState<{ id: string; name: string }[]>([])
     const [submitting, setSubmitting] = useState(false)
 
@@ -50,6 +51,7 @@ const AttendanceTab: React.FC = () => {
     const [editCheckIn, setEditCheckIn] = useState('')
     const [editCheckOut, setEditCheckOut] = useState('')
     const [editNotes, setEditNotes] = useState('')
+    const [editLateMinutes, setEditLateMinutes] = useState<number>(0)
 
     // بيانات تسجيل الغياب الجماعى
     const [bulkAbsentWorkerIds, setBulkAbsentWorkerIds] = useState<string[]>([])
@@ -112,6 +114,7 @@ const AttendanceTab: React.FC = () => {
                 check_in_time: formCheckIn ? `${formDate}T${formCheckIn}:00` : undefined,
                 check_out_time: formCheckOut ? `${formDate}T${formCheckOut}:00` : undefined,
                 check_in_method: CheckInMethod.MANUAL_ADMIN,
+                late_minutes: formStatus === 'late' ? formLateMinutes : 0,
                 notes: formNotes || undefined,
             })
             if (result.success) {
@@ -136,6 +139,7 @@ const AttendanceTab: React.FC = () => {
         setFormNotes('')
         setFormCheckIn('')
         setFormCheckOut('')
+        setFormLateMinutes(0)
     }
 
     // ⭐ تسجيل انصراف لسجل محدد
@@ -160,6 +164,7 @@ const AttendanceTab: React.FC = () => {
         setEditCheckIn(record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '')
         setEditCheckOut(record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '')
         setEditNotes(record.notes || '')
+        setEditLateMinutes(record.late_minutes || 0)
         setShowEditModal(true)
     }
 
@@ -172,6 +177,7 @@ const AttendanceTab: React.FC = () => {
             const updates: any = {
                 status: editStatus,
                 notes: editNotes || null,
+                late_minutes: editStatus === 'late' ? editLateMinutes : 0,
             }
             if (editCheckIn) {
                 updates.check_in_time = `${editingRecord.date}T${editCheckIn}:00`
@@ -425,6 +431,7 @@ const AttendanceTab: React.FC = () => {
                                 <th className="text-center py-3 px-3 font-medium text-gray-600 hidden sm:table-cell">الحضور</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600 hidden sm:table-cell">الانصراف</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600 hidden md:table-cell">ساعات العمل</th>
+                                <th className="text-center py-3 px-3 font-medium text-gray-600 hidden md:table-cell">تأخير</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600 hidden lg:table-cell">ملاحظات</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600">إجراءات</th>
                             </tr>
@@ -432,7 +439,7 @@ const AttendanceTab: React.FC = () => {
                         <tbody className="divide-y divide-gray-100">
                             {filteredRecords.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-8 text-gray-400">
+                                    <td colSpan={8} className="text-center py-8 text-gray-400">
                                         لا توجد سجلات حضور لهذا اليوم
                                     </td>
                                 </tr>
@@ -460,6 +467,13 @@ const AttendanceTab: React.FC = () => {
                                             </td>
                                             <td className="py-3 px-3 text-center text-gray-600 hidden md:table-cell">
                                                 {record.work_hours ? `${record.work_hours} ساعة` : '—'}
+                                            </td>
+                                            <td className="py-3 px-3 text-center hidden md:table-cell">
+                                                {record.status === 'late' && record.late_minutes > 0 ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                                                        {record.late_minutes} د
+                                                    </span>
+                                                ) : '—'}
                                             </td>
                                             <td className="py-3 px-3 text-center text-gray-500 text-xs hidden lg:table-cell truncate max-w-[150px]">
                                                 {record.notes || '—'}
@@ -650,6 +664,21 @@ const AttendanceTab: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* دقائق التأخير (فقط للمتأخر) */}
+                            {formStatus === 'late' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">دقائق التأخير</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={formLateMinutes}
+                                        onChange={(e) => setFormLateMinutes(parseInt(e.target.value) || 0)}
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                        placeholder="عدد دقائق التأخير"
+                                    />
+                                </div>
+                            )}
+
                             {/* ملاحظات */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
@@ -743,6 +772,21 @@ const AttendanceTab: React.FC = () => {
                                             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
+                                </div>
+                            )}
+
+                            {/* دقائق التأخير (فقط للمتأخر) */}
+                            {editStatus === 'late' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">دقائق التأخير</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={editLateMinutes}
+                                        onChange={(e) => setEditLateMinutes(parseInt(e.target.value) || 0)}
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                        placeholder="عدد دقائق التأخير"
+                                    />
                                 </div>
                             )}
 

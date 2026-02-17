@@ -273,6 +273,7 @@ export interface WorkerForm {
   name: string
   phone: string
   hire_date: string
+  termination_date?: string
   salary?: number
   skills: string[]
   can_drive: boolean

@@ -67,6 +67,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
         name: worker.name,
         phone: worker.phone || '',
         hire_date: worker.hire_date,
+        termination_date: (worker as any).termination_date || undefined,
         salary: worker.salary || undefined,
         skills: worker.skills || [],
         can_drive: worker.can_drive || false,
@@ -91,6 +92,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
         name: '',
         phone: '',
         hire_date: '',
+        termination_date: undefined,
         salary: undefined,
         skills: [],
         can_drive: false,
@@ -143,6 +145,12 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
 
     if (!formData.hire_date) {
       toast.error('يرجى إدخال تاريخ التوظيف')
+      return
+    }
+
+    // ⭐ Fix #11: التحقق من أن تاريخ انتهاء الخدمة بعد تاريخ التوظيف
+    if (formData.termination_date && formData.hire_date && formData.termination_date < formData.hire_date) {
+      toast.error('تاريخ انتهاء الخدمة يجب أن يكون بعد تاريخ التوظيف')
       return
     }
 
@@ -338,6 +346,18 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
           required
           disabled={loading}
         />
+
+        {/* Termination Date Field — edit mode only */}
+        {mode === 'edit' && (
+          <DateTimePicker
+            type="date"
+            value={formData.termination_date || ''}
+            onChange={(value) => setFormData(prev => ({ ...prev, termination_date: value || undefined }))}
+            label="تاريخ إنهاء الخدمة"
+            placeholder="اختر تاريخ إنهاء الخدمة (اختيارى)"
+            disabled={loading}
+          />
+        )}
 
         {/* Salary Field */}
         <div className="space-y-2">

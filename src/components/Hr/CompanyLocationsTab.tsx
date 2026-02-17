@@ -21,6 +21,7 @@ const CompanyLocationsTab: React.FC = () => {
     const [formLat, setFormLat] = useState('')
     const [formLng, setFormLng] = useState('')
     const [formRadius, setFormRadius] = useState('200')
+    const [formWorkStartTime, setFormWorkStartTime] = useState('09:00')
 
     const loadData = useCallback(async () => {
         setLoading(true)
@@ -45,6 +46,7 @@ const CompanyLocationsTab: React.FC = () => {
         setFormLat('')
         setFormLng('')
         setFormRadius('200')
+        setFormWorkStartTime('09:00')
     }
 
     const handleEdit = (loc: CompanyLocation) => {
@@ -54,6 +56,7 @@ const CompanyLocationsTab: React.FC = () => {
         setFormLat(loc.latitude.toString())
         setFormLng(loc.longitude.toString())
         setFormRadius(loc.radius_meters.toString())
+        setFormWorkStartTime(loc.work_start_time?.substring(0, 5) || '09:00')
         setShowModal(true)
     }
 
@@ -77,6 +80,7 @@ const CompanyLocationsTab: React.FC = () => {
                     latitude: lat,
                     longitude: lng,
                     radius_meters: radius,
+                    work_start_time: formWorkStartTime + ':00',
                 })
                 if (result.success) {
                     toast.success('تم تحديث الموقع بنجاح')
@@ -90,6 +94,7 @@ const CompanyLocationsTab: React.FC = () => {
                     latitude: lat,
                     longitude: lng,
                     radius_meters: radius,
+                    work_start_time: formWorkStartTime + ':00',
                 }
                 const result = await CompanyLocationsAPI.createLocation(insertData)
                 if (result.success) {
@@ -199,6 +204,7 @@ const CompanyLocationsTab: React.FC = () => {
                                 <th className="text-right py-3 px-3 font-medium text-gray-600 hidden sm:table-cell">الاسم (عربى)</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600 hidden md:table-cell">الإحداثيات</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600">نصف القطر</th>
+                                <th className="text-center py-3 px-3 font-medium text-gray-600 hidden md:table-cell">بداية الدوام</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600">الحالة</th>
                                 <th className="text-center py-3 px-3 font-medium text-gray-600">إجراءات</th>
                             </tr>
@@ -217,6 +223,9 @@ const CompanyLocationsTab: React.FC = () => {
                                     </td>
                                     <td className="py-3 px-3 text-center text-gray-600">
                                         {loc.radius_meters}م
+                                    </td>
+                                    <td className="py-3 px-3 text-center text-gray-600 hidden md:table-cell">
+                                        {loc.work_start_time?.substring(0, 5) || '09:00'}
                                     </td>
                                     <td className="py-3 px-3 text-center">
                                         <button
@@ -342,6 +351,17 @@ const CompanyLocationsTab: React.FC = () => {
                                     placeholder="200"
                                 />
                                 <p className="text-xs text-gray-400 mt-1">المسافة المسموحة لتسجيل الحضور (افتراضى: 200 متر)</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">وقت بداية الدوام</label>
+                                <input
+                                    type="time"
+                                    value={formWorkStartTime}
+                                    onChange={(e) => setFormWorkStartTime(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">يُستخدم لحساب التأخير تلقائياً عند تسجيل الحضور (افتراضى: 09:00)</p>
                             </div>
 
                             <div className="flex gap-3 pt-2">

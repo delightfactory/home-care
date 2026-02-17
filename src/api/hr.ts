@@ -27,6 +27,8 @@ import type {
     AdjustmentInsert,
     AdjustmentUpdate,
     AdjustmentFilters,
+    PublicHoliday,
+    PenaltyRule,
 } from '../types/hr.types'
 
 
@@ -99,24 +101,52 @@ export class AttendanceAPI {
         }
     }
 
-    /** تسجيل حضور */
+    /** تسجيل حضور — مع حساب التأخير تلقائياً */
     static async checkIn(
         workerId: string,
         method: 'manual_gps' | 'manual_admin',
         location?: { lat: number; lng: number; accuracy?: number }
     ): Promise<ApiResponse<AttendanceRecord>> {
         try {
-            const today = new Date().toISOString().split('T')[0]
+            const now = new Date()
+            const today = now.toISOString().split('T')[0]
+
+            // ⭐ Fix #1+#4: حساب التأخير — جلب وقت بداية الدوام
+            let workStartTime = '09:00:00' // الافتراضى
+            try {
+                const { data: locData } = await supabase
+                    .from('company_locations')
+                    .select('work_start_time')
+                    .eq('is_active', true)
+                    .limit(1)
+                    .single()
+                if (locData?.work_start_time) {
+                    workStartTime = locData.work_start_time
+                }
+            } catch {
+                // استخدام الافتراضى إذا لم تُعثر على مواقع
+            }
+
+            // حساب الفارق بالدقائق
+            const [startH, startM] = workStartTime.split(':').map(Number)
+            const currentH = now.getHours()
+            const currentM = now.getMinutes()
+            const diffMinutes = (currentH * 60 + currentM) - (startH * 60 + startM)
+
+            // تحديد الحالة ودقائق التأخير
+            const lateMinutes = diffMinutes > 0 ? diffMinutes : 0
+            const status: AttendanceStatus = lateMinutes > 0 ? 'late' as AttendanceStatus : 'present' as AttendanceStatus
 
             const { data, error } = await supabase
                 .from('attendance_records')
                 .upsert({
                     worker_id: workerId,
                     date: today,
-                    check_in_time: new Date().toISOString(),
+                    check_in_time: now.toISOString(),
                     check_in_method: method,
                     check_in_location: location || null,
-                    status: 'present' as AttendanceStatus,
+                    status,
+                    late_minutes: lateMinutes,
                 }, {
                     onConflict: 'worker_id,date'
                 })
@@ -128,7 +158,9 @@ export class AttendanceAPI {
             return {
                 success: true,
                 data,
-                message: 'تم تسجيل الحضور بنجاح'
+                message: lateMinutes > 0
+                    ? `تم تسجيل الحضور — متأخر ${lateMinutes} دقيقة`
+                    : 'تم تسجيل الحضور بنجاح'
             }
         } catch (error) {
             return {
@@ -800,6 +832,53 @@ export class PayrollAPI {
             throw new Error(handleSupabaseError(error))
         }
     }
+
+    /** صرف رواتب فردى/مجمّع — عمال محددين */
+    static async disburseWorkerSalary(
+        periodId: string,
+        workerIds: string[],
+        vaultId: string,
+        disbursedBy: string
+    ): Promise<ApiResponse<{
+        disbursement_id: string
+        amount_disbursed: number
+        workers_paid: number
+        worker_names: string[]
+        total_disbursed: number
+        remaining: number
+        new_vault_balance: number
+        new_status: string
+    }>> {
+        try {
+            const { data, error } = await supabase.rpc('disburse_worker_salary', {
+                p_period_id: periodId,
+                p_worker_ids: workerIds,
+                p_vault_id: vaultId,
+                p_disbursed_by: disbursedBy
+            })
+
+            if (error) throw error
+
+            const result = data as any
+            if (!result?.success) {
+                return {
+                    success: false,
+                    error: result?.error || 'حدث خطأ غير متوقع'
+                }
+            }
+
+            return {
+                success: true,
+                data: result,
+                message: result.message || 'تم صرف الرواتب بنجاح'
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: handleSupabaseError(error)
+            }
+        }
+    }
 }
 
 
@@ -1126,6 +1205,127 @@ export class AdjustmentsAPI {
                 success: false,
                 error: handleSupabaseError(error)
             }
+        }
+    }
+}
+
+
+// =====================================================================
+// Public Holidays API — العطل الرسمية
+// =====================================================================
+
+export class PublicHolidaysAPI {
+    /** جلب كل العطل الرسمية */
+    static async getHolidays(year?: number): Promise<PublicHoliday[]> {
+        try {
+            let query = supabase
+                .from('public_holidays')
+                .select('*')
+                .order('date', { ascending: true })
+
+            if (year) {
+                query = query.eq('year', year)
+            }
+
+            const { data, error } = await query
+            if (error) throw error
+            return data || []
+        } catch (error) {
+            throw new Error(handleSupabaseError(error))
+        }
+    }
+
+    /** إنشاء عطلة جديدة */
+    static async createHoliday(holiday: { name: string; date: string }): Promise<ApiResponse<PublicHoliday>> {
+        try {
+            const { data, error } = await supabase
+                .from('public_holidays')
+                .insert(holiday)
+                .select()
+                .single()
+
+            if (error) throw error
+            return { success: true, data, message: 'تم إضافة العطلة بنجاح' }
+        } catch (error) {
+            return { success: false, error: handleSupabaseError(error) }
+        }
+    }
+
+    /** تحديث عطلة */
+    static async updateHoliday(id: string, updates: Partial<{ name: string; date: string; is_active: boolean }>): Promise<ApiResponse<PublicHoliday>> {
+        try {
+            const { data, error } = await supabase
+                .from('public_holidays')
+                .update({ ...updates, updated_at: new Date().toISOString() })
+                .eq('id', id)
+                .select()
+                .single()
+
+            if (error) throw error
+            return { success: true, data, message: 'تم تحديث العطلة' }
+        } catch (error) {
+            return { success: false, error: handleSupabaseError(error) }
+        }
+    }
+
+    /** حذف عطلة */
+    static async deleteHoliday(id: string): Promise<ApiResponse<void>> {
+        try {
+            const { error } = await supabase
+                .from('public_holidays')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+            return { success: true, message: 'تم حذف العطلة' }
+        } catch (error) {
+            return { success: false, error: handleSupabaseError(error) }
+        }
+    }
+}
+
+
+// =====================================================================
+// Penalty Rules API — قواعد الجزاءات
+// =====================================================================
+
+export class PenaltyRulesAPI {
+    /** جلب كل القواعد */
+    static async getRules(): Promise<PenaltyRule[]> {
+        try {
+            const { data, error } = await supabase
+                .from('penalty_rules')
+                .select('*')
+                .order('sort_order', { ascending: true })
+
+            if (error) throw error
+            return data || []
+        } catch (error) {
+            throw new Error(handleSupabaseError(error))
+        }
+    }
+
+    /** تحديث قاعدة جزاء */
+    static async updateRule(id: string, updates: Partial<{
+        name_ar: string;
+        min_minutes: number;
+        max_minutes: number | null;
+        deduction_days: number;
+        grace_count: number;
+        is_active: boolean;
+    }>): Promise<ApiResponse<PenaltyRule>> {
+        try {
+            const { data, error } = await supabase
+                .from('penalty_rules')
+                .update({ ...updates, updated_at: new Date().toISOString() })
+                .eq('id', id)
+                .select()
+                .single()
+
+            if (error) throw error
+            return { success: true, data, message: 'تم تحديث القاعدة' }
+        } catch (error) {
+            return { success: false, error: handleSupabaseError(error) }
         }
     }
 }

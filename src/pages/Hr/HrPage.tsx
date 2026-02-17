@@ -1,14 +1,15 @@
 // HrPage — الصفحة الرئيسية للموارد البشرية (6 تبويبات)
 import React, { useState } from 'react'
-import { CalendarCheck, Receipt, Banknote, Settings2, MapPin, Award } from 'lucide-react'
+import { CalendarCheck, Receipt, Banknote, Settings2, MapPin, Award, Sliders } from 'lucide-react'
 import AttendanceTab from '../../components/Hr/AttendanceTab'
 import PayrollTab from '../../components/Hr/PayrollTab'
 import AdvancesTab from '../../components/Hr/AdvancesTab'
 import AdjustmentsTab from '../../components/Hr/AdjustmentsTab'
 import CompanyLocationsTab from '../../components/Hr/CompanyLocationsTab'
 import BonusesTab from '../../components/Hr/BonusesTab'
+import HrSettingsTab from '../../components/Hr/HrSettingsTab'
 
-type TabId = 'attendance' | 'payroll' | 'advances' | 'adjustments' | 'bonuses' | 'locations'
+type TabId = 'attendance' | 'payroll' | 'advances' | 'adjustments' | 'bonuses' | 'locations' | 'settings'
 
 interface TabDef {
     id: TabId
@@ -24,6 +25,7 @@ const tabs: TabDef[] = [
     { id: 'adjustments', label: 'التسويات', icon: Settings2, color: 'purple' },
     { id: 'bonuses', label: 'الحوافز', icon: Award, color: 'rose' },
     { id: 'locations', label: 'المواقع', icon: MapPin, color: 'teal' },
+    { id: 'settings', label: 'الإعدادات', icon: Sliders, color: 'slate' },
 ]
 
 const colorMap: Record<string, { active: string; hover: string; bg: string }> = {
@@ -56,6 +58,11 @@ const colorMap: Record<string, { active: string; hover: string; bg: string }> = 
         active: 'border-rose-500 text-rose-600',
         hover: 'hover:text-rose-500 hover:border-rose-300',
         bg: 'bg-rose-50',
+    },
+    slate: {
+        active: 'border-slate-500 text-slate-600',
+        hover: 'hover:text-slate-500 hover:border-slate-300',
+        bg: 'bg-slate-50',
     },
 }
 
@@ -108,6 +115,7 @@ const HrPage: React.FC = () => {
                     {activeTab === 'adjustments' && <AdjustmentsTab />}
                     {activeTab === 'bonuses' && <BonusesTab />}
                     {activeTab === 'locations' && <CompanyLocationsTab />}
+                    {activeTab === 'settings' && <HrSettingsTab />}
                 </div>
             </div>
         </div>
