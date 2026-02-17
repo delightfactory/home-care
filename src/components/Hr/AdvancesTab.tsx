@@ -109,10 +109,16 @@ const AdvancesTab: React.FC = () => {
     }
 
     const handleCancel = async (id: string) => {
-        if (!confirm('هل تريد إلغاء هذه السلفة؟')) return
-        const result = await AdvancesAPI.cancelAdvance(id)
+        if (!user?.id) return
+        if (!confirm('هل تريد إلغاء هذه السلفة؟ سيتم استرداد المبلغ المتبقى إلى الخزنة.')) return
+        const result = await AdvancesAPI.cancelAdvance(id, user.id)
         if (result.success) {
-            toast.success(result.message || 'تم إلغاء السلفة')
+            const refund = result.data?.refund_amount || 0
+            toast.success(
+                refund > 0
+                    ? `تم إلغاء السلفة واسترداد ${refund.toLocaleString()} ج.م إلى الخزنة`
+                    : result.message || 'تم إلغاء السلفة'
+            )
             loadData()
         } else {
             toast.error(result.error || 'حدث خطأ')

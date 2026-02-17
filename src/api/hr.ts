@@ -991,23 +991,34 @@ export class AdvancesAPI {
         }
     }
 
-    /** إلغاء سلفة */
-    static async cancelAdvance(id: string): Promise<ApiResponse<void>> {
+    /** إلغاء سلفة مع استرداد المبلغ للخزنة */
+    static async cancelAdvance(
+        id: string,
+        cancelledBy: string
+    ): Promise<ApiResponse<{ refund_amount: number; new_vault_balance: number }>> {
         try {
-            const { error } = await supabase
-                .from('salary_advances')
-                .update({
-                    status: 'cancelled',
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', id)
-                .eq('status', 'active') // فقط السلف النشطة
+            const { data, error } = await supabase.rpc('cancel_advance_with_refund', {
+                p_advance_id: id,
+                p_cancelled_by: cancelledBy,
+            })
 
             if (error) throw error
 
+            const result = data as any
+            if (!result?.success) {
+                return {
+                    success: false,
+                    error: result?.error || 'فشل في إلغاء السلفة',
+                }
+            }
+
             return {
                 success: true,
-                message: 'تم إلغاء السلفة'
+                data: {
+                    refund_amount: result.refund_amount,
+                    new_vault_balance: result.new_vault_balance,
+                },
+                message: result.message || 'تم إلغاء السلفة واسترداد المبلغ',
             }
         } catch (error) {
             return {
