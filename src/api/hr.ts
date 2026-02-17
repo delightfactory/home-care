@@ -173,7 +173,7 @@ export class AttendanceAPI {
     /** تسجيل انصراف */
     static async checkOut(
         workerId: string,
-        method: 'manual_gps' | 'manual_admin' | 'auto',
+        method: 'manual_gps' | 'manual_admin' | 'auto_route_complete',
         location?: { lat: number; lng: number; accuracy?: number }
     ): Promise<ApiResponse<AttendanceRecord>> {
         try {

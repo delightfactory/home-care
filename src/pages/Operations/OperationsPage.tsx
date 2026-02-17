@@ -142,7 +142,8 @@ const OperationsPage: React.FC = () => {
   const [selectedConfirmationOrder, setSelectedConfirmationOrder] = useState<OrderWithDetails | null>(null)
 
   const { user } = useAuth()
-  const { canApproveExpense } = usePermissions()
+  const { canApproveExpense, hasRole } = usePermissions()
+  const hidePhone = hasRole('operations_supervisor')
 
   // Data hooks
   const { routes, loading: routesLoading, refresh: refreshRoutes } = useRoutes(
@@ -366,8 +367,8 @@ const OperationsPage: React.FC = () => {
 
 ` +
         `👤 العميل: ${richOrder.customer?.name || 'غير محدد'}\n` +
-        `📞 الهاتف: ${richOrder.customer?.phone || 'غير محدد'}\n` +
-        (richOrder.customer?.extra_phone ? `📞 هاتف إضافي: ${richOrder.customer.extra_phone}\n` : '') +
+        `📞 الهاتف: ${hidePhone ? '*****' : (richOrder.customer?.phone || 'غير محدد')}\n` +
+        (!hidePhone && richOrder.customer?.extra_phone ? `📞 هاتف إضافي: ${richOrder.customer.extra_phone}\n` : '') +
         `📍 العنوان: ${richOrder.customer?.address || 'غير محدد'}\n` +
         `🏘️ المنطقة: ${richOrder.customer?.area || 'غير محدد'}\n\n` +
         `📅 التاريخ: ${new Date(richOrder.scheduled_date).toLocaleDateString('ar-EG')}\n` +
@@ -467,7 +468,7 @@ const OperationsPage: React.FC = () => {
                 </div>
                 <div class="flex items-center gap-2 p-2 rounded bg-blue-25 border border-blue-100">
                   <span class="font-semibold text-gray-700">الهاتف:</span>
-                  <span class="text-gray-900">${order.customer?.phone || 'غير محدد'}</span>
+                  <span class="text-gray-900">${hidePhone ? '*****' : (order.customer?.phone || 'غير محدد')}</span>
                 </div>
                 <div class="flex items-start gap-2 p-2 rounded bg-white border border-blue-100">
                   <span class="font-semibold text-gray-700">العنوان:</span>
@@ -762,8 +763,8 @@ const OperationsPage: React.FC = () => {
       // Auto-download
       link.click()
 
-      // Send via WhatsApp if customer phone is available
-      if (order.customer?.phone) {
+      // Send via WhatsApp if customer phone is available (hidden for supervisor)
+      if (!hidePhone && order.customer?.phone) {
         const whatsappMessage = `مرحباً ${order.customer.name || 'عزيزي العميل'},\n\nإليك تفاصيل طلبك رقم: ${order.order_number}\n\nشكراً لثقتكم بنا 🌟`
         const waNumber = formatPhoneForWhatsApp(order.customer.phone)
         const whatsappUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(whatsappMessage)}`
@@ -783,8 +784,8 @@ const OperationsPage: React.FC = () => {
   // إرسال رابط استبيان رضا العميل عبر واتساب (للرقم الأساسي والهاتف الإضافي)
   const sendSurveyLink = async (order: OrderWithDetails) => {
     try {
-      const primary = order.customer?.phone
-      const extra = order.customer?.extra_phone
+      const primary = hidePhone ? undefined : order.customer?.phone
+      const extra = hidePhone ? undefined : order.customer?.extra_phone
       if (!primary && !extra) {
         toast.error('لا يوجد رقم هاتف لإرسال الاستبيان')
         return
@@ -1611,7 +1612,7 @@ const OperationsPage: React.FC = () => {
                                     <div onClick={() => handleConfirmationChange(routeOrder.order)}>
                                       {getConfirmationBadge(routeOrder.order.confirmation_status)}
                                     </div>
-                                    {routeOrder.order.customer?.phone && (
+                                    {!hidePhone && routeOrder.order.customer?.phone && (
                                       <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md border border-gray-300 shadow-sm">
                                         <Phone className="h-3 w-3 text-green-600 ml-1" />
                                         <span className="text-xs font-medium">{routeOrder.order.customer.phone}</span>
@@ -1656,7 +1657,7 @@ const OperationsPage: React.FC = () => {
                                   <div onClick={() => handleConfirmationChange(routeOrder.order)}>
                                     {getConfirmationBadge(routeOrder.order.confirmation_status)}
                                   </div>
-                                  {routeOrder.order.customer?.phone && (
+                                  {!hidePhone && routeOrder.order.customer?.phone && (
                                     <span className="flex items-center bg-gray-100 px-3 py-1.5 rounded-md border border-gray-300 shadow-sm">
                                       <Phone className="h-3 w-3 text-green-600 ml-1" />
                                       <span className="text-xs sm:text-sm font-medium">{routeOrder.order.customer.phone}</span>
@@ -1736,7 +1737,7 @@ const OperationsPage: React.FC = () => {
 
                                 {/* Secondary Actions - Mobile Optimized */}
                                 <div className="flex flex-wrap gap-1">
-                                  {routeOrder.order.customer?.phone && (
+                                  {!hidePhone && routeOrder.order.customer?.phone && (
                                     <>
                                       <button
                                         onClick={() => window.open(`tel:${routeOrder.order.customer.phone}`, '_self')}
@@ -2061,6 +2062,7 @@ const OperationsPage: React.FC = () => {
           setDetailsOrderId(undefined)
         }}
         orderId={detailsOrderId}
+        hideCustomerPhone={hidePhone}
       />
 
       {showFormModal && (

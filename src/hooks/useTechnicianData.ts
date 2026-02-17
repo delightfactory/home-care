@@ -233,7 +233,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
                     const attRecord = await AttendanceAPI.getTodayAttendance(status.workerId)
                     if (attRecord && attRecord.check_in_time && !attRecord.check_out_time) {
                         // تسجيل انصراف تلقائى
-                        const checkoutResult = await AttendanceAPI.checkOut(status.workerId, 'auto')
+                        const checkoutResult = await AttendanceAPI.checkOut(status.workerId, 'auto_route_complete')
                         if (checkoutResult.success) {
                             toast.success('تم تسجيل انصرافك تلقائى 🏠 ريّح نفسك!', { duration: 5000 })
                             setAttendance({

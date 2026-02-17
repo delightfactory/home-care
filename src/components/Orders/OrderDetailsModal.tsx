@@ -10,9 +10,10 @@ interface OrderDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   orderId?: string
+  hideCustomerPhone?: boolean
 }
 
-const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, orderId }) => {
+const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, orderId, hideCustomerPhone }) => {
   const [order, setOrder] = useState<OrderWithDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -40,10 +41,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
 
   const handleExportAsImage = async () => {
     if (!printRef.current) return
-    
+
     try {
       setIsExporting(true)
-      
+
       // Add mobile-friendly styles for export
       const exportStyles = document.createElement('style')
       exportStyles.innerHTML = `
@@ -139,10 +140,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
            }
       `
       document.head.appendChild(exportStyles)
-      
+
       // Add mobile export class
       printRef.current.classList.add('mobile-export')
-      
+
       const canvas = await html2canvas(printRef.current, {
         scale: 2,
         useCORS: true,
@@ -151,11 +152,11 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
         width: 400,
         height: printRef.current.scrollHeight
       })
-      
+
       // Remove mobile export class and styles
       printRef.current.classList.remove('mobile-export')
       document.head.removeChild(exportStyles)
-      
+
       const link = document.createElement('a')
       link.download = `order-${order?.order_number || orderId}-mobile.png`
       link.href = canvas.toDataURL()
@@ -294,16 +295,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                 <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16"></div>
                 <div className="absolute bottom-0 right-0 w-24 h-24 bg-white rounded-full translate-x-12 translate-y-12"></div>
               </div>
-              
+
               {/* Header Content */}
               <div className="relative z-10">
                 {/* Company Logo and Info */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                      <img 
-                        src="/icons/icon-192x192.png" 
-                        alt="شعار الشركة" 
+                      <img
+                        src="/icons/icon-192x192.png"
+                        alt="شعار الشركة"
                         className="w-8 h-8 object-contain"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -323,7 +324,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                     <p className="text-base font-semibold">{new Date().toLocaleDateString('ar-EG')}</p>
                   </div>
                 </div>
-                
+
                 {/* Order Title */}
                 <div className="text-center border-t border-white/20 pt-4">
                   <div className="flex items-center justify-center gap-3 mb-2">
@@ -350,17 +351,19 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                     <h2 className="text-lg font-bold text-gray-800">بيانات العميل</h2>
                   </div>
                   <div className="space-y-1 text-sm">
-                      <div className="flex items-center gap-2 p-2 rounded bg-white border border-blue-100 hover:bg-blue-25 transition-colors">
-                        <User className="w-4 h-4 text-blue-500" />
-                        <span className="font-semibold text-gray-700">الاسم:</span>
-                        <span className="text-gray-900">{order.customer?.name || 'غير محدد'}</span>
-                      </div>
                     <div className="flex items-center gap-2 p-2 rounded bg-white border border-blue-100 hover:bg-blue-25 transition-colors">
-                      <Phone className="w-4 h-4 text-blue-500" />
-                      <span className="font-semibold text-gray-700">الهاتف:</span>
-                      <span className="text-gray-900">{order.customer?.phone || 'غير محدد'}</span>
+                      <User className="w-4 h-4 text-blue-500" />
+                      <span className="font-semibold text-gray-700">الاسم:</span>
+                      <span className="text-gray-900">{order.customer?.name || 'غير محدد'}</span>
                     </div>
-                    {order.customer?.extra_phone && (
+                    {!hideCustomerPhone && (
+                      <div className="flex items-center gap-2 p-2 rounded bg-white border border-blue-100 hover:bg-blue-25 transition-colors">
+                        <Phone className="w-4 h-4 text-blue-500" />
+                        <span className="font-semibold text-gray-700">الهاتف:</span>
+                        <span className="text-gray-900">{order.customer?.phone || 'غير محدد'}</span>
+                      </div>
+                    )}
+                    {!hideCustomerPhone && order.customer?.extra_phone && (
                       <div className="flex items-center gap-2 p-2 rounded bg-blue-25 border border-blue-100 hover:bg-white transition-colors">
                         <Phone className="w-4 h-4 text-blue-500" />
                         <span className="font-semibold text-gray-700">هاتف إضافي:</span>
@@ -424,12 +427,11 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                         <FileCheck className="w-4 h-4 text-green-500" />
                         <span className="font-semibold text-gray-700">الحالة:</span>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {getStatusText(order.status)}
                       </span>
                     </div>
@@ -438,11 +440,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                         <CreditCard className="w-4 h-4 text-green-500" />
                         <span className="font-semibold text-gray-700">الدفع:</span>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        order.payment_status === 'paid_cash' || order.payment_status === 'paid_card' 
-                          ? 'bg-green-100 text-green-800' 
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${order.payment_status === 'paid_cash' || order.payment_status === 'paid_card'
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
-                      }`}>
+                        }`}>
                         {getPaymentStatusText(order.payment_status)}
                       </span>
                     </div>
@@ -507,8 +508,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                           <th className="px-3 py-2 text-center font-semibold text-gray-700">سعر الوحدة</th>
                           <th className="px-3 py-2 text-center font-semibold text-gray-700">الإجمالي</th>
                           {order.items?.some(item => item.notes) && (
-                             <th className="px-3 py-2 text-right font-semibold text-gray-700">ملاحظات</th>
-                           )}
+                            <th className="px-3 py-2 text-right font-semibold text-gray-700">ملاحظات</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="bg-white">
@@ -528,16 +529,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                             <td className="px-3 py-2 text-center font-medium text-gray-900">{item.unit_price} ج.م</td>
                             <td className="px-3 py-2 text-center font-bold text-purple-600">{item.total_price} ج.م</td>
                             {order.items?.some(i => i.notes) && (
-                               <td className="px-3 py-2 text-right text-gray-600 text-xs">{item.notes || '-'}</td>
-                             )}
+                              <td className="px-3 py-2 text-right text-gray-600 text-xs">{item.notes || '-'}</td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
                         <tr className="bg-green-100">
                           <td colSpan={order.items?.some(item => item.notes) ? 4 : 3} className="px-3 py-2 text-right font-bold text-gray-800">
-                             إجمالي المبلغ:
-                           </td>
+                            إجمالي المبلغ:
+                          </td>
                           <td className="px-3 py-2 text-center font-bold text-xl text-green-700">{order.total_amount} ج.م</td>
                         </tr>
                       </tfoot>
@@ -568,9 +569,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                               {[...Array(5)].map((_, i) => (
                                 <Star
                                   key={i}
-                                  className={`w-4 h-4 ${
-                                    i < order.customer_rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                                  }`}
+                                  className={`w-4 h-4 ${i < order.customer_rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                    }`}
                                 />
                               ))}
                             </div>
@@ -617,25 +617,23 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                   <div className="space-y-2">
                     {order.status_logs.map((log) => (
                       <div key={log.id} className="flex items-start gap-3 bg-white rounded p-3 border border-gray-200">
-                        <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${
-                          log.status === 'completed' ? 'bg-green-500' :
-                          log.status === 'in_progress' ? 'bg-blue-500' :
-                          log.status === 'cancelled' ? 'bg-red-500' :
-                          'bg-yellow-500'
-                        }`}></div>
+                        <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${log.status === 'completed' ? 'bg-green-500' :
+                            log.status === 'in_progress' ? 'bg-blue-500' :
+                              log.status === 'cancelled' ? 'bg-red-500' :
+                                'bg-yellow-500'
+                          }`}></div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className={`font-semibold px-2 py-1 rounded text-xs ${
-                              log.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              log.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              log.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>{getStatusText(log.status)}</span>
+                            <span className={`font-semibold px-2 py-1 rounded text-xs ${log.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                log.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                  log.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                              }`}>{getStatusText(log.status)}</span>
                             <div className="text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:gap-1">
-                                <span>{(log as any).created_by_user?.full_name || 'غير معروف'}</span>
-                                <span className="hidden sm:inline">•</span>
-                                <span dir="ltr">{formatDateTime(log.created_at)}</span>
-                              </div>
+                              <span>{(log as any).created_by_user?.full_name || 'غير معروف'}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span dir="ltr">{formatDateTime(log.created_at)}</span>
+                            </div>
                           </div>
                           {log.notes && (
                             <p className="text-gray-600 text-xs leading-relaxed">{log.notes}</p>
