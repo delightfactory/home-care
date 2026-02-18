@@ -579,7 +579,7 @@ const PayrollTab: React.FC = () => {
 
             {/* Disburse Modal */}
             {showDisburseModal && disbursePeriod && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDisburseModal(false)}>
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setShowDisburseModal(false)}>
                     <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-5 border-b border-gray-200">
                             <div>
@@ -690,7 +690,7 @@ const PayrollTab: React.FC = () => {
 
             {/* Individual Disburse Modal */}
             {showIndividualDisburseModal && selectedPeriod && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowIndividualDisburseModal(false)}>
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setShowIndividualDisburseModal(false)}>
                     <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-5 border-b border-gray-200">
                             <div>
