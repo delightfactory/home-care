@@ -1,10 +1,10 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { 
-  Users, 
-  ShoppingCart, 
-  DollarSign, 
+import {
+  Users,
+  ShoppingCart,
+  DollarSign,
   TrendingUp,
   Calendar,
   Clock,
@@ -12,6 +12,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { getToday, supabase } from '../../api'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useSystemHealth } from '../../hooks/useEnhancedAPI'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -25,14 +26,14 @@ const useDashboardStats = (date: string) => {
   const fetchStats = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       // جلب طلبات اليوم المكتملة والمدفوعة فقط
       const { data: todayOrders } = await supabase
         .from('orders')
         .select('id, status, total_amount, customer_rating, payment_status')
         .eq('scheduled_date', date)
-      
+
       // جلب مصروفات اليوم المعتمدة فقط
       const { data: todayExpenses } = await supabase
         .from('expenses')
@@ -40,38 +41,38 @@ const useDashboardStats = (date: string) => {
         .gte('created_at', `${date}T00:00:00`)
         .lte('created_at', `${date}T23:59:59`)
         .eq('status', 'approved')
-      
+
       // جلب الفرق النشطة
       const { data: activeTeams } = await supabase
         .from('teams')
         .select('id')
         .eq('is_active', true)
-      
+
       // حساب الإحصائيات
       const totalOrders = todayOrders?.length || 0
       const completedOrders = todayOrders?.filter(o => o.status === 'completed').length || 0
       const cancelledOrders = todayOrders?.filter(o => o.status === 'cancelled').length || 0
-      
+
       // حساب الإيرادات من الطلبات المكتملة والمدفوعة فقط
-      const paidOrders = todayOrders?.filter(o => 
-        o.status === 'completed' && 
+      const paidOrders = todayOrders?.filter(o =>
+        o.status === 'completed' &&
         (o.payment_status === 'paid_cash' || o.payment_status === 'paid_card')
       ) || []
-      
+
       const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-      
+
       // حساب المصروفات المعتمدة فقط
       const totalExpenses = todayExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
-      
+
       // حساب صافي الربح
       const netProfit = totalRevenue - totalExpenses
-      
+
       // حساب متوسط التقييم
       const ratedOrders = todayOrders?.filter(o => o.customer_rating) || []
-      const averageRating = ratedOrders.length > 0 
+      const averageRating = ratedOrders.length > 0
         ? ratedOrders.reduce((sum, o) => sum + (o.customer_rating || 0), 0) / ratedOrders.length
         : 0
-      
+
       setStats({
         total_orders: totalOrders,
         completed_orders: completedOrders,
@@ -112,6 +113,9 @@ const DashboardPage: React.FC = () => {
   // Optional: system health (auto-refresh)
   const { health: _health } = useSystemHealth()
 
+  const { hasRole } = usePermissions()
+  const isSupervisor = hasRole('operations_supervisor')
+
   // Active routes query (cached for 1 minute)
   const { data: activeRoutes = 0, error: routesError } = useQuery(['activeRoutes', today], async () => {
     const { data: routesData } = await supabase
@@ -133,50 +137,50 @@ const DashboardPage: React.FC = () => {
     }
   }, [statsError, routesError])
 
-  
+
 
   /* Legacy fetchDashboardStats replaced by React Query */
-/*
-    try {
-      setLoading(true)
-      const today = getToday()
-      let dashboard = await ReportsAPI.getDailyDashboard(today)
-      // إذا لم يوجد تقرير يومي مخزَّن، احسب الإحصائيات بالطريقة القديمة
-      if (!dashboard) {
-        const legacy = await ReportsAPI.getDashboardStats()
-        dashboard = {
-          report_date: today,
-          total_orders: legacy.today_orders,
-          completed_orders: legacy.today_orders - legacy.pending_orders, // تقريب تقريبي
-          cancelled_orders: 0,
-          total_revenue: legacy.total_revenue,
-          total_expenses: legacy.total_expenses,
-          net_profit: legacy.net_profit,
-          active_teams: legacy.active_teams,
-          average_rating: legacy.average_rating
+  /*
+      try {
+        setLoading(true)
+        const today = getToday()
+        let dashboard = await ReportsAPI.getDailyDashboard(today)
+        // إذا لم يوجد تقرير يومي مخزَّن، احسب الإحصائيات بالطريقة القديمة
+        if (!dashboard) {
+          const legacy = await ReportsAPI.getDashboardStats()
+          dashboard = {
+            report_date: today,
+            total_orders: legacy.today_orders,
+            completed_orders: legacy.today_orders - legacy.pending_orders, // تقريب تقريبي
+            cancelled_orders: 0,
+            total_revenue: legacy.total_revenue,
+            total_expenses: legacy.total_expenses,
+            net_profit: legacy.net_profit,
+            active_teams: legacy.active_teams,
+            average_rating: legacy.average_rating
+          }
         }
+        setStats(dashboard)
+        const pending = dashboard.total_orders - dashboard.completed_orders - dashboard.cancelled_orders
+        setPendingOrders(pending)
+        // Fetch active routes count quickly
+        const { data: routesData } = await supabase
+          .from('routes')
+          .select('id', {count: 'exact', head: true})
+          .eq('date', today)
+          .eq('status', 'in_progress')
+        setActiveRoutes(routesData?.length || 0)
+      } catch (error) {
+        toast.error('حدث خطأ في تحميل إحصائيات لوحة التحكم')
+        console.error('Dashboard stats error:', error)
+      } finally {
+        setLoading(false)
       }
-      setStats(dashboard)
-      const pending = dashboard.total_orders - dashboard.completed_orders - dashboard.cancelled_orders
-      setPendingOrders(pending)
-      // Fetch active routes count quickly
-      const { data: routesData } = await supabase
-        .from('routes')
-        .select('id', {count: 'exact', head: true})
-        .eq('date', today)
-        .eq('status', 'in_progress')
-      setActiveRoutes(routesData?.length || 0)
-    } catch (error) {
-      toast.error('حدث خطأ في تحميل إحصائيات لوحة التحكم')
-      console.error('Dashboard stats error:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+  
+    */
 
-  */
-
-if (statsLoading) {
+  if (statsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل لوحة التحكم..." />
@@ -271,8 +275,8 @@ if (statsLoading) {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat, index) => (
-          <div 
-            key={stat.name} 
+          <div
+            key={stat.name}
             className={`card-compact group hover:scale-105 transition-all duration-300 ${stat.bgGradient} border-0 shadow-lg hover:shadow-xl ${stat.pulse ? 'animate-pulse' : ''}`}
             style={{ animationDelay: `${index * 100}ms` }}
           >
@@ -296,39 +300,41 @@ if (statsLoading) {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="card-elevated bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-          <div className="card-header border-b border-blue-200">
-            <h3 className="card-title text-blue-900 flex items-center">
-              <TrendingUp className="h-5 w-5 ml-2" />
-              إجراءات سريعة
-            </h3>
+      {/* Quick Actions & Alerts */}
+      <div className={`grid grid-cols-1 gap-6 ${!isSupervisor ? 'lg:grid-cols-2' : ''}`}>
+        {!isSupervisor && (
+          <div className="card-elevated bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+            <div className="card-header border-b border-blue-200">
+              <h3 className="card-title text-blue-900 flex items-center">
+                <TrendingUp className="h-5 w-5 ml-2" />
+                إجراءات سريعة
+              </h3>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate('/orders?action=create')}
+                className="btn-primary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <ShoppingCart className="h-5 w-5 ml-2" />
+                إضافة طلب جديد
+              </button>
+              <button
+                onClick={() => navigate('/customers?action=create')}
+                className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <Users className="h-5 w-5 ml-2" />
+                إضافة عميل جديد
+              </button>
+              <button
+                onClick={() => navigate('/routes')}
+                className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <Calendar className="h-5 w-5 ml-2" />
+                عرض جدول اليوم
+              </button>
+            </div>
           </div>
-          <div className="space-y-3">
-            <button 
-              onClick={() => navigate('/orders?action=create')}
-              className="btn-primary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
-            >
-              <ShoppingCart className="h-5 w-5 ml-2" />
-              إضافة طلب جديد
-            </button>
-            <button 
-              onClick={() => navigate('/customers?action=create')}
-              className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
-            >
-              <Users className="h-5 w-5 ml-2" />
-              إضافة عميل جديد
-            </button>
-            <button 
-              onClick={() => navigate('/routes')}
-              className="btn-secondary w-full justify-start hover:scale-105 transition-all duration-300 shadow-md hover:shadow-lg"
-            >
-              <Calendar className="h-5 w-5 ml-2" />
-              عرض جدول اليوم
-            </button>
-          </div>
-        </div>
+        )}
 
         <div className="card-elevated bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
           <div className="card-header border-b border-amber-200">
@@ -346,7 +352,7 @@ if (statsLoading) {
                 </span>
               </div>
             )}
-            
+
             {activeRoutes === 0 && (
               <div className="flex items-center p-4 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl border border-blue-300 shadow-sm">
                 <Clock className="h-6 w-6 text-blue-700 ml-3 flex-shrink-0" />

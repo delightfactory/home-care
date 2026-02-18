@@ -143,7 +143,8 @@ const OperationsPage: React.FC = () => {
 
   const { user } = useAuth()
   const { canApproveExpense, hasRole } = usePermissions()
-  const hidePhone = hasRole('operations_supervisor')
+  const isSupervisor = hasRole('operations_supervisor')
+  const hidePhone = isSupervisor
 
   // Data hooks
   const { routes, loading: routesLoading, refresh: refreshRoutes } = useRoutes(
@@ -1240,7 +1241,14 @@ const OperationsPage: React.FC = () => {
                 route={route}
                 isExpanded={expandedSections[route.id]}
                 onToggleExpansion={() => toggleRouteExpansion(route.id)}
-                onEdit={(e) => { e.stopPropagation(); setSelectedRoute(route); setFormMode('edit'); setShowRouteModal(true); }}
+                onEdit={(e) => {
+                  e.stopPropagation();
+                  if (!isSupervisor) {
+                    setSelectedRoute(route);
+                    setFormMode('edit');
+                    setShowRouteModal(true);
+                  }
+                }}
                 onManageOrders={(e) => { e.stopPropagation(); setRouteForOrders(route); setShowAssignModal(true); }}
                 onStartRoute={(e) => { e.stopPropagation(); handleStartRoute(route); }}
                 onCompleteRoute={(e) => { e.stopPropagation(); handleCompleteRoute(route); }}
@@ -1385,18 +1393,20 @@ const OperationsPage: React.FC = () => {
                       {/* Primary Actions Group */}
                       <div className="flex items-center space-x-1 space-x-reverse bg-gray-50 rounded-lg p-1">
                         {/* Edit */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedRoute(route)
-                            setFormMode('edit')
-                            setShowRouteModal(true)
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-all duration-200 hover:scale-105"
-                          title="تعديل"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
+                        {!isSupervisor && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedRoute(route)
+                              setFormMode('edit')
+                              setShowRouteModal(true)
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-all duration-200 hover:scale-105"
+                            title="تعديل"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
 
                         {/* Manage Orders */}
                         <button
@@ -1681,17 +1691,19 @@ const OperationsPage: React.FC = () => {
                                   >
                                     <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedOrder(routeOrder.order)
-                                      setFormMode('edit')
-                                      setShowFormModal(true)
-                                    }}
-                                    className="p-1.5 sm:p-2 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0 touch-manipulation"
-                                    title="تعديل"
-                                  >
-                                    <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                  </button>
+                                  {!isSupervisor && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedOrder(routeOrder.order)
+                                        setFormMode('edit')
+                                        setShowFormModal(true)
+                                      }}
+                                      className="p-1.5 sm:p-2 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0 touch-manipulation"
+                                      title="تعديل"
+                                    >
+                                      <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    </button>
+                                  )}
 
                                   {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
                                   {routeOrder.order.status === 'pending' || routeOrder.order.status === 'scheduled' ? (
@@ -1933,64 +1945,66 @@ const OperationsPage: React.FC = () => {
       />
 
       {/* Vault Selection Modal for expense approval */}
-      {showVaultModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="p-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-              <h3 className="text-lg font-bold">اختر خزنة للخصم</h3>
-              {vaultModalInfo?.code === 'INSUFFICIENT_BALANCE' ? (
-                <div className="mt-1 space-y-1">
-                  <p className="text-sm text-white/90">رصيد العهدة غير كافٍ لتغطية المصروف</p>
-                  <div className="flex items-center gap-3 mt-2 p-2 bg-white/20 rounded-lg text-sm">
-                    <span>رصيد العهدة: <strong>{vaultModalInfo.currentBalance?.toLocaleString('ar-EG')} ج.م</strong></span>
-                    <span>|</span>
-                    <span>المطلوب: <strong>{vaultModalInfo.requiredAmount?.toLocaleString('ar-EG')} ج.م</strong></span>
+      {
+        showVaultModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="p-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                <h3 className="text-lg font-bold">اختر خزنة للخصم</h3>
+                {vaultModalInfo?.code === 'INSUFFICIENT_BALANCE' ? (
+                  <div className="mt-1 space-y-1">
+                    <p className="text-sm text-white/90">رصيد العهدة غير كافٍ لتغطية المصروف</p>
+                    <div className="flex items-center gap-3 mt-2 p-2 bg-white/20 rounded-lg text-sm">
+                      <span>رصيد العهدة: <strong>{vaultModalInfo.currentBalance?.toLocaleString('ar-EG')} ج.م</strong></span>
+                      <span>|</span>
+                      <span>المطلوب: <strong>{vaultModalInfo.requiredAmount?.toLocaleString('ar-EG')} ج.م</strong></span>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <p className="text-sm text-white/80 mt-1">لا توجد عُهدة لمنشئ المصروف — اختر خزنة بديلة</p>
-              )}
-              {pendingExpenseForVault && (
-                <div className="mt-2 p-2 bg-white/20 rounded-lg text-sm">
-                  <span className="font-bold">{pendingExpenseForVault.description}</span>
-                  <span className="mr-2">— {pendingExpenseForVault.amount.toLocaleString('ar-EG')} ج.م</span>
-                </div>
-              )}
-            </div>
-            <div className="p-4 max-h-80 overflow-y-auto">
-              {vaultLoading ? (
-                <div className="text-center py-8"><LoadingSpinner size="small" text="جاري تحميل الخزائن..." /></div>
-              ) : vaults.length === 0 ? (
-                <p className="text-center py-8 text-gray-500">لا توجد خزائن نشطة</p>
-              ) : (
-                <div className="space-y-2">
-                  {vaults.map(vault => (
-                    <button
-                      key={vault.id}
-                      onClick={() => handleVaultApproveOps(vault.id)}
-                      className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all text-right"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-800">{vault.name}</p>
-                        <p className="text-sm text-gray-500">رصيد: {Number(vault.balance).toLocaleString('ar-EG')} ج.م</p>
-                      </div>
-                      <DollarSign className="h-5 w-5 text-gray-400" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t bg-gray-50">
-              <button
-                onClick={() => { setShowVaultModal(false); setPendingExpenseForVault(null); setVaultModalInfo(null) }}
-                className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
-              >
-                إلغاء
-              </button>
+                ) : (
+                  <p className="text-sm text-white/80 mt-1">لا توجد عُهدة لمنشئ المصروف — اختر خزنة بديلة</p>
+                )}
+                {pendingExpenseForVault && (
+                  <div className="mt-2 p-2 bg-white/20 rounded-lg text-sm">
+                    <span className="font-bold">{pendingExpenseForVault.description}</span>
+                    <span className="mr-2">— {pendingExpenseForVault.amount.toLocaleString('ar-EG')} ج.م</span>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 max-h-80 overflow-y-auto">
+                {vaultLoading ? (
+                  <div className="text-center py-8"><LoadingSpinner size="small" text="جاري تحميل الخزائن..." /></div>
+                ) : vaults.length === 0 ? (
+                  <p className="text-center py-8 text-gray-500">لا توجد خزائن نشطة</p>
+                ) : (
+                  <div className="space-y-2">
+                    {vaults.map(vault => (
+                      <button
+                        key={vault.id}
+                        onClick={() => handleVaultApproveOps(vault.id)}
+                        className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all text-right"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-800">{vault.name}</p>
+                          <p className="text-sm text-gray-500">رصيد: {Number(vault.balance).toLocaleString('ar-EG')} ج.م</p>
+                        </div>
+                        <DollarSign className="h-5 w-5 text-gray-400" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t bg-gray-50">
+                <button
+                  onClick={() => { setShowVaultModal(false); setPendingExpenseForVault(null); setVaultModalInfo(null) }}
+                  className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <ExpenseFormModal
         isOpen={showExpenseModal}
@@ -2023,18 +2037,20 @@ const OperationsPage: React.FC = () => {
         teams={teams}
       />
 
-      {showAssignModal && routeForOrders && (
-        <AssignOrdersModal
-          open={showAssignModal}
-          onClose={() => setShowAssignModal(false)}
-          route={routeForOrders}
-          onSaved={() => {
-            // EventBus will handle the refresh automatically via routes:changed event
-            setShowAssignModal(false)
-            setRouteForOrders(null)
-          }}
-        />
-      )}
+      {
+        showAssignModal && routeForOrders && (
+          <AssignOrdersModal
+            open={showAssignModal}
+            onClose={() => setShowAssignModal(false)}
+            route={routeForOrders}
+            onSaved={() => {
+              // EventBus will handle the refresh automatically via routes:changed event
+              setShowAssignModal(false)
+              setRouteForOrders(null)
+            }}
+          />
+        )
+      }
 
       <DeleteConfirmModal
         isOpen={showDeleteModal}
@@ -2065,22 +2081,24 @@ const OperationsPage: React.FC = () => {
         hideCustomerPhone={hidePhone}
       />
 
-      {showFormModal && (
-        <OrderFormModal
-          isOpen={showFormModal}
-          onClose={() => {
-            setShowFormModal(false)
-            setSelectedOrder(null)
-          }}
-          onSuccess={() => {
-            // EventBus will handle the refresh automatically via orders:changed event
-            setShowFormModal(false)
-            setSelectedOrder(null)
-          }}
-          order={selectedOrder || undefined}
-          mode={formMode}
-        />
-      )}
+      {
+        showFormModal && (
+          <OrderFormModal
+            isOpen={showFormModal}
+            onClose={() => {
+              setShowFormModal(false)
+              setSelectedOrder(null)
+            }}
+            onSuccess={() => {
+              // EventBus will handle the refresh automatically via orders:changed event
+              setShowFormModal(false)
+              setSelectedOrder(null)
+            }}
+            order={selectedOrder || undefined}
+            mode={formMode}
+          />
+        )
+      }
 
       {/* Order Rating Modal */}
       <OrderRatingModal
@@ -2274,7 +2292,7 @@ const OperationsPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   )
 }
 

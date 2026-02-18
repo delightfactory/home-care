@@ -32,8 +32,12 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
     const isSupervisor = hasRole('operations_supervisor')
 
     // Supervisor: force custody target and auto-select their own account
+    const supervisorCustody = isSupervisor
+        ? accounts.find(a => a.user_id === performedBy && a.is_active)
+        : null
+
     const effectiveTarget = isSupervisor ? 'custody' : target
-    const effectiveTargetId = isSupervisor ? account.id : targetId
+    const effectiveTargetId = isSupervisor ? (supervisorCustody?.id || '') : targetId
 
     // Helper: get user name from Supabase joined array
     const getUserName = (acc: CustodyAccountWithDetails): string => {
@@ -200,6 +204,14 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
                         <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg p-3">
                             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                             <span>التسوية بين العهد مسموحة فقط من قائد فريق إلى مشرف</span>
+                        </div>
+                    )}
+
+                    {/* Warning for Supervisor with no custody */}
+                    {isSupervisor && !supervisorCustody && (
+                        <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 rounded-lg p-3">
+                            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                            <span>لا يوجد لديك حساب عهدة نشط لإتمام التسوية</span>
                         </div>
                     )}
                 </div>
