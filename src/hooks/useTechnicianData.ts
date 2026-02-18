@@ -1,10 +1,11 @@
-// useTechnicianData - Hook لإدارة بيانات الفنى + فحص الحضور + انصراف تلقائى
-import { useState, useEffect, useCallback } from 'react'
+// useTechnicianData - Hook لإدارة بيانات الفنى + فحص الحضور + انصراف تلقائى + real-time
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { TechnicianAPI, TechnicianOrder, TechnicianProgress, TechnicianStatus } from '../api/technician'
 import { AttendanceAPI } from '../api/hr'
 import { RouteWithOrders } from '../types'
 import type { AttendanceRecord } from '../types/hr.types'
+import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 interface AttendanceState {
@@ -40,6 +41,7 @@ interface UseTechnicianDataReturn {
     startOrder: () => Promise<void>
     completeOrder: () => Promise<void>
     moveToNextOrder: () => Promise<void>
+    skipCollection: () => Promise<void>
     refresh: () => Promise<void>
     refreshAttendance: () => Promise<void>
 }
@@ -164,6 +166,84 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         fetchData()
     }, [fetchData])
 
+    // ─── Real-time subscriptions للأوامر والفواتير ─────────────────
+    const routeRef = useRef(route)
+    const statusRef = useRef(status)
+    routeRef.current = route
+    statusRef.current = status
+
+    useEffect(() => {
+        if (!route?.id) return
+
+        // جلب order_ids المرتبطة بخط السير
+        const setupSubscriptions = async () => {
+            const { data: routeOrders } = await supabase
+                .from('route_orders')
+                .select('order_id')
+                .eq('route_id', route.id)
+
+            const orderIds = (routeOrders || []).map(ro => ro.order_id)
+            if (orderIds.length === 0) return
+
+            // الاشتراك في تغييرات الطلبات (status, payment_status, total_amount)
+            const ordersChannel = supabase
+                .channel(`tech-orders-${route.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'orders',
+                        filter: `id=in.(${orderIds.join(',')})`
+                    },
+                    async () => {
+                        // إعادة جلب الطلب الحالى والتقدم
+                        if (!routeRef.current?.id) return
+                        const [newOrder, newProgress] = await Promise.all([
+                            TechnicianAPI.getCurrentOrder(routeRef.current.id, statusRef.current.isLeader),
+                            TechnicianAPI.getTodayProgress(routeRef.current.id)
+                        ])
+                        setCurrentOrder(newOrder)
+                        setProgress(newProgress)
+                        setAllOrdersDone(!newOrder && newProgress.total > 0 && newProgress.completed === newProgress.total)
+                    }
+                )
+                .subscribe()
+
+            // الاشتراك في تغييرات الفواتير المرتبطة بالطلبات
+            const invoicesChannel = supabase
+                .channel(`tech-invoices-${route.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'invoices',
+                    },
+                    async (payload) => {
+                        // تحقق إذا كانت الفاتورة مرتبطة بأحد طلبات خط السير
+                        const changedOrderId = (payload.new as any)?.order_id || (payload.old as any)?.order_id
+                        if (!changedOrderId || !orderIds.includes(changedOrderId)) return
+                        if (!routeRef.current?.id) return
+                        // إعادة جلب الطلب الحالى
+                        const newOrder = await TechnicianAPI.getCurrentOrder(routeRef.current.id, statusRef.current.isLeader)
+                        setCurrentOrder(newOrder)
+                    }
+                )
+                .subscribe()
+
+            return () => {
+                supabase.removeChannel(ordersChannel)
+                supabase.removeChannel(invoicesChannel)
+            }
+        }
+
+        let cleanup: (() => void) | undefined
+        setupSubscriptions().then(fn => { cleanup = fn })
+
+        return () => { cleanup?.() }
+    }, [route?.id])
+
     // بدء العمل على الطلب
     const startOrder = useCallback(async () => {
         if (!currentOrder) return
@@ -256,6 +336,59 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         }
     }, [route, status.isLeader, status.workerId])
 
+    // تخطى التحصيل — يعلّم الطلب بحالة "skipped" حتى لا يظهر مرة أخرى
+    const skipCollection = useCallback(async () => {
+        if (!currentOrder || !route) return
+        try {
+            setOrderLoading(true)
+
+            // تحديث payment_status فى الداتا للطلب المكتمل عشان ما يظهرش تانى
+            await supabase
+                .from('orders')
+                .update({ payment_status: 'skipped' })
+                .eq('id', currentOrder.id)
+
+            // الانتقال للطلب التالى
+            setCurrentOrder(null)
+            await new Promise(resolve => setTimeout(resolve, 800))
+
+            const [newOrder, newProgress] = await Promise.all([
+                TechnicianAPI.getCurrentOrder(route.id, status.isLeader),
+                TechnicianAPI.getTodayProgress(route.id)
+            ])
+
+            setCurrentOrder(newOrder)
+            setProgress(newProgress)
+
+            if (!newOrder && newProgress.total > 0 && newProgress.completed === newProgress.total) {
+                setAllOrdersDone(true)
+
+                if (status.workerId) {
+                    const attRecord = await AttendanceAPI.getTodayAttendance(status.workerId)
+                    if (attRecord && attRecord.check_in_time && !attRecord.check_out_time) {
+                        const checkoutResult = await AttendanceAPI.checkOut(status.workerId, 'auto_route_complete')
+                        if (checkoutResult.success) {
+                            toast.success('تم تسجيل انصرافك تلقائى 🏠 ريّح نفسك!', { duration: 5000 })
+                            setAttendance({
+                                checkedIn: true,
+                                checkedOut: true,
+                                todayRecord: checkoutResult.data || attRecord,
+                                loading: false
+                            })
+                        }
+                    }
+                }
+
+                toast.success('الله ينوّر يا بطل! خلّصت كل شغل النهاردة 🏆', { duration: 5000 })
+            }
+        } catch (err) {
+            console.error('Error skipping collection:', err)
+            toast.error('حصل مشكلة فى تخطى التحصيل')
+        } finally {
+            setOrderLoading(false)
+        }
+    }, [currentOrder, route, status.isLeader, status.workerId])
+
     const refresh = useCallback(async () => {
         await fetchData()
     }, [fetchData])
@@ -273,6 +406,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         startOrder,
         completeOrder,
         moveToNextOrder,
+        skipCollection,
         refresh,
         refreshAttendance
     }

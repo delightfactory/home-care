@@ -7,6 +7,7 @@ import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
 import DateTimePicker from '../UI/DateTimePicker'
 import toast from 'react-hot-toast'
+import { usePermissions } from '../../hooks/usePermissions'
 
 // نوع خيارات ربط المستخدم
 type UserLinkOption = 'none' | 'existing' | 'new' | 'linked'
@@ -48,6 +49,8 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [skillInput, setSkillInput] = useState('')
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const { hasRole } = usePermissions()
+  const isSupervisor = hasRole('operations_supervisor')
 
   // حالات ربط المستخدم
   const [userLinkOption, setUserLinkOption] = useState<UserLinkOption>('none')
@@ -359,34 +362,36 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
           />
         )}
 
-        {/* Salary Field */}
-        <div className="space-y-2">
-          <label className="flex items-center label text-gray-700 font-medium">
-            <DollarSign className="h-4 w-4 ml-2 text-primary-500" />
-            الراتب (ج.م)
-          </label>
-          <div className="relative">
-            <input
-              type="number"
-              value={formData.salary ?? ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, salary: e.target.value ? Number(e.target.value) : undefined }))}
-              onBlur={() => handleBlur('salary')}
-              className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.salary && formData.salary && formData.salary > 0 ? 'border-green-500 focus:ring-green-500' : ''
-                }`}
-              placeholder="0"
-              min="0"
-              step="0.01"
-              disabled={loading}
-            />
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-              {touched.salary && formData.salary && formData.salary > 0 ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : (
-                <DollarSign className="h-4 w-4 text-gray-400" />
-              )}
+        {/* Salary Field — hidden for supervisor */}
+        {!isSupervisor && (
+          <div className="space-y-2">
+            <label className="flex items-center label text-gray-700 font-medium">
+              <DollarSign className="h-4 w-4 ml-2 text-primary-500" />
+              الراتب (ج.م)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={formData.salary ?? ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, salary: e.target.value ? Number(e.target.value) : undefined }))}
+                onBlur={() => handleBlur('salary')}
+                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.salary && formData.salary && formData.salary > 0 ? 'border-green-500 focus:ring-green-500' : ''
+                  }`}
+                placeholder="0"
+                min="0"
+                step="0.01"
+                disabled={loading}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                {touched.salary && formData.salary && formData.salary > 0 ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <DollarSign className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Skills Field */}
         <div className="space-y-2">

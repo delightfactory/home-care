@@ -7,6 +7,7 @@ import WorkerFormModal from '../../components/Forms/WorkerFormModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import TransferWorkerModal from '../../components/Modals/TransferWorkerModal'
 import { useWorkers, useSystemHealth } from '../../hooks/useEnhancedAPI'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const WorkersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -20,6 +21,8 @@ const WorkersPage: React.FC = () => {
   // Use optimized hooks for data fetching
   const { workers, loading, error, refresh } = useWorkers()
   const { health } = useSystemHealth()
+  const { hasRole } = usePermissions()
+  const isSupervisor = hasRole('operations_supervisor')
 
   // Show error state if needed
   if (error) {
@@ -37,7 +40,7 @@ const WorkersPage: React.FC = () => {
 
   const handleDeleteWorker = async () => {
     if (!selectedWorker) return
-    
+
     setDeleteLoading(true)
     try {
       // TODO: Implement delete worker API method
@@ -64,7 +67,7 @@ const WorkersPage: React.FC = () => {
       inactive: 'status-inactive',
       on_leave: 'status-warning'
     }
-    
+
     const statusTexts = {
       active: 'نشط',
       inactive: 'غير نشط',
@@ -99,17 +102,19 @@ const WorkersPage: React.FC = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة العمال</h1>
           <p className="text-gray-600 mt-2">إدارة العمال ومهاراتهم وحالتهم</p>
         </div>
-        <button 
-          onClick={() => {
-            setSelectedWorker(undefined)
-            setFormMode('create')
-            setShowFormModal(true)
-          }}
-          className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-        >
-          <Plus className="h-5 w-5 ml-2" />
-          إضافة عامل جديد
-        </button>
+        {!isSupervisor && (
+          <button
+            onClick={() => {
+              setSelectedWorker(undefined)
+              setFormMode('create')
+              setShowFormModal(true)
+            }}
+            className="btn-primary hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <Plus className="h-5 w-5 ml-2" />
+            إضافة عامل جديد
+          </button>
+        )}
       </div>
 
       {/* System Health Indicator */}
@@ -118,9 +123,8 @@ const WorkersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse">
               <Activity className="h-5 w-5 text-gray-600" />
-              <div className={`w-3 h-3 rounded-full ${
-                health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-              }`} />
+              <div className={`w-3 h-3 rounded-full ${health.database?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
               <span className="text-sm text-gray-600">
                 قاعدة البيانات: {health.database?.response_time_ms || 0}ms
               </span>
@@ -243,19 +247,21 @@ const WorkersPage: React.FC = () => {
                   </td>
                   <td className="table-cell">
                     <div className="flex space-x-2 space-x-reverse">
-                      <button 
-                        onClick={() => {
-                          setSelectedWorker(worker)
-                          setFormMode('edit')
-                          setShowFormModal(true)
-                        }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
-                        title="تعديل"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+                      {!isSupervisor && (
+                        <button
+                          onClick={() => {
+                            setSelectedWorker(worker)
+                            setFormMode('edit')
+                            setShowFormModal(true)
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
                       {worker.team && (
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedWorker(worker)
                             setShowTransferModal(true)
@@ -266,23 +272,25 @@ const WorkersPage: React.FC = () => {
                           <ArrowRightLeft className="h-4 w-4" />
                         </button>
                       )}
-                      <button 
-                        onClick={() => {
-                          setSelectedWorker(worker)
-                          setShowDeleteModal(true)
-                        }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
-                        title="حذف"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {!isSupervisor && (
+                        <button
+                          onClick={() => {
+                            setSelectedWorker(worker)
+                            setShowDeleteModal(true)
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          
+
           {filteredWorkers.length === 0 && (
             <div className="text-center py-8">
               <p className="text-gray-500">لا توجد عمال مطابقين للبحث</p>

@@ -1,9 +1,9 @@
 // InvoicesTab - تبويب الفواتير في النظام المالي الإداري
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
     Eye, XCircle, FileText,
     ChevronLeft, ChevronRight, Loader2,
-    Clock, CheckCircle, Ban, RefreshCw, Plus, Pencil, Banknote
+    Clock, CheckCircle, Ban, RefreshCw, Plus, Pencil, Banknote, AlertTriangle
 } from 'lucide-react'
 import { InvoicesAPI } from '../../api/invoices'
 import { InvoiceWithDetails, InvoiceFilters } from '../../types'
@@ -22,12 +22,10 @@ const InvoicesTab: React.FC = () => {
     const [page, setPage] = useState(1)
     const [totalCount, setTotalCount] = useState(0)
     const [filters, setFilters] = useState<InvoicesFiltersUI>({
-        status: [], paymentMethod: [], dateFrom: '', dateTo: '', teamId: '', search: ''
+        status: [], paymentMethod: [], dateFrom: '', dateTo: '', teamId: '', search: '', mismatchOnly: false
     })
     const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithDetails | null>(null)
-    const [stats, setStats] = useState<{
-        total: number; paid: number; pending: number; cancelled: number
-    }>({ total: 0, paid: 0, pending: 0, cancelled: 0 })
+    // Stats computed from filtered invoices (Task 1)
     const [cancelModal, setCancelModal] = useState<{ id: string; status: string } | null>(null)
     const [cancelReason, setCancelReason] = useState('')
     const [showCreateForm, setShowCreateForm] = useState(false)
@@ -64,15 +62,34 @@ const InvoicesTab: React.FC = () => {
             if (filters.dateTo) apiFilters.date_to = filters.dateTo
             if (filters.teamId) apiFilters.team_id = filters.teamId
 
-            const result = await InvoicesAPI.getInvoices(apiFilters, page, pageSize)
-            if (result.data) {
-                // client-side filter for multiple payment methods
-                let data = result.data
-                if (filters.paymentMethod.length > 1) {
-                    data = data.filter(inv => filters.paymentMethod.includes(inv.payment_method || ''))
+            if (filters.mismatchOnly) {
+                // جلب كل الفواتير (بدون ترقيم) لفلترة غير المتطابقة من جانب العميل
+                const result = await InvoicesAPI.getInvoices(apiFilters, 1, 500)
+                if (result.data) {
+                    let data = result.data
+                    if (filters.paymentMethod.length > 1) {
+                        data = data.filter(inv => filters.paymentMethod.includes(inv.payment_method || ''))
+                    }
+                    // فلترة الفواتير غير المتطابقة مع الطلب
+                    const mismatchChecker = (inv: InvoiceWithDetails): boolean => {
+                        const orderTotal = (inv as any).order?.total_amount
+                        if (orderTotal == null || inv.total_amount == null) return false
+                        return Math.abs(inv.total_amount - orderTotal) > 0.01
+                    }
+                    const mismatched = data.filter(mismatchChecker)
+                    setInvoices(mismatched)
+                    setTotalCount(mismatched.length)
                 }
-                setInvoices(data)
-                setTotalCount(filters.paymentMethod.length > 1 ? data.length : (result.total || 0))
+            } else {
+                const result = await InvoicesAPI.getInvoices(apiFilters, page, pageSize)
+                if (result.data) {
+                    let data = result.data
+                    if (filters.paymentMethod.length > 1) {
+                        data = data.filter(inv => filters.paymentMethod.includes(inv.payment_method || ''))
+                    }
+                    setInvoices(data)
+                    setTotalCount(filters.paymentMethod.length > 1 ? data.length : (result.total || 0))
+                }
             }
         } catch (err) {
             console.error('Error fetching invoices:', err)
@@ -80,29 +97,26 @@ const InvoicesTab: React.FC = () => {
         } finally {
             setLoading(false)
         }
-    }, [page, filters.status, filters.paymentMethod, filters.dateFrom, filters.dateTo, filters.teamId, debouncedSearch])
+    }, [page, filters.status, filters.paymentMethod, filters.dateFrom, filters.dateTo, filters.teamId, filters.mismatchOnly, debouncedSearch])
 
-    const fetchStats = useCallback(async () => {
-        try {
-            const result = await InvoicesAPI.getInvoiceStats()
-            setStats({
-                total: result.total_invoices || 0,
-                paid: result.paid_invoices || 0,
-                pending: result.pending_invoices || 0,
-                cancelled: result.cancelled_invoices || 0
-            })
-        } catch (err) {
-            console.error('Error fetching stats:', err)
-        }
-    }, [])
+    // Stats computed locally from loaded invoices — responds to filters automatically
+    const stats = useMemo(() => {
+        const paid = invoices.filter(i => i.status === 'paid' || i.status === 'confirmed').length
+        const pending = invoices.filter(i => i.status === 'pending' || i.status === 'partially_paid').length
+        const cancelled = invoices.filter(i => i.status === 'cancelled').length
+        return { total: totalCount, paid, pending, cancelled }
+    }, [invoices, totalCount])
+
+    // Helper: check invoice-order amount mismatch
+    const hasMismatch = (inv: InvoiceWithDetails): boolean => {
+        const orderTotal = (inv as any).order?.total_amount
+        if (orderTotal == null || inv.total_amount == null) return false
+        return Math.abs(inv.total_amount - orderTotal) > 0.01
+    }
 
     useEffect(() => {
         fetchInvoices()
     }, [fetchInvoices])
-
-    useEffect(() => {
-        fetchStats()
-    }, [fetchStats])
 
     const handleCancel = async (invoiceId: string) => {
         const inv = invoices.find(i => i.id === invoiceId)
@@ -115,7 +129,7 @@ const InvoicesTab: React.FC = () => {
                 const result = await InvoicesAPI.cancelInvoice(invoiceId, 'إلغاء يدوي', user?.id || '')
                 if (result.success) {
                     toast.success('تم إلغاء الفاتورة')
-                    fetchInvoices(); fetchStats()
+                    fetchInvoices()
                 } else {
                     toast.error(result.error || 'حدث خطأ')
                 }
@@ -140,7 +154,7 @@ const InvoicesTab: React.FC = () => {
             if (result.success) {
                 toast.success(result.message || 'تم إلغاء الفاتورة وعكس الأرصدة')
                 setCancelModal(null)
-                fetchInvoices(); fetchStats()
+                fetchInvoices()
             } else {
                 toast.error(result.error || 'حدث خطأ')
             }
@@ -164,12 +178,12 @@ const InvoicesTab: React.FC = () => {
     const handleFormSuccess = () => {
         setShowCreateForm(false)
         setEditingInvoice(null)
-        fetchInvoices(); fetchStats()
+        fetchInvoices()
     }
 
     const handleCollectSuccess = () => {
         setCollectingInvoice(null)
-        fetchInvoices(); fetchStats()
+        fetchInvoices()
     }
 
     return (
@@ -213,7 +227,7 @@ const InvoicesTab: React.FC = () => {
             {/* Refresh */}
             <div className="flex justify-end">
                 <button
-                    onClick={() => { fetchInvoices(); fetchStats() }}
+                    onClick={() => fetchInvoices()}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm text-gray-600"
                 >
                     <RefreshCw className="w-4 h-4" />
@@ -265,8 +279,15 @@ const InvoicesTab: React.FC = () => {
                                             {(inv as any).order?.order_number || '-'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className="font-semibold text-gray-800">
-                                                {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="font-semibold text-gray-800">
+                                                    {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                                </span>
+                                                {hasMismatch(inv) && (
+                                                    <span title={`قيمة الطلب: ${(inv as any).order?.total_amount?.toLocaleString('ar-EG')} ج.م — قيمة الفاتورة: ${inv.total_amount?.toLocaleString('ar-EG')} ج.م`} className="cursor-help">
+                                                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                                    </span>
+                                                )}
                                             </div>
                                             {inv.paid_amount > 0 && inv.paid_amount < inv.total_amount && (
                                                 <div className="text-xs text-emerald-600">
@@ -350,9 +371,14 @@ const InvoicesTab: React.FC = () => {
                                 <div className="flex items-center justify-between text-sm mb-1">
                                     <span className="text-gray-600">{(inv as any).customer?.name || '-'}</span>
                                     <div className="text-left">
-                                        <span className="font-bold text-gray-800">
-                                            {inv.total_amount?.toLocaleString('ar-EG')} ج.م
-                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-bold text-gray-800">
+                                                {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                            </span>
+                                            {hasMismatch(inv) && (
+                                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                            )}
+                                        </div>
                                         {inv.paid_amount > 0 && inv.paid_amount < inv.total_amount && (
                                             <div className="text-xs text-emerald-600">
                                                 مدفوع: {inv.paid_amount?.toLocaleString('ar-EG')}

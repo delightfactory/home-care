@@ -1,5 +1,5 @@
-// HrPage — الصفحة الرئيسية للموارد البشرية (6 تبويبات)
-import React, { useState } from 'react'
+// HrPage — الصفحة الرئيسية للموارد البشرية (7 تبويبات)
+import React, { useState, useMemo } from 'react'
 import { CalendarCheck, Receipt, Banknote, Settings2, MapPin, Award, Sliders } from 'lucide-react'
 import AttendanceTab from '../../components/Hr/AttendanceTab'
 import PayrollTab from '../../components/Hr/PayrollTab'
@@ -8,6 +8,7 @@ import AdjustmentsTab from '../../components/Hr/AdjustmentsTab'
 import CompanyLocationsTab from '../../components/Hr/CompanyLocationsTab'
 import BonusesTab from '../../components/Hr/BonusesTab'
 import HrSettingsTab from '../../components/Hr/HrSettingsTab'
+import { usePermissions } from '../../hooks/usePermissions'
 
 type TabId = 'attendance' | 'payroll' | 'advances' | 'adjustments' | 'bonuses' | 'locations' | 'settings'
 
@@ -16,16 +17,17 @@ interface TabDef {
     label: string
     icon: React.ElementType
     color: string
+    adminOnly?: boolean
 }
 
-const tabs: TabDef[] = [
+const allTabs: TabDef[] = [
     { id: 'attendance', label: 'الحضور', icon: CalendarCheck, color: 'blue' },
-    { id: 'payroll', label: 'الرواتب', icon: Receipt, color: 'emerald' },
+    { id: 'payroll', label: 'الرواتب', icon: Receipt, color: 'emerald', adminOnly: true },
     { id: 'advances', label: 'السلف', icon: Banknote, color: 'amber' },
     { id: 'adjustments', label: 'التسويات', icon: Settings2, color: 'purple' },
-    { id: 'bonuses', label: 'الحوافز', icon: Award, color: 'rose' },
-    { id: 'locations', label: 'المواقع', icon: MapPin, color: 'teal' },
-    { id: 'settings', label: 'الإعدادات', icon: Sliders, color: 'slate' },
+    { id: 'bonuses', label: 'الحوافز', icon: Award, color: 'rose', adminOnly: true },
+    { id: 'locations', label: 'المواقع', icon: MapPin, color: 'teal', adminOnly: true },
+    { id: 'settings', label: 'الإعدادات', icon: Sliders, color: 'slate', adminOnly: true },
 ]
 
 const colorMap: Record<string, { active: string; hover: string; bg: string }> = {
@@ -67,7 +69,13 @@ const colorMap: Record<string, { active: string; hover: string; bg: string }> = 
 }
 
 const HrPage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<TabId>('attendance')
+    const { isAdmin } = usePermissions()
+    const tabs = useMemo(() => {
+        if (isAdmin()) return allTabs
+        return allTabs.filter(t => !t.adminOnly)
+    }, [isAdmin])
+
+    const [activeTab, setActiveTab] = useState<TabId>(tabs[0]?.id || 'attendance')
 
     return (
         <div className="space-y-4 sm:space-y-6">

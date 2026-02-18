@@ -16,6 +16,7 @@ import type { Vault as VaultType } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
+import { usePermissions } from '../../hooks/usePermissions'
 
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
     pending: { label: 'معلقة', color: 'text-orange-700', bg: 'bg-orange-100' },
@@ -36,6 +37,8 @@ const months = [
 
 const AdvancesTab: React.FC = () => {
     const { user } = useAuth()
+    const { hasRole } = usePermissions()
+    const isSupervisor = hasRole('operations_supervisor')
     const [advances, setAdvances] = useState<SalaryAdvanceWithWorker[]>([])
     const [loading, setLoading] = useState(true)
     const [filterStatus, setFilterStatus] = useState<string>('')
@@ -339,8 +342,8 @@ const AdvancesTab: React.FC = () => {
                                         </td>
                                         <td className="py-3 px-3 text-center">
                                             <div className="flex items-center justify-center gap-1">
-                                                {/* زر اعتماد — فقط للمعلقة */}
-                                                {advance.status === 'pending' && (
+                                                {/* زر اعتماد — فقط للمعلقة وللأدمن فقط */}
+                                                {!isSupervisor && advance.status === 'pending' && (
                                                     <button
                                                         onClick={() => handleApproveClick(advance)}
                                                         className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -356,7 +359,7 @@ const AdvancesTab: React.FC = () => {
                                                 >
                                                     <Eye className="w-4 h-4" />
                                                 </button>
-                                                {(advance.status === 'active' || advance.status === 'pending') && (
+                                                {!isSupervisor && (advance.status === 'active' || advance.status === 'pending') && (
                                                     <button
                                                         onClick={() => handleCancel(advance.id)}
                                                         className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -397,7 +400,7 @@ const AdvancesTab: React.FC = () => {
                                 >
                                     <option value="">اختر العامل</option>
                                     {workers.map(w => (
-                                        <option key={w.id} value={w.id}>{w.name} {w.salary ? `(${formatCurrency(w.salary)})` : ''}</option>
+                                        <option key={w.id} value={w.id}>{w.name}{!isSupervisor && w.salary ? ` (${formatCurrency(w.salary)})` : ''}</option>
                                     ))}
                                 </select>
                             </div>

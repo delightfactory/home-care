@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react'
 import {
     User, MapPin, Building, Clock, FileText, Wrench,
     Play, CheckCircle, Loader2, ChevronDown, ChevronUp,
-    AlertTriangle, Phone, MessageCircle, SkipForward
+    AlertTriangle, Phone, MessageCircle, SkipForward, StickyNote
 } from 'lucide-react'
 import { TechnicianOrder } from '../../api/technician'
 import { supabase } from '../../lib/supabase'
@@ -16,6 +16,8 @@ interface TechOrderCardProps {
     onStart: () => Promise<void>
     onComplete: () => Promise<void>
     onMoveToNext: () => Promise<void>
+    onSkipCollection?: () => Promise<void>
+    onCollectionDone?: () => Promise<void>
     loading?: boolean
     isLeader?: boolean
 }
@@ -86,19 +88,27 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 }
 
 export const TechOrderCard: React.FC<TechOrderCardProps> = ({
-    order, onStart, onComplete, onMoveToNext, loading = false, isLeader = true
+    order, onStart, onComplete, onMoveToNext, onSkipCollection, onCollectionDone, loading = false, isLeader = true
 }) => {
-    const [showServices, setShowServices] = useState(false)
     const [confirmAction, setConfirmAction] = useState<'start' | 'complete' | null>(null)
     const [showCollectionSheet, setShowCollectionSheet] = useState(false)
-    const [isCollected, setIsCollected] = useState(false)
+    // تهيئة isCollected من حالة الدفع فى قاعدة البيانات
+    const [isCollected, setIsCollected] = useState(
+        order.payment_status === 'paid_cash' || order.payment_status === 'paid_card'
+        || order.payment_status === 'paid_instapay' || order.payment_status === 'paid_bank'
+        || order.payment_status === 'pending_review'
+    )
     const [invoiceId, setInvoiceId] = useState<string | null>(null)
     const [invoiceItems, setInvoiceItems] = useState<any[] | null>(null)
     const [invoiceAmount, setInvoiceAmount] = useState<number | null>(null)
+    const [hasMismatch, setHasMismatch] = useState(false)
 
     const isInProgress = order.status === 'in_progress'
     const isPending = order.status === 'pending' || order.status === 'scheduled'
     const isCompleted = order.status === 'completed'
+
+    // Auto-expand services when in_progress
+    const [showServices, setShowServices] = useState(isInProgress)
 
     // جلب بيانات الفاتورة بعد إكمال الطلب
     useEffect(() => {
@@ -121,6 +131,11 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                     if (data.items && data.items.length > 0) {
                         setInvoiceItems(data.items)
                         setInvoiceAmount(data.total_amount ?? data.subtotal ?? null)
+                    }
+                    // Check mismatch
+                    const invAmt = data.total_amount ?? data.subtotal ?? 0
+                    if (order.total_amount && Math.abs(invAmt - order.total_amount) > 0.01) {
+                        setHasMismatch(true)
                     }
                 }
             }
@@ -191,63 +206,88 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
 
                 {/* Content */}
                 <div className="p-4 space-y-3">
-                    {/* Customer Name & Phone */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
-                                <User className="w-5 h-5 text-blue-500" />
-                            </div>
-                            <div>
-                                <p className="font-bold text-gray-800">
-                                    {order.customer?.name || 'عميل'}
-                                </p>
-                                {order.scheduled_time && (
-                                    <p className="text-xs text-gray-400 flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        {order.scheduled_time}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Phone Buttons */}
-                        {isLeader && order.customer?.phone && (
-                            <div className="flex items-center gap-1.5">
-                                <a
-                                    href={`tel:${order.customer.phone}`}
-                                    className="p-2 bg-emerald-50 text-emerald-600 rounded-xl active:scale-95 transition-all"
-                                >
-                                    <Phone className="w-4 h-4" />
-                                </a>
-                                <a
-                                    href={`https://wa.me/${order.customer.phone.replace(/[\s\-\(\)]/g, '').replace(/^0/, '20')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 bg-green-50 text-green-600 rounded-xl active:scale-95 transition-all"
-                                >
-                                    <MessageCircle className="w-4 h-4" />
-                                </a>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Address */}
-                    <div className="flex items-start gap-3 bg-gray-50 rounded-2xl p-3">
-                        <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-700 leading-relaxed">
-                                {order.customer?.address || 'العنوان غير محدد'}
-                            </p>
+                    {/* Customer Info — compact during execution, full otherwise */}
+                    {isInProgress ? (
+                        /* Compact customer header during execution */
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <User className="w-3.5 h-3.5" />
+                            <span className="font-medium text-gray-700">{order.customer?.name || 'عميل'}</span>
                             {order.customer?.area && (
-                                <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                                    <Building className="w-3 h-3" />
-                                    {order.customer.area}
-                                </p>
+                                <>
+                                    <span className="text-gray-300">•</span>
+                                    <span>{order.customer.area}</span>
+                                </>
+                            )}
+                            {order.scheduled_time && (
+                                <>
+                                    <span className="text-gray-300">•</span>
+                                    <Clock className="w-3 h-3" />
+                                    <span>{order.scheduled_time}</span>
+                                </>
                             )}
                         </div>
-                    </div>
+                    ) : (
+                        /* Full customer info for pending/completed */
+                        <>
+                            {/* Customer Name & Phone */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
+                                        <User className="w-5 h-5 text-blue-500" />
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-gray-800">
+                                            {order.customer?.name || 'عميل'}
+                                        </p>
+                                        {order.scheduled_time && (
+                                            <p className="text-xs text-gray-400 flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                {order.scheduled_time}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
 
-                    {/* Services — مطوية */}
+                                {/* Phone Buttons */}
+                                {isLeader && order.customer?.phone && (
+                                    <div className="flex items-center gap-1.5">
+                                        <a
+                                            href={`tel:${order.customer.phone}`}
+                                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl active:scale-95 transition-all"
+                                        >
+                                            <Phone className="w-4 h-4" />
+                                        </a>
+                                        <a
+                                            href={`https://wa.me/${order.customer.phone.replace(/[\s\-\(\)]/g, '').replace(/^0/, '20')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 bg-green-50 text-green-600 rounded-xl active:scale-95 transition-all"
+                                        >
+                                            <MessageCircle className="w-4 h-4" />
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Address */}
+                            <div className="flex items-start gap-3 bg-gray-50 rounded-2xl p-3">
+                                <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                        {order.customer?.address || 'العنوان غير محدد'}
+                                    </p>
+                                    {order.customer?.area && (
+                                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                                            <Building className="w-3 h-3" />
+                                            {order.customer.area}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Services — expanded during execution with prices, collapsible otherwise */}
                     <button
                         onClick={() => setShowServices(!showServices)}
                         className="w-full flex items-center justify-between p-3 bg-blue-50/50 rounded-2xl transition-colors hover:bg-blue-50"
@@ -255,8 +295,13 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                         <div className="flex items-center gap-2">
                             <Wrench className="w-4 h-4 text-blue-500" />
                             <span className="text-sm font-medium text-gray-700">
-                                الخدمات ({order.items?.length || 0})
+                                {isInProgress ? 'تفاصيل الطلب' : 'الخدمات'} ({order.items?.length || 0})
                             </span>
+                            {isInProgress && order.total_amount && (
+                                <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-lg">
+                                    {order.total_amount.toLocaleString('ar-EG')} ج.م
+                                </span>
+                            )}
                         </div>
                         {showServices ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                     </button>
@@ -268,9 +313,16 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                                     <span className="text-sm text-gray-700">
                                         {item.service?.name_ar || item.service?.name || 'خدمة'}
                                     </span>
-                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
-                                        x{item.quantity}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
+                                            x{item.quantity}
+                                        </span>
+                                        {isInProgress && (item as any).unit_price != null && (
+                                            <span className="text-xs text-gray-500">
+                                                {((item as any).unit_price * item.quantity).toLocaleString('ar-EG')} ج.م
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                             {(!order.items || order.items.length === 0) && (
@@ -279,10 +331,13 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                         </div>
                     )}
 
-                    {/* Notes */}
+                    {/* Notes — always show during execution */}
                     {order.notes && (
-                        <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100">
-                            <p className="text-xs text-amber-600 font-medium mb-1">💬 ملاحظات</p>
+                        <div className={`rounded-2xl p-3 border ${isInProgress ? 'bg-amber-50/80 border-amber-200' : 'bg-amber-50 border-amber-100'}`}>
+                            <p className="text-xs text-amber-600 font-medium mb-1 flex items-center gap-1">
+                                <StickyNote className="w-3.5 h-3.5" />
+                                ملاحظات
+                            </p>
                             <p className="text-sm text-gray-700">{order.notes}</p>
                         </div>
                     )}
@@ -333,6 +388,22 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                 </div>
             </div>
 
+            {/* Mismatch Warning — non-blocking */}
+            {isLeader && isCompleted && hasMismatch && (
+                <div className="mx-4 mt-2">
+                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-sm font-medium text-amber-700">قيمة الفاتورة مختلفة عن الطلب</p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                                الطلب: {order.total_amount?.toLocaleString('ar-EG')} ج.م — الفاتورة: {invoiceAmount?.toLocaleString('ar-EG')} ج.م
+                            </p>
+                            <p className="text-xs text-amber-500 mt-1">تواصل مع الإدارة للتأكيد</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Invoice Preview */}
             {isLeader && isCompleted && (invoiceItems || order.items).length > 0 && (
                 <TechInvoicePreview
@@ -349,7 +420,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
             {isLeader && isCompleted && (
                 <div className="mx-4 mt-3 mb-2">
                     <button
-                        onClick={onMoveToNext}
+                        onClick={isCollected ? onMoveToNext : (onSkipCollection || onMoveToNext)}
                         className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] ${isCollected
                             ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
                             : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300'
@@ -371,6 +442,8 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                 onSuccess={() => {
                     setIsCollected(true)
                     setShowCollectionSheet(false)
+                    // إعادة جلب البيانات بعد التحصيل
+                    onCollectionDone?.()
                 }}
             />
         </>

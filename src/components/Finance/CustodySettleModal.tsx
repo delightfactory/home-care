@@ -5,6 +5,7 @@ import { CustodyAPI } from '../../api/custody'
 import { CustodyAccountWithDetails, Vault } from '../../types'
 import { getUserNameFromRelation } from '../../api'
 import toast from 'react-hot-toast'
+import { usePermissions } from '../../hooks/usePermissions'
 
 interface CustodySettleModalProps {
     account: CustodyAccountWithDetails
@@ -27,6 +28,12 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
     const [targetId, setTargetId] = useState('')
     const [amount, setAmount] = useState('')
     const [loading, setLoading] = useState(false)
+    const { hasRole } = usePermissions()
+    const isSupervisor = hasRole('operations_supervisor')
+
+    // Supervisor: force custody target and auto-select their own account
+    const effectiveTarget = isSupervisor ? 'custody' : target
+    const effectiveTargetId = isSupervisor ? account.id : targetId
 
     // Helper: get user name from Supabase joined array
     const getUserName = (acc: CustodyAccountWithDetails): string => {
@@ -34,7 +41,7 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
     }
 
     const handleSettle = async () => {
-        if (!targetId || !amount) return
+        if (!effectiveTargetId || !amount) return
 
         const numAmount = parseFloat(amount)
         if (isNaN(numAmount) || numAmount <= 0) {
@@ -50,14 +57,14 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
         setLoading(true)
         try {
             let result
-            if (target === 'vault') {
-                result = await CustodyAPI.settleCustodyToVault(account.id, targetId, numAmount, performedBy)
+            if (effectiveTarget === 'vault') {
+                result = await CustodyAPI.settleCustodyToVault(account.id, effectiveTargetId, numAmount, performedBy)
             } else {
-                result = await CustodyAPI.settleCustodyToCustody(account.id, targetId, numAmount, performedBy)
+                result = await CustodyAPI.settleCustodyToCustody(account.id, effectiveTargetId, numAmount, performedBy)
             }
 
             if (result.success) {
-                toast.success(target === 'vault' ? 'تم الإيداع في الخزنة بنجاح' : 'تم تسوية العهدة بنجاح')
+                toast.success(effectiveTarget === 'vault' ? 'تم الإيداع في الخزنة بنجاح' : 'تم تسوية العهدة بنجاح')
                 onSuccess()
             } else {
                 toast.error(result.error || 'حدث خطأ في التسوية')
@@ -97,61 +104,73 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
 
                 {/* Form */}
                 <div className="p-5 space-y-4">
-                    {/* Target Type */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">تسوية إلى</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                onClick={() => { setTarget('vault'); setTargetId('') }}
-                                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${target === 'vault'
-                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <Landmark className="w-4 h-4" />
-                                خزنة
-                            </button>
-                            <button
-                                onClick={() => { setTarget('custody'); setTargetId('') }}
-                                className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${target === 'custody'
-                                    ? 'bg-purple-50 border-purple-300 text-purple-700'
-                                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <Wallet className="w-4 h-4" />
-                                عهدة أخرى
-                            </button>
+                    {/* Target Type — hidden for supervisor (forced to custody) */}
+                    {!isSupervisor && (
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 mb-2 block">تسوية إلى</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => { setTarget('vault'); setTargetId('') }}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${target === 'vault'
+                                        ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Landmark className="w-4 h-4" />
+                                    خزنة
+                                </button>
+                                <button
+                                    onClick={() => { setTarget('custody'); setTargetId('') }}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${target === 'custody'
+                                        ? 'bg-purple-50 border-purple-300 text-purple-700'
+                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Wallet className="w-4 h-4" />
+                                    عهدة أخرى
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Target Select */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                            {target === 'vault' ? 'الخزنة' : 'حساب العهدة'}
-                        </label>
-                        <select
-                            value={targetId}
-                            onChange={(e) => setTargetId(e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 py-2.5 px-3 text-sm focus:ring-2 focus:ring-orange-500"
-                        >
-                            <option value="">اختر...</option>
-                            {target === 'vault' ? (
-                                vaults.map(v => (
-                                    <option key={v.id} value={v.id}>
-                                        {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('ar-EG')} ج.م)
-                                    </option>
-                                ))
-                            ) : (
-                                accounts
-                                    .filter(a => a.id !== account.id && a.holder_type === 'supervisor')
-                                    .map(a => (
-                                        <option key={a.id} value={a.id}>
-                                            {getUserName(a)} (مشرف)
+                    {/* Supervisor notice */}
+                    {isSupervisor && (
+                        <div className="flex items-start gap-2 text-xs text-purple-700 bg-purple-50 rounded-lg p-3">
+                            <Wallet className="w-4 h-4 mt-0.5 shrink-0" />
+                            <span>سيتم تسوية المبلغ إلى عهدتك مباشرة</span>
+                        </div>
+                    )}
+
+                    {/* Target Select — hidden for supervisor (auto-settles to own custody) */}
+                    {!isSupervisor && (
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                                {effectiveTarget === 'vault' ? 'الخزنة' : 'حساب العهدة'}
+                            </label>
+                            <select
+                                value={targetId}
+                                onChange={(e) => setTargetId(e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 py-2.5 px-3 text-sm focus:ring-2 focus:ring-orange-500"
+                            >
+                                <option value="">اختر...</option>
+                                {effectiveTarget === 'vault' ? (
+                                    vaults.map(v => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('ar-EG')} ج.م)
                                         </option>
                                     ))
-                            )}
-                        </select>
-                    </div>
+                                ) : (
+                                    accounts
+                                        .filter(a => a.id !== account.id && a.holder_type === 'supervisor')
+                                        .map(a => (
+                                            <option key={a.id} value={a.id}>
+                                                {getUserName(a)} (مشرف)
+                                            </option>
+                                        ))
+                                )}
+                            </select>
+                        </div>
+                    )}
 
                     {/* Amount */}
                     <div>
@@ -177,7 +196,7 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
                     </div>
 
                     {/* Warning for custody-to-custody */}
-                    {target === 'custody' && (
+                    {!isSupervisor && effectiveTarget === 'custody' && (
                         <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg p-3">
                             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                             <span>التسوية بين العهد مسموحة فقط من قائد فريق إلى مشرف</span>
@@ -195,7 +214,7 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
                     </button>
                     <button
                         onClick={handleSettle}
-                        disabled={loading || !targetId || !amount}
+                        disabled={loading || (!isSupervisor && (!targetId || !amount)) || (isSupervisor && !amount)}
                         className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                     >
                         {loading ? (

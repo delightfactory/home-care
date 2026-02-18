@@ -37,7 +37,7 @@ export class InvoicesAPI {
           *,
           customer:customers(id, name, phone),
           team:teams(id, name),
-          order:orders(id, order_number),
+          order:orders(id, order_number, total_amount),
           items:invoice_items(*, service:services(id, name, name_ar)),
           collected_by_user:users!invoices_collected_by_fkey(id, full_name)
         `, { count: 'exact' })

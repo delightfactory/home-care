@@ -67,7 +67,7 @@ const navigation: NavigationEntry[] = [
     ],
   },
 
-  { name: 'الخدمات', href: '/services', icon: Wrench },
+  { name: 'الخدمات', href: '/services', icon: Wrench, excludeRoles: ['operations_supervisor'] },
   { name: 'الطلبات', href: '/orders', icon: ShoppingCart, excludeRoles: ['operations_supervisor'] },
 
   // مجموعة العمال
@@ -77,7 +77,7 @@ const navigation: NavigationEntry[] = [
     children: [
       { name: 'العمال', href: '/workers', icon: UserCheck },
       { name: 'الفرق', href: '/teams', icon: Users2 },
-      { name: 'حوافز العمال', href: '/bonuses', icon: Coins, adminOnly: true },
+      { name: 'حوافز العمال', href: '/bonuses', icon: Coins, adminOnly: true, excludeRoles: ['operations_supervisor'] },
     ],
   },
 
@@ -88,14 +88,13 @@ const navigation: NavigationEntry[] = [
   {
     name: 'النظام المالي',
     icon: Landmark,
-    adminOnly: true,
     children: [
-      { name: 'الخزائن والحسابات', href: '/finance', icon: Landmark, adminOnly: true },
+      { name: 'الخزائن والحسابات', href: '/finance', icon: Landmark },
       { name: 'الأرباح والخسائر', href: '/profit-loss', icon: PieChart, adminOnly: true },
     ],
   },
 
-  { name: 'الموارد البشرية', href: '/hr', icon: Briefcase, adminOnly: true },
+  { name: 'الموارد البشرية', href: '/hr', icon: Briefcase },
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3, adminOnly: true },
 

@@ -26,6 +26,7 @@ const TechDashboard: React.FC = () => {
         startOrder,
         completeOrder,
         moveToNextOrder,
+        skipCollection,
         refresh,
     } = useTechnicianData()
     const navigate = useNavigate()
@@ -225,6 +226,8 @@ const TechDashboard: React.FC = () => {
                         onStart={startOrder}
                         onComplete={completeOrder}
                         onMoveToNext={moveToNextOrder}
+                        onSkipCollection={skipCollection}
+                        onCollectionDone={refresh}
                         loading={orderLoading}
                         isLeader={status.isLeader}
                     />

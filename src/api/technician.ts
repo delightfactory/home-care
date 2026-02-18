@@ -8,6 +8,7 @@ export interface TechnicianOrder {
     id: string
     order_number: string
     status: string
+    payment_status?: string
     scheduled_date: string
     scheduled_time: string
     total_amount: number
@@ -277,6 +278,7 @@ export class TechnicianAPI {
             id: order.id,
             order_number: order.order_number || '',
             status: order.status,
+            payment_status: (order as any).payment_status || 'unpaid',
             scheduled_date: order.scheduled_date,
             scheduled_time: order.scheduled_time,
             total_amount: order.total_amount || 0,
@@ -323,7 +325,8 @@ export class TechnicianAPI {
             items:order_items(
               *,
               service:services(id, name, name_ar)
-            )
+            ),
+            invoices:invoices(id, status, collected_at, payment_method)
           )
         `)
                 .eq('route_id', routeId)
@@ -331,14 +334,42 @@ export class TechnicianAPI {
 
             if (error) throw error
 
-            // البحث عن أول طلب غير مكتمل وغير ملغى
-            const currentRouteOrder = (data || []).find(
+            // 1. أولاً: البحث عن طلب مكتمل ولكن لم يتم تحصيله (شاشة التحصيل أولوية)
+            // نتحقق من حالة الفاتورة الفعلية وليس orders.payment_status
+            const uncollectedRouteOrder = (data || []).find((ro: any) => {
+                if (ro.order?.status !== 'completed') return false
+                // تحقق من payment_status فى الطلب نفسه
+                const orderPaymentStatus = ro.order.payment_status
+                if (orderPaymentStatus && orderPaymentStatus !== 'unpaid') return false
+                // تحقق من حالة الفاتورة
+                const invoices = ro.order.invoices || []
+                if (invoices.length > 0) {
+                    // الفاتورة تعتبر "تمت" لو:
+                    // - حالتها paid أو cancelled (تم الدفع أو الإلغاء)
+                    // - أو الفنى رفع إثبات دفع (collected_at موجود) — انستا باى أو تحويل
+                    const allHandled = invoices.every((inv: any) =>
+                        (inv.status && inv.status !== 'pending' && inv.status !== 'draft') ||
+                        inv.collected_at
+                    )
+                    if (allHandled) return false
+                }
+                return true
+            })
+
+            if (uncollectedRouteOrder?.order) {
+                return this.sanitizeOrder(uncollectedRouteOrder.order as unknown as OrderWithDetails, isLeader)
+            }
+
+            // 2. ثانياً: البحث عن أول طلب غير مكتمل وغير ملغى
+            const pendingRouteOrder = (data || []).find(
                 (ro: any) => ro.order && !['completed', 'cancelled'].includes(ro.order.status)
             )
 
-            if (!currentRouteOrder?.order) return null
+            if (pendingRouteOrder?.order) {
+                return this.sanitizeOrder(pendingRouteOrder.order as unknown as OrderWithDetails, isLeader)
+            }
 
-            return this.sanitizeOrder(currentRouteOrder.order as unknown as OrderWithDetails, isLeader)
+            return null
         } catch (error) {
             console.error('Error getting current order:', error)
             return null

@@ -171,7 +171,11 @@ const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="customers" element={<CustomersPage />} />
-        <Route path="services" element={<ServicesPage />} />
+        <Route path="services" element={
+          <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
+            <ServicesPage />
+          </AdminGuard>
+        } />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="workers" element={<WorkersPage />} />
         <Route path="teams" element={<TeamsPage />} />
@@ -224,19 +228,11 @@ const AppRoutes: React.FC = () => {
         />
         <Route
           path="finance"
-          element={
-            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
-              <FinancePage />
-            </AdminGuard>
-          }
+          element={<FinancePage />}
         />
         <Route
           path="hr"
-          element={
-            <AdminGuard fallback={<Navigate to="/dashboard" replace />}>
-              <HrPage />
-            </AdminGuard>
-          }
+          element={<HrPage />}
         />
         <Route
           path="profit-loss"

@@ -1,10 +1,11 @@
 // FinancePage - الصفحة الرئيسية للنظام المالي (4 تبويبات)
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { FileText, CreditCard, Landmark, Wallet } from 'lucide-react'
 import InvoicesTab from '../../components/Finance/InvoicesTab'
 import PaymentsTab from '../../components/Finance/PaymentsTab'
 import VaultsTab from '../../components/Finance/VaultsTab'
 import CustodyTab from '../../components/Finance/CustodyTab'
+import { usePermissions } from '../../hooks/usePermissions'
 
 type TabId = 'invoices' | 'payments' | 'vaults' | 'custody'
 
@@ -13,12 +14,13 @@ interface TabDef {
     label: string
     icon: React.ElementType
     color: string
+    adminOnly?: boolean
 }
 
-const tabs: TabDef[] = [
-    { id: 'invoices', label: 'الفواتير', icon: FileText, color: 'blue' },
-    { id: 'payments', label: 'المدفوعات', icon: CreditCard, color: 'purple' },
-    { id: 'vaults', label: 'الخزائن', icon: Landmark, color: 'emerald' },
+const allTabs: TabDef[] = [
+    { id: 'invoices', label: 'الفواتير', icon: FileText, color: 'blue', adminOnly: true },
+    { id: 'payments', label: 'المدفوعات', icon: CreditCard, color: 'purple', adminOnly: true },
+    { id: 'vaults', label: 'الخزائن', icon: Landmark, color: 'emerald', adminOnly: true },
     { id: 'custody', label: 'العُهد', icon: Wallet, color: 'amber' },
 ]
 
@@ -46,7 +48,13 @@ const colorMap: Record<string, { active: string; hover: string; bg: string }> = 
 }
 
 const FinancePage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<TabId>('invoices')
+    const { isAdmin } = usePermissions()
+    const tabs = useMemo(() => {
+        if (isAdmin()) return allTabs
+        return allTabs.filter(t => !t.adminOnly)
+    }, [isAdmin])
+
+    const [activeTab, setActiveTab] = useState<TabId>(tabs[0]?.id || 'custody')
 
     return (
         <div className="space-y-4 sm:space-y-6">
@@ -99,3 +107,4 @@ const FinancePage: React.FC = () => {
 }
 
 export default FinancePage
+
