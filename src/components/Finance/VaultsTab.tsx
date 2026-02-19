@@ -1,13 +1,14 @@
 // VaultsTab - تبويب الخزائن في النظام المالي
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-    Landmark, Plus, Edit2, ArrowLeftRight, Eye,
+    Landmark, Plus, Edit2, ArrowLeftRight, Eye, Wallet,
     Loader2, RefreshCw, TrendingUp, TrendingDown, ToggleLeft, ToggleRight,
     ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { VaultsAPI } from '../../api/vaults'
 import { Vault, VaultTransaction } from '../../types'
 import VaultTransferModal from './VaultTransferModal'
+import VaultAdjustmentModal from './VaultAdjustmentModal'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -16,6 +17,7 @@ const VaultsTab: React.FC = () => {
     const [vaults, setVaults] = useState<Vault[]>([])
     const [loading, setLoading] = useState(true)
     const [showTransfer, setShowTransfer] = useState(false)
+    const [adjustmentVault, setAdjustmentVault] = useState<Vault | null>(null)
     const [selectedVault, setSelectedVault] = useState<string | null>(null)
     const [transactions, setTransactions] = useState<VaultTransaction[]>([])
     const [txLoading, setTxLoading] = useState(false)
@@ -278,6 +280,16 @@ const VaultsTab: React.FC = () => {
                                     <Eye className="w-3.5 h-3.5" />
                                     الحركات
                                 </button>
+                                {vault.is_active && (
+                                    <button
+                                        onClick={() => setAdjustmentVault(vault)}
+                                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+                                        title="إيداع / سحب يدوي"
+                                    >
+                                        <Wallet className="w-3.5 h-3.5" />
+                                        إيداع/سحب
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         setEditingVault(vault)
@@ -384,6 +396,20 @@ const VaultsTab: React.FC = () => {
                     performedBy={user.id}
                     onClose={() => setShowTransfer(false)}
                     onSuccess={() => { fetchVaults(); setShowTransfer(false) }}
+                />
+            )}
+
+            {/* Adjustment Modal */}
+            {adjustmentVault && (
+                <VaultAdjustmentModal
+                    vault={adjustmentVault}
+                    onClose={() => setAdjustmentVault(null)}
+                    onSuccess={() => {
+                        fetchVaults()
+                        if (selectedVault === adjustmentVault.id) {
+                            fetchTransactions(adjustmentVault.id, txPage)
+                        }
+                    }}
                 />
             )}
         </div>

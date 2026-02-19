@@ -239,6 +239,45 @@ export class VaultsAPI {
         }
     }
 
+    /**
+     * إيداع أو سحب يدوي من خزنة
+     */
+    static async manualAdjustment(
+        vaultId: string,
+        amount: number,
+        type: 'deposit' | 'withdrawal',
+        performedBy: string,
+        notes: string
+    ): Promise<ApiResponse<DbFunctionResponse>> {
+        try {
+            const { data, error } = await supabase.rpc('manual_vault_adjustment', {
+                p_vault_id: vaultId,
+                p_amount: amount,
+                p_type: type,
+                p_notes: notes,
+                p_performed_by: performedBy
+            })
+
+            if (error) throw error
+
+            const result = data as DbFunctionResponse
+            if (!result.success) {
+                return { success: false, error: result.error }
+            }
+
+            return {
+                success: true,
+                data: result,
+                message: type === 'deposit' ? 'تم الإيداع بنجاح' : 'تم السحب بنجاح'
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: handleSupabaseError(error)
+            }
+        }
+    }
+
     // =====================
     // إحصائيات
     // =====================

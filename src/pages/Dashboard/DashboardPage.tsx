@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   Users,
   ShoppingCart,
-  DollarSign,
   TrendingUp,
   Calendar,
   Clock,
@@ -15,6 +14,7 @@ import { getToday, supabase } from '../../api'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useSystemHealth } from '../../hooks/useEnhancedAPI'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
+import FinancialSummaryCard from '../../components/Dashboard/FinancialSummaryCard'
 import toast from 'react-hot-toast'
 
 // Hook مخصص لحساب إحصائيات لوحة التحكم بطريقة مبسطة ومباشرة
@@ -113,7 +113,7 @@ const DashboardPage: React.FC = () => {
   // Optional: system health (auto-refresh)
   const { health: _health } = useSystemHealth()
 
-  const { hasRole } = usePermissions()
+  const { hasRole, isAdmin } = usePermissions()
   const isSupervisor = hasRole('operations_supervisor')
 
   // Active routes query (cached for 1 minute)
@@ -207,9 +207,17 @@ const DashboardPage: React.FC = () => {
       pulse: pendingOrders > 0
     },
     {
+      name: 'المكتملة',
+      value: stats?.completed_orders || 0,
+      icon: CheckCircle,
+      color: 'text-emerald-600',
+      bgGradient: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
+      iconBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600'
+    },
+    {
       name: 'الخطوط النشطة',
       value: activeRoutes || 0,
-      icon: CheckCircle,
+      icon: TrendingUp,
       color: 'text-green-600',
       bgGradient: 'bg-gradient-to-br from-green-50 to-green-100',
       iconBg: 'bg-gradient-to-br from-green-500 to-green-600',
@@ -222,33 +230,6 @@ const DashboardPage: React.FC = () => {
       color: 'text-purple-600',
       bgGradient: 'bg-gradient-to-br from-purple-50 to-purple-100',
       iconBg: 'bg-gradient-to-br from-purple-500 to-purple-600'
-    },
-    {
-      name: 'إجمالي الإيرادات',
-      value: `${stats?.total_revenue?.toLocaleString() || 0} ج.م`,
-      subtitle: `من ${stats?.paid_orders_count || 0} طلب مدفوع`,
-      icon: DollarSign,
-      color: 'text-emerald-600',
-      bgGradient: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
-      iconBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600'
-    },
-    {
-      name: 'إجمالي المصروفات',
-      value: `${stats?.total_expenses?.toLocaleString() || 0} ج.م`,
-      subtitle: `من ${stats?.approved_expenses_count || 0} مصروف معتمد`,
-      icon: TrendingUp,
-      color: 'text-red-600',
-      bgGradient: 'bg-gradient-to-br from-red-50 to-red-100',
-      iconBg: 'bg-gradient-to-br from-red-500 to-red-600'
-    },
-    {
-      name: 'صافي الربح',
-      value: `${stats?.net_profit?.toLocaleString() || 0} ج.م`,
-      subtitle: 'الإيرادات المدفوعة - المصروفات المعتمدة',
-      icon: DollarSign,
-      color: stats && stats.net_profit >= 0 ? 'text-green-600' : 'text-red-600',
-      bgGradient: stats && stats.net_profit >= 0 ? 'bg-gradient-to-br from-green-50 to-green-100' : 'bg-gradient-to-br from-red-50 to-red-100',
-      iconBg: stats && stats.net_profit >= 0 ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-red-500 to-red-600'
     },
     {
       name: 'متوسط التقييم',
@@ -272,33 +253,37 @@ const DashboardPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, index) => (
-          <div
-            key={stat.name}
-            className={`card-compact group hover:scale-105 transition-all duration-300 ${stat.bgGradient} border-0 shadow-lg hover:shadow-xl ${stat.pulse ? 'animate-pulse' : ''}`}
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className={`p-4 rounded-xl ${stat.iconBg} group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                  <stat.icon className="h-7 w-7 text-white" />
+      {/* Financial Summary — Admin Only (at the top) */}
+      {isAdmin() && (
+        <FinancialSummaryCard />
+      )}
+
+      {/* Stats Grid — Non-Admin users only */}
+      {!isAdmin() && (
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
+          {statCards.map((stat, index) => (
+            <div
+              key={stat.name}
+              className={`card-compact group hover:scale-105 transition-all duration-300 ${stat.bgGradient} border-0 shadow-lg hover:shadow-xl ${stat.pulse ? 'animate-pulse' : ''}`}
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className={`p-4 rounded-xl ${stat.iconBg} group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                    <stat.icon className="h-7 w-7 text-white" />
+                  </div>
+                </div>
+                <div className="mr-4 flex-1">
+                  <p className="text-sm font-semibold text-gray-700 mb-1">{stat.name}</p>
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-primary-700 transition-colors duration-300">
+                    {stat.value}
+                  </p>
                 </div>
               </div>
-              <div className="mr-4 flex-1">
-                <p className="text-sm font-semibold text-gray-700 mb-1">{stat.name}</p>
-                <p className="text-2xl font-bold text-gray-900 group-hover:text-primary-700 transition-colors duration-300">
-                  {stat.value}
-                </p>
-                {stat.subtitle && (
-                  <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
-                )}
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Quick Actions & Alerts */}
       <div className={`grid grid-cols-1 gap-6 ${!isSupervisor ? 'lg:grid-cols-2' : ''}`}>
