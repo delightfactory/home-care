@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Shield, Settings, Plus, Edit, Trash2, UserCheck, UserX, UserCog, Lock, Key } from 'lucide-react'
+import { Users, Shield, Settings, Plus, Edit, Trash2, UserCheck, UserX, UserCog, Lock, Key, Mail } from 'lucide-react'
 import { RolesAPI, type Role, type UserWithRole } from '../../lib/api/roles'
 import RoleFormModal from '../../components/Forms/RoleFormModal'
 import UserRoleModal from '../../components/Forms/UserRoleModal'
@@ -388,6 +388,12 @@ const RolesPage: React.FC = () => {
                           <div className="text-sm font-medium text-gray-900">
                             {user.full_name}
                           </div>
+                          {user.email && (
+                            <div className="text-sm text-blue-600 flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {user.email}
+                            </div>
+                          )}
                           {user.phone && (
                             <div className="text-sm text-gray-500">{user.phone}</div>
                           )}

@@ -290,4 +290,18 @@ export class UsersAPI {
       return { success: false, error: handleSupabaseError(error) }
     }
   }
+
+  /**
+   * جلب إيميل مستخدم معين (للأدمن فقط)
+   * يستخدم RPC يصل إلى auth.users
+   */
+  static async getUserEmail(userId: string): Promise<string> {
+    try {
+      const { data, error } = await supabase.rpc('get_user_email', { p_user_id: userId })
+      if (error) return ''
+      return (data as string) || ''
+    } catch {
+      return ''
+    }
+  }
 }

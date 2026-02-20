@@ -28,6 +28,16 @@ export default defineConfig({
       react: path.resolve(__dirname, './node_modules/react'),
       'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
     },
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react-dom/client',
+    ],
   },
   define: {},
   server: {

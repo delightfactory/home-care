@@ -58,6 +58,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
   const [unlinkedUsers, setUnlinkedUsers] = useState<{ id: string; full_name: string; phone: string | null }[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [linkedUserInfo, setLinkedUserInfo] = useState<{ id: string; full_name: string; phone: string | null } | null>(null)
+  const [linkedUserEmail, setLinkedUserEmail] = useState('')
 
   // بيانات إنشاء مستخدم جديد
   const [newUserEmail, setNewUserEmail] = useState('')
@@ -85,10 +86,13 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
           full_name: worker.name,
           phone: worker.phone
         })
+        // جلب إيميل المستخدم المرتبط
+        UsersAPI.getUserEmail(worker.user_id).then(email => setLinkedUserEmail(email))
       } else {
         setUserLinkOption('none')
         setSelectedUserId('')
         setLinkedUserInfo(null)
+        setLinkedUserEmail('')
       }
     } else {
       setFormData({
@@ -567,6 +571,7 @@ const WorkerFormModal: React.FC<WorkerFormModalProps> = ({
                 <div className="flex-1">
                   <span className="font-medium text-gray-700">مرتبط بحساب</span>
                   <p className="text-xs text-green-600 font-medium">{linkedUserInfo.full_name}</p>
+                  {linkedUserEmail && <p className="text-xs text-blue-600 flex items-center gap-1"><Mail className="h-3 w-3" />{linkedUserEmail}</p>}
                   {linkedUserInfo.phone && <p className="text-xs text-gray-500">{linkedUserInfo.phone}</p>}
                 </div>
                 {userLinkOption === 'linked' && <CheckCircle className="h-5 w-5 text-green-500 mr-auto" />}

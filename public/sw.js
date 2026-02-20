@@ -83,6 +83,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Bypass Vite dev server resources — caching these causes duplicate
+  // React instances on soft refresh (HMR), crashing the app.
+  if (
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/') ||
+    url.pathname.startsWith('/@') ||
+    url.pathname.includes('.vite/') ||
+    url.pathname.endsWith('.tsx') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.jsx') ||
+    url.searchParams.has('v') ||
+    url.searchParams.has('t')
+  ) {
+    return;
+  }
+
   // Handle navigation requests
   if (request.mode === 'navigate') {
     event.respondWith(

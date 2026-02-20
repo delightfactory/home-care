@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
     Calculator, CheckCircle2, RefreshCw, Loader2,
     Eye, X, AlertTriangle, Wallet, ChevronDown, ChevronUp,
-    Users, UserCheck, ChevronRight,
+    Users, UserCheck, ChevronRight, ShieldCheck,
 } from 'lucide-react'
 import { PayrollAPI } from '../../api/hr'
 import { VaultsAPI } from '../../api/vaults'
@@ -60,6 +60,11 @@ const PayrollTab: React.FC = () => {
     const [individualVaultId, setIndividualVaultId] = useState('')
     const [disbursingIndividual, setDisbursingIndividual] = useState(false)
 
+    // تأكيد الاعتماد
+    const [showApproveModal, setShowApproveModal] = useState(false)
+    const [approvePeriod, setApprovePeriod] = useState<PayrollPeriod | null>(null)
+    const [approveConfirmText, setApproveConfirmText] = useState('')
+
     // تفاصيل قابلة للطى
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
@@ -102,19 +107,25 @@ const PayrollTab: React.FC = () => {
         }
     }
 
-    const handleApprove = async (periodId: string) => {
-        if (!user?.id) return
-        if (!window.confirm('هل أنت متأكد من اعتماد هذا المسير؟ لن يمكن إعادة حسابه بعد الاعتماد.')) return
+    const handleApprove = (period: PayrollPeriod) => {
+        setApprovePeriod(period)
+        setApproveConfirmText('')
+        setShowApproveModal(true)
+    }
+
+    const confirmApprove = async () => {
+        if (!user?.id || !approvePeriod) return
 
         setApproving(true)
         try {
-            const result = await PayrollAPI.approvePayroll(periodId, user.id)
+            const result = await PayrollAPI.approvePayroll(approvePeriod.id, user.id)
             if (result.success) {
                 toast.success('تم اعتماد المسير بنجاح — يمكنك الآن صرف الرواتب')
+                setShowApproveModal(false)
                 loadPeriods()
                 // تحديث النافذة المفتوحة إن وجدت
-                if (selectedPeriod?.id === periodId) {
-                    const updated = await PayrollAPI.getPayrollPeriodById(periodId)
+                if (selectedPeriod?.id === approvePeriod.id) {
+                    const updated = await PayrollAPI.getPayrollPeriodById(approvePeriod.id)
                     if (updated) setSelectedPeriod(updated)
                 }
             } else {
@@ -446,7 +457,7 @@ const PayrollTab: React.FC = () => {
                                             {period.status === 'calculated' && (
                                                 <>
                                                     <button
-                                                        onClick={() => handleApprove(period.id)}
+                                                        onClick={() => handleApprove(period)}
                                                         disabled={approving}
                                                         className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
                                                         title="اعتماد"
@@ -777,6 +788,97 @@ const PayrollTab: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={() => setShowIndividualDisburseModal(false)}
+                                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Approve Confirmation Modal */}
+            {showApproveModal && approvePeriod && (
+                <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={() => setShowApproveModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                                    <ShieldCheck className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">تأكيد اعتماد المسير</h3>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {months[approvePeriod.month - 1]} {approvePeriod.year}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowApproveModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {/* ملخص المسير */}
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">إجمالي الرواتب</span>
+                                    <span className="font-semibold text-gray-900">{formatCurrency(approvePeriod.total_salaries)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">خصم الغياب</span>
+                                    <span className="font-semibold text-red-600">-{formatCurrency(approvePeriod.total_absence_deductions)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">السلف</span>
+                                    <span className="font-semibold text-amber-600">-{formatCurrency(approvePeriod.total_advances)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm border-t border-gray-200 pt-2">
+                                    <span className="text-gray-700 font-bold">صافي المسير</span>
+                                    <span className="font-bold text-emerald-600 text-base">{formatCurrency(approvePeriod.net_total)}</span>
+                                </div>
+                            </div>
+
+                            {/* تحذير */}
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <div className="flex gap-2">
+                                    <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                    <p className="text-xs text-red-700 leading-relaxed">
+                                        بعد الاعتماد <strong>لن يمكن</strong> إعادة حساب المسير أو تعديله.
+                                        تأكد من مراجعة كل البنود قبل الاعتماد.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* حقل كتابة التأكيد */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    اكتب <span className="font-bold text-red-600">اعتماد</span> للتأكيد
+                                </label>
+                                <input
+                                    type="text"
+                                    value={approveConfirmText}
+                                    onChange={(e) => setApproveConfirmText(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                    placeholder="اكتب هنا..."
+                                    dir="rtl"
+                                    autoComplete="off"
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={confirmApprove}
+                                    disabled={approving || approveConfirmText.trim() !== 'اعتماد'}
+                                    className="flex-1 bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {approving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    <ShieldCheck className="w-4 h-4" />
+                                    {approving ? 'جاري الاعتماد...' : 'اعتماد المسير'}
+                                </button>
+                                <button
+                                    onClick={() => setShowApproveModal(false)}
                                     className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                                 >
                                     إلغاء
@@ -1146,7 +1248,7 @@ const PayrollTab: React.FC = () => {
                             <div className="flex flex-wrap gap-2 p-4 sm:p-5">
                                 {selectedPeriod.status === 'calculated' && (
                                     <button
-                                        onClick={() => handleApprove(selectedPeriod.id)}
+                                        onClick={() => handleApprove(selectedPeriod)}
                                         disabled={approving}
                                         className="flex-1 min-w-[140px] bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                                     >

@@ -195,26 +195,26 @@ const TechProfilePage: React.FC = () => {
                         </div>
 
                         {/* إحصائيات سريعة — 4 بطاقات */}
-                        <div className="grid grid-cols-4 gap-2 mt-5">
-                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
-                                <p className="text-lg font-bold text-white">{presentDays}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">حضور</p>
+                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mt-5">
+                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 sm:p-2.5 text-center">
+                                <p className="text-base sm:text-lg font-bold text-white">{presentDays}</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">حضور</p>
                             </div>
-                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
-                                <p className="text-lg font-bold text-white">{absentDays}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">غياب</p>
+                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 sm:p-2.5 text-center">
+                                <p className="text-base sm:text-lg font-bold text-white">{absentDays}</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">غياب</p>
                             </div>
-                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
-                                <p className="text-lg font-bold text-white">
+                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 sm:p-2.5 text-center">
+                                <p className="text-base sm:text-lg font-bold text-white">
                                     {bonus?.avg_rating ? bonus.avg_rating.toFixed(1) : '—'}
                                 </p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">التقييم</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">التقييم</p>
                             </div>
-                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
-                                <p className="text-lg font-bold text-emerald-300">
+                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 sm:p-2.5 text-center">
+                                <p className="text-sm sm:text-lg font-bold text-emerald-300 truncate">
                                     {payrollItem ? formatCurrency(payrollItem.net_salary) : '—'}
                                 </p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">الصافى</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">الصافى</p>
                             </div>
                         </div>
                     </div>
@@ -309,6 +309,18 @@ const TechProfilePage: React.FC = () => {
                                                     </div>
                                                 )}
 
+                                                {/* رصيد الإجازات */}
+                                                {payrollItem.leave_balance !== undefined && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm text-gray-500">رصيد الإجازات</span>
+                                                        <span className="text-sm text-gray-600">
+                                                            <span className="font-semibold text-blue-600">{payrollItem.leave_used}</span>
+                                                            <span className="text-gray-400 mx-0.5">/</span>
+                                                            <span>{payrollItem.leave_balance}</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+
                                                 {/* فاصل */}
                                                 <div className="border-t border-dashed border-gray-200" />
 
@@ -378,9 +390,9 @@ const TechProfilePage: React.FC = () => {
                                                 <div className="border-t border-gray-200" />
 
                                                 {/* الصافى */}
-                                                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-200/60">
+                                                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-3 sm:p-3.5 flex items-center justify-between border border-emerald-200/60">
                                                     <span className="text-sm font-bold text-emerald-800">صافى الراتب</span>
-                                                    <span className="text-lg font-bold text-emerald-700">{formatCurrency(payrollItem.net_salary)} ج.م</span>
+                                                    <span className="text-base sm:text-lg font-bold text-emerald-700">{formatCurrency(payrollItem.net_salary)} ج.م</span>
                                                 </div>
                                             </div>
                                         ) : (

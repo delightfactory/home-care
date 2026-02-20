@@ -63,6 +63,8 @@ DECLARE
   v_total_days_off INT;
   v_leave_used NUMERIC(5,1);
   v_unpaid_absent_days NUMERIC(5,1);
+  v_unpaid_leave NUMERIC(5,1);
+  v_unrecorded_days NUMERIC(5,1);
 
   -- Late penalties
   v_late_rec RECORD;
@@ -240,15 +242,30 @@ BEGIN
       AND date BETWEEN v_worker_start AND v_worker_end;
 
     -- ============================================
-    -- 3.5 حساب الغياب ورصيد الإجازات
+    -- 3.5 حساب الغياب ورصيد الإجازات (مُصلَح)
     -- ============================================
+    -- الخطوة 1: الإجازات المسجلة تستهلك الرصيد فقط
+    v_leave_used := LEAST(v_leave_days::NUMERIC, v_leave_balance);
+
+    -- الخطوة 2: إجازات تتجاوز الرصيد = بدون أجر
+    v_unpaid_leave := GREATEST(0, v_leave_days::NUMERIC - v_leave_balance);
+
+    -- الخطوة 3: أيام بدون أي سجل حضور = تُعامل كغياب
+    v_unrecorded_days := GREATEST(0,
+      v_available_days::INT - v_work_days - v_leave_days - v_absent_days
+      - v_holiday_days
+      - GREATEST(0, v_public_holidays_count - v_holiday_days)
+    );
+
+    -- الخطوة 4: إجمالي الغياب بدون أجر = غياب مسجل + أيام بدون سجل + إجازات فوق الرصيد
+    v_unpaid_absent_days := v_absent_days + v_unrecorded_days + v_unpaid_leave;
+
+    -- حساب إجمالي أيام عدم العمل (للتوافق مع الأعمدة القديمة)
     v_total_days_off := GREATEST(0,
       v_available_days::INT - v_work_days - v_holiday_days
       - GREATEST(0, v_public_holidays_count - v_holiday_days)
     );
 
-    v_leave_used := LEAST(v_total_days_off::NUMERIC, v_leave_balance);
-    v_unpaid_absent_days := GREATEST(0, v_total_days_off::NUMERIC - v_leave_balance);
     v_absence_deduction := ROUND(v_daily_rate * v_unpaid_absent_days, 2);
 
     -- ============================================

@@ -236,6 +236,38 @@ export class RolesAPI {
   // الحصول على جميع المستخدمين مع أدوارهم
   static async getUsersWithRoles(): Promise<ApiResponse<UserWithRole[]>> {
     try {
+      // Try the RPC that joins auth.users for email (admin-only)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_users_with_email').single()
+
+      if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+        // Map RPC response to UserWithRole format
+        const users: UserWithRole[] = (rpcData as any[]).map((row: any) => ({
+          id: row.id,
+          email: row.email || '',
+          full_name: row.full_name,
+          phone: row.phone,
+          is_active: row.is_active,
+          role_id: row.role_id,
+          role: row.role_id ? {
+            id: row.role_id,
+            name: row.role_name,
+            name_ar: row.role_name_ar,
+            permissions: row.role_permissions || {},
+            is_active: row.role_is_active,
+            created_at: '',
+            updated_at: ''
+          } : undefined,
+          created_at: row.created_at,
+          updated_at: row.updated_at
+        }))
+
+        return {
+          success: true,
+          data: users
+        }
+      }
+
+      // Fallback to original query (e.g. if RPC not deployed or user is not admin)
       const { data, error } = await supabase
         .from('users')
         .select(`
