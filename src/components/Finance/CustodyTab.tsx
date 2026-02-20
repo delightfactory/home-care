@@ -96,7 +96,7 @@ const CustodyTab: React.FC = () => {
 
     const isFrozen = (account: CustodyAccountWithDetails) => !account.is_active && (account.balance || 0) > 0
 
-    const formatDate = (date: string) => new Date(date).toLocaleDateString('ar-EG', {
+    const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     })
 
@@ -123,7 +123,7 @@ const CustodyTab: React.FC = () => {
                 </div>
                 <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
                     <p className="text-2xl font-bold text-gray-800">
-                        {stats.total_balance.toLocaleString('ar-EG')} <span className="text-sm text-gray-400">ج.م</span>
+                        {stats.total_balance.toLocaleString('en-US')} <span className="text-sm text-gray-400">ج.م</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">إجمالي الأرصدة</p>
                 </div>
@@ -201,7 +201,7 @@ const CustodyTab: React.FC = () => {
                                     <div className="flex items-center gap-2 sm:gap-3">
                                         <div className="text-left">
                                             <p className="text-lg font-bold text-gray-800">
-                                                {(account.balance || 0).toLocaleString('ar-EG')} <span className="text-xs text-gray-400">ج.م</span>
+                                                {(account.balance || 0).toLocaleString('en-US')} <span className="text-xs text-gray-400">ج.م</span>
                                             </p>
                                         </div>
                                         <button
@@ -257,7 +257,7 @@ const CustodyTab: React.FC = () => {
                                                             <span className={`text-sm font-bold ${isPositiveTx(tx.type) ? 'text-green-600' : 'text-red-600'
                                                                 }`}>
                                                                 {isPositiveTx(tx.type) ? '+' : '-'}
-                                                                {tx.amount?.toLocaleString('ar-EG')} ج.م
+                                                                {tx.amount?.toLocaleString('en-US')} ج.م
                                                             </span>
                                                         </div>
                                                     ))}

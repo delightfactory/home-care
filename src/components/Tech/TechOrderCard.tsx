@@ -299,7 +299,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                             </span>
                             {isInProgress && order.total_amount && (
                                 <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-lg">
-                                    {order.total_amount.toLocaleString('ar-EG')} ج.م
+                                    {order.total_amount.toLocaleString('en-US')} ج.م
                                 </span>
                             )}
                         </div>
@@ -319,7 +319,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                                         </span>
                                         {isInProgress && (item as any).unit_price != null && (
                                             <span className="text-xs text-gray-500">
-                                                {((item as any).unit_price * item.quantity).toLocaleString('ar-EG')} ج.م
+                                                {((item as any).unit_price * item.quantity).toLocaleString('en-US')} ج.م
                                             </span>
                                         )}
                                     </div>
@@ -396,7 +396,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                         <div>
                             <p className="text-sm font-medium text-amber-700">قيمة الفاتورة مختلفة عن الطلب</p>
                             <p className="text-xs text-amber-600 mt-0.5">
-                                الطلب: {order.total_amount?.toLocaleString('ar-EG')} ج.م — الفاتورة: {invoiceAmount?.toLocaleString('ar-EG')} ج.م
+                                الطلب: {order.total_amount?.toLocaleString('en-US')} ج.م — الفاتورة: {invoiceAmount?.toLocaleString('en-US')} ج.م
                             </p>
                             <p className="text-xs text-amber-500 mt-1">تواصل مع الإدارة للتأكيد</p>
                         </div>

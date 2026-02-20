@@ -11,6 +11,7 @@ import VaultTransferModal from './VaultTransferModal'
 import VaultAdjustmentModal from './VaultAdjustmentModal'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../hooks/useAuth'
+import { formatDateTime as fmtDateTime } from '../../utils/formatters'
 
 const VaultsTab: React.FC = () => {
     const { user } = useAuth()
@@ -131,9 +132,7 @@ const VaultsTab: React.FC = () => {
     const totalBalance = vaults.filter(v => v.is_active).reduce((sum, v) => sum + (v.balance || 0), 0)
     const txTotalPages = Math.ceil(txTotal / 15)
 
-    const formatDate = (date: string) => new Date(date).toLocaleDateString('ar-EG', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    })
+    const formatDate = (date: string) => fmtDateTime(date)
 
     const isPositiveVaultTx = (type: string) =>
         type === 'deposit' || type === 'transfer_in' || type === 'collection' || type === 'settlement_in'
@@ -146,7 +145,7 @@ const VaultsTab: React.FC = () => {
                     <div>
                         <p className="text-sm text-emerald-100">إجمالي رصيد الخزائن</p>
                         <p className="text-2xl sm:text-3xl font-bold mt-1">
-                            {totalBalance.toLocaleString('ar-EG')} <span className="text-lg">ج.م</span>
+                            {totalBalance.toLocaleString('en-US')} <span className="text-lg">ج.م</span>
                         </p>
                     </div>
                     <Landmark className="w-10 h-10 sm:w-12 sm:h-12 text-white/30" />
@@ -265,7 +264,7 @@ const VaultsTab: React.FC = () => {
 
                             {/* Balance */}
                             <p className="text-xl font-bold text-gray-800 mb-3">
-                                {(vault.balance || 0).toLocaleString('ar-EG')} <span className="text-sm text-gray-400">ج.م</span>
+                                {(vault.balance || 0).toLocaleString('en-US')} <span className="text-sm text-gray-400">ج.م</span>
                             </p>
 
                             {/* Actions */}
@@ -356,7 +355,7 @@ const VaultsTab: React.FC = () => {
                                         <span className={`text-sm font-bold ${isPositiveVaultTx(tx.type) ? 'text-green-600' : 'text-red-600'
                                             }`}>
                                             {isPositiveVaultTx(tx.type) ? '+' : '-'}
-                                            {tx.amount?.toLocaleString('ar-EG')} ج.م
+                                            {tx.amount?.toLocaleString('en-US')} ج.م
                                         </span>
                                     </div>
                                 ))}

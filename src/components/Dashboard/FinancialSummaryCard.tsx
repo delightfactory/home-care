@@ -174,15 +174,15 @@ const FinancialSummaryCard: React.FC = () => {
     // Date display label
     const dateLabel = useMemo(() => {
         if (dateRange.from === dateRange.to) {
-            return new Date(dateRange.from + 'T00:00:00').toLocaleDateString('ar-EG', {
+            return new Date(dateRange.from + 'T00:00:00').toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
             })
         }
-        const from = new Date(dateRange.from + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
-        const to = new Date(dateRange.to + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', year: 'numeric' })
+        const from = new Date(dateRange.from + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const to = new Date(dateRange.to + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         return `${from} — ${to}`
     }, [dateRange])
 
@@ -466,7 +466,7 @@ const DetailsSection: React.FC<{
                         <div className="flex items-center gap-3 flex-shrink-0">
                             {item.date && (
                                 <span className="text-xs text-gray-400 hidden sm:inline">
-                                    {new Date(item.date + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
+                                    {new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
                             )}
                             <span className="font-semibold text-gray-800 whitespace-nowrap">

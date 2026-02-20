@@ -39,7 +39,7 @@ const OrdersPage: React.FC = () => {
 
       const arabicOrders = all.map((o: any) => ({
         'رقم الطلب': o.id,
-        'التاريخ': o.scheduled_date ? new Date(o.scheduled_date).toLocaleDateString('ar-EG') : '-',
+        'التاريخ': o.scheduled_date ? new Date(o.scheduled_date).toLocaleDateString('en-US') : '-',
         'اسم العميل': o.customer?.name ?? '-',
         'الهاتف': o.customer?.phone ?? '-',
         'العنوان': o.customer?.address ?? '-',

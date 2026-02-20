@@ -13,6 +13,7 @@ import { getStatusColor, getStatusText } from '../../api'
 import PaymentsFilterBar, { PaymentsFiltersUI } from './PaymentsFilterBar'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../hooks/useAuth'
+import { formatDateTime as fmtDateTime } from '../../utils/formatters'
 
 const PaymentsTab: React.FC = () => {
     const { user } = useAuth()
@@ -155,12 +156,7 @@ const PaymentsTab: React.FC = () => {
         }
     }
 
-    const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('ar-EG', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        })
-    }
+    const formatDate = (date: string) => fmtDateTime(date)
 
     const pendingCount = payments.filter(p => p.status === 'pending' && p.payment_proof_url).length
 
@@ -238,7 +234,7 @@ const PaymentsTab: React.FC = () => {
                                 <div className="min-w-0">
                                     <div className="text-xs text-gray-400 mb-0.5">المبلغ</div>
                                     <div className="text-sm font-bold text-gray-800">
-                                        {payment.total_amount?.toLocaleString('ar-EG')} ج.م
+                                        {payment.total_amount?.toLocaleString('en-US')} ج.م
                                     </div>
                                 </div>
 
@@ -348,7 +344,7 @@ const PaymentsTab: React.FC = () => {
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-gray-600">{p.invoice_number}</span>
                                             <span className="font-bold text-gray-800">
-                                                {p.total_amount?.toLocaleString('ar-EG')} ج.م
+                                                {p.total_amount?.toLocaleString('en-US')} ج.م
                                             </span>
                                         </div>
                                         <p className="text-xs text-gray-400 mt-1">
@@ -374,7 +370,7 @@ const PaymentsTab: React.FC = () => {
                                         <option value="">اختر الخزنة...</option>
                                         {vaults.map(v => (
                                             <option key={v.id} value={v.id}>
-                                                {v.name_ar} — رصيد: {v.balance?.toLocaleString('ar-EG')} ج.م
+                                                {v.name_ar} — رصيد: {v.balance?.toLocaleString('en-US')} ج.م
                                             </option>
                                         ))}
                                     </select>

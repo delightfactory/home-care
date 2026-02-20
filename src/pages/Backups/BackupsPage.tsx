@@ -63,7 +63,7 @@ const BackupsPage: React.FC = () => {
             <tbody>
               {backups.map((b) => (
                 <tr key={b.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-2 whitespace-nowrap">{new Date(b.created_at).toLocaleString('ar-EG')}</td>
+                  <td className="px-4 py-2 whitespace-nowrap">{new Date(b.created_at).toLocaleString('en-US')}</td>
                   <td className="px-4 py-2">{b.label || '-'}</td>
                   <td className="px-4 py-2 whitespace-nowrap">{formatBytes(b.size_bytes || 0)}</td>
                   <td className="px-4 py-2 space-x-1 space-x-reverse">

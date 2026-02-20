@@ -10,6 +10,7 @@ import { VaultsAPI } from '../../api/vaults'
 import type { PayrollPeriod, PayrollItemWithWorker, PayrollDisbursement } from '../../types/hr.types'
 import { useAuth } from '../../hooks/useAuth'
 import toast from 'react-hot-toast'
+import { formatDate, formatDateTime } from '../../utils/formatters'
 
 interface Vault {
     id: string
@@ -246,7 +247,7 @@ const PayrollTab: React.FC = () => {
     }
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('ar-EG', {
+        return new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2
         }).format(amount)
@@ -417,7 +418,7 @@ const PayrollTab: React.FC = () => {
                                                 </span>
                                                 {period.approved_at && (
                                                     <span className="text-xs text-gray-400">
-                                                        اعتمد: {new Date(period.approved_at).toLocaleDateString('ar-EG')}
+                                                        اعتمد: {formatDate(period.approved_at)}
                                                     </span>
                                                 )}
                                             </div>
@@ -1216,7 +1217,7 @@ const PayrollTab: React.FC = () => {
                                                             <span className="text-gray-700">{(d.vault as any)?.name || 'خزنة محذوفة'}</span>
                                                         </div>
                                                         <span className="text-[10px] text-gray-400">
-                                                            {new Date(d.created_at).toLocaleDateString('ar-EG')} — {new Date(d.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                                                            {formatDateTime(d.created_at)}
                                                         </span>
                                                     </div>
                                                 ))}

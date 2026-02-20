@@ -40,7 +40,7 @@ const CustomersPage: React.FC = () => {
         'المنطقة': c.area ?? '-',
         'عدد الطلبات': c.total_orders ?? 0,
         'حالة العميل': c.is_active ? 'نشط' : 'موقوف',
-        'تاريخ التسجيل': c.created_at ? new Date(c.created_at).toLocaleDateString('ar-EG') : '-',
+        'تاريخ التسجيل': c.created_at ? new Date(c.created_at).toLocaleDateString('en-US') : '-',
       }))
 
       const fileName = `عملاء_كامل_${new Date().toISOString().slice(0, 10)}.xlsx`

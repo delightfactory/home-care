@@ -123,7 +123,7 @@ const TechExpensesList: React.FC = () => {
                                     <div className="flex items-center gap-3 text-xs text-gray-400">
                                         <span>{expense.category?.name_ar || 'غير محدد'}</span>
                                         <span>•</span>
-                                        <span>{new Date(expense.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span>{new Date(expense.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                 </div>
 

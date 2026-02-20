@@ -168,7 +168,7 @@ const InvoicesTab: React.FC = () => {
     const filteredInvoices = invoices
 
     const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('ar-EG', {
+        return new Date(date).toLocaleDateString('en-US', {
             year: 'numeric', month: 'short', day: 'numeric'
         })
     }
@@ -281,17 +281,17 @@ const InvoicesTab: React.FC = () => {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="font-semibold text-gray-800">
-                                                    {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                                    {inv.total_amount?.toLocaleString('en-US')} ج.م
                                                 </span>
                                                 {hasMismatch(inv) && (
-                                                    <span title={`قيمة الطلب: ${(inv as any).order?.total_amount?.toLocaleString('ar-EG')} ج.م — قيمة الفاتورة: ${inv.total_amount?.toLocaleString('ar-EG')} ج.م`} className="cursor-help">
+                                                    <span title={`قيمة الطلب: ${(inv as any).order?.total_amount?.toLocaleString('en-US')} ج.م — قيمة الفاتورة: ${inv.total_amount?.toLocaleString('en-US')} ج.م`} className="cursor-help">
                                                         <AlertTriangle className="w-4 h-4 text-amber-500" />
                                                     </span>
                                                 )}
                                             </div>
                                             {inv.paid_amount > 0 && inv.paid_amount < inv.total_amount && (
                                                 <div className="text-xs text-emerald-600">
-                                                    مدفوع: {inv.paid_amount?.toLocaleString('ar-EG')}
+                                                    مدفوع: {inv.paid_amount?.toLocaleString('en-US')}
                                                 </div>
                                             )}
                                         </td>
@@ -373,7 +373,7 @@ const InvoicesTab: React.FC = () => {
                                     <div className="text-left">
                                         <div className="flex items-center gap-1">
                                             <span className="font-bold text-gray-800">
-                                                {inv.total_amount?.toLocaleString('ar-EG')} ج.م
+                                                {inv.total_amount?.toLocaleString('en-US')} ج.م
                                             </span>
                                             {hasMismatch(inv) && (
                                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
@@ -381,7 +381,7 @@ const InvoicesTab: React.FC = () => {
                                         </div>
                                         {inv.paid_amount > 0 && inv.paid_amount < inv.total_amount && (
                                             <div className="text-xs text-emerald-600">
-                                                مدفوع: {inv.paid_amount?.toLocaleString('ar-EG')}
+                                                مدفوع: {inv.paid_amount?.toLocaleString('en-US')}
                                             </div>
                                         )}
                                     </div>

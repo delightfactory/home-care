@@ -255,7 +255,7 @@ const ExpensesPage: React.FC = () => {
         'الوصف': e.description,
         'الفئة': e.category?.name_ar ?? '-',
         'المبلغ': e.amount,
-        'التاريخ': e.created_at ? new Date(e.created_at).toLocaleDateString('ar-EG') : '-',
+        'التاريخ': e.created_at ? new Date(e.created_at).toLocaleDateString('en-US') : '-',
         'الحالة': statusTextMap[e.status] ?? e.status,
         'تم الإدخال بواسطة': e.created_by_user?.full_name ?? '-'
       }))
@@ -564,9 +564,9 @@ const ExpensesPage: React.FC = () => {
                 <div className="mt-1 space-y-1">
                   <p className="text-sm text-white/90">رصيد العهدة غير كافٍ لتغطية المصروف</p>
                   <div className="flex items-center gap-3 mt-2 p-2 bg-white/20 rounded-lg text-sm">
-                    <span>رصيد العهدة: <strong>{vaultModalInfo.currentBalance?.toLocaleString('ar-EG')} ج.م</strong></span>
+                    <span>رصيد العهدة: <strong>{vaultModalInfo.currentBalance?.toLocaleString('en-US')} ج.م</strong></span>
                     <span>|</span>
-                    <span>المطلوب: <strong>{vaultModalInfo.requiredAmount?.toLocaleString('ar-EG')} ج.م</strong></span>
+                    <span>المطلوب: <strong>{vaultModalInfo.requiredAmount?.toLocaleString('en-US')} ج.م</strong></span>
                   </div>
                 </div>
               ) : (
@@ -575,7 +575,7 @@ const ExpensesPage: React.FC = () => {
               {pendingExpenseForApproval && (
                 <div className="mt-2 p-2 bg-white/20 rounded-lg text-sm">
                   <span className="font-bold">{pendingExpenseForApproval.description}</span>
-                  <span className="mr-2">— {pendingExpenseForApproval.amount?.toLocaleString('ar-EG')} ج.م</span>
+                  <span className="mr-2">— {pendingExpenseForApproval.amount?.toLocaleString('en-US')} ج.م</span>
                 </div>
               )}
             </div>
@@ -594,7 +594,7 @@ const ExpensesPage: React.FC = () => {
                     >
                       <div>
                         <p className="font-medium text-gray-800">{vault.name}</p>
-                        <p className="text-sm text-gray-500">رصيد: {Number(vault.balance).toLocaleString('ar-EG')} ج.م</p>
+                        <p className="text-sm text-gray-500">رصيد: {Number(vault.balance).toLocaleString('en-US')} ج.م</p>
                       </div>
                       <DollarSign className="h-5 w-5 text-gray-400" />
                     </button>

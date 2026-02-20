@@ -55,7 +55,7 @@ const ExpenseDetailsModal: React.FC<ExpenseDetailsModalProps> = ({
 
     const formatDate = (dateString: string) => {
         if (!dateString) return 'غير محدد'
-        return new Date(dateString).toLocaleDateString('ar-EG', {
+        return new Date(dateString).toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',

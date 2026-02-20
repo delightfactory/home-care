@@ -248,7 +248,7 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
     const hours = Math.floor(minutes / 60)
     if (hours < 24) return `منذ ${hours} ساعة`
 
-    return lastRefresh.toLocaleDateString('ar-SA')
+    return lastRefresh.toLocaleDateString('en-US')
   }, [lastRefresh])
 
   // وظائف الضغط الطويل

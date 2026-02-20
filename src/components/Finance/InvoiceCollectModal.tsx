@@ -114,7 +114,7 @@ const InvoiceCollectModal: React.FC<InvoiceCollectModalProps> = ({
                 )
 
                 if (result.success) {
-                    toast.success(`تم التحصيل النقدى — ${amountDue.toLocaleString('ar-EG')} ج.م`)
+                    toast.success(`تم التحصيل النقدى — ${amountDue.toLocaleString('en-US')} ج.م`)
                     onSuccess()
                 } else {
                     toast.error(result.error || 'خطأ في التحصيل')
@@ -148,7 +148,7 @@ const InvoiceCollectModal: React.FC<InvoiceCollectModalProps> = ({
                 )
 
                 if (result.success) {
-                    toast.success(`تم التحصيل — ${amountDue.toLocaleString('ar-EG')} ج.م`)
+                    toast.success(`تم التحصيل — ${amountDue.toLocaleString('en-US')} ج.م`)
                     onSuccess()
                 } else {
                     toast.error(result.error || 'خطأ في التحصيل')
@@ -208,17 +208,17 @@ const InvoiceCollectModal: React.FC<InvoiceCollectModalProps> = ({
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-gray-500">المبلغ الإجمالي</span>
-                            <span className="font-medium">{(invoice.total_amount || 0).toLocaleString('ar-EG')} ج.م</span>
+                            <span className="font-medium">{(invoice.total_amount || 0).toLocaleString('en-US')} ج.م</span>
                         </div>
                         {(invoice.paid_amount || 0) > 0 && (
                             <div className="flex justify-between text-sm text-emerald-600">
                                 <span>المدفوع</span>
-                                <span className="font-medium">{(invoice.paid_amount || 0).toLocaleString('ar-EG')} ج.م</span>
+                                <span className="font-medium">{(invoice.paid_amount || 0).toLocaleString('en-US')} ج.م</span>
                             </div>
                         )}
                         <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
                             <span>المطلوب تحصيله</span>
-                            <span className="text-emerald-700">{amountDue.toLocaleString('ar-EG')} ج.م</span>
+                            <span className="text-emerald-700">{amountDue.toLocaleString('en-US')} ج.م</span>
                         </div>
                     </div>
 
@@ -266,7 +266,7 @@ const InvoiceCollectModal: React.FC<InvoiceCollectModalProps> = ({
                                 >
                                     {custodyAccounts.map(acc => (
                                         <option key={acc.id} value={acc.id}>
-                                            {getUserName(acc)} — رصيد: {(acc.balance || 0).toLocaleString('ar-EG')} ج.م
+                                            {getUserName(acc)} — رصيد: {(acc.balance || 0).toLocaleString('en-US')} ج.م
                                         </option>
                                     ))}
                                 </select>
@@ -289,7 +289,7 @@ const InvoiceCollectModal: React.FC<InvoiceCollectModalProps> = ({
                                 >
                                     {vaults.map(v => (
                                         <option key={v.id} value={v.id}>
-                                            {v.name_ar} — رصيد: {(v.balance || 0).toLocaleString('ar-EG')} ج.م
+                                            {v.name_ar} — رصيد: {(v.balance || 0).toLocaleString('en-US')} ج.م
                                         </option>
                                     ))}
                                 </select>

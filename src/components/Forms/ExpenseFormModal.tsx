@@ -245,10 +245,10 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
                 onBlur={() => handleBlur('category_id')}
                 className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 ${touched.category_id && errors.category_id
-                    ? 'border-red-500 focus:ring-red-500'
-                    : formData.category_id
-                      ? 'border-green-500 focus:ring-green-500'
-                      : ''
+                  ? 'border-red-500 focus:ring-red-500'
+                  : formData.category_id
+                    ? 'border-green-500 focus:ring-green-500'
+                    : ''
                   }`}
                 required
                 disabled={loading}
@@ -351,7 +351,7 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             {!formData.route_id && filteredOrders.length > 0 && (
               <p className="text-sm text-green-600 mt-1 flex items-center">
                 <ShoppingCart className="h-3 w-3 ml-1" />
-                عرض طلبات تاريخ {new Date(expenseDate).toLocaleDateString('ar-EG')}
+                عرض طلبات تاريخ {new Date(expenseDate).toLocaleDateString('en-US')}
               </p>
             )}
             {filteredOrders.length === 0 && expenseDate && (
@@ -402,10 +402,10 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
                 onBlur={() => handleBlur('amount')}
                 className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 ${touched.amount && errors.amount
-                    ? 'border-red-500 focus:ring-red-500'
-                    : formData.amount > 0
-                      ? 'border-green-500 focus:ring-green-500'
-                      : ''
+                  ? 'border-red-500 focus:ring-red-500'
+                  : formData.amount > 0
+                    ? 'border-green-500 focus:ring-green-500'
+                    : ''
                   }`}
                 placeholder="0.00"
                 min="0"
@@ -440,10 +440,10 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 onBlur={() => handleBlur('description')}
                 className={`input transition-all duration-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 pl-10 resize-none ${touched.description && errors.description
-                    ? 'border-red-500 focus:ring-red-500'
-                    : formData.description.trim()
-                      ? 'border-green-500 focus:ring-green-500'
-                      : ''
+                  ? 'border-red-500 focus:ring-red-500'
+                  : formData.description.trim()
+                    ? 'border-green-500 focus:ring-green-500'
+                    : ''
                   }`}
                 placeholder="أدخل وصف المصروف"
                 rows={3}

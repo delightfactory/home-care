@@ -48,7 +48,7 @@ export const formatDateTime = (date: Date | string): string => {
 
 export const formatCurrency = (amount: number): string => {
   // تنسيق الأرقام مع فاصلة الآلاف فقط
-  return new Intl.NumberFormat('ar-EG').format(amount)
+  return new Intl.NumberFormat('en-US').format(amount)
 }
 
 // Financial utilities - shared across components
@@ -76,11 +76,12 @@ export const getUserNameFromRelation = (relation: any): string => {
 }
 
 export const formatTime = (time: string): string => {
-  return new Date(`2000-01-01T${time}`).toLocaleTimeString('ar-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  })
+  const d = new Date(`2000-01-01T${time}`)
+  const h = d.getHours()
+  const m = d.getMinutes()
+  const period = h >= 12 ? 'م' : 'ص'
+  const h12 = h % 12 || 12
+  return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`
 }
 
 // Validation utilities

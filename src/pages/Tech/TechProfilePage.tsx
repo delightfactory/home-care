@@ -10,7 +10,7 @@ import {
 import TechLayout from '../../components/Layout/TechLayout'
 import { useTechnicianData } from '../../hooks/useTechnicianData'
 import { useAuth } from '../../hooks/useAuth'
-import { AttendanceAPI, AdvancesAPI, AdjustmentsAPI, PayrollAPI } from '../../api/hr'
+import { AttendanceAPI, AdvancesAPI, AdjustmentsAPI, PayrollAPI, PublicHolidaysAPI } from '../../api/hr'
 import { BonusesAPI, WorkerBonus } from '../../api/bonuses'
 import type { AttendanceRecord, SalaryAdvance, HrAdjustment, PayrollItem } from '../../types/hr.types'
 import { formatAmount } from '../../utils/formatters'
@@ -30,13 +30,13 @@ const TechProfilePage: React.FC = () => {
     const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
     const [viewYear, setViewYear] = useState(now.getFullYear())
 
-    // البيانات
-    const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
+    const [records, setRecords] = useState<AttendanceRecord[]>([])
     const [advances, setAdvances] = useState<SalaryAdvance[]>([])
     const [adjustments, setAdjustments] = useState<HrAdjustment[]>([])
     const [bonus, setBonus] = useState<WorkerBonus | null>(null)
     const [payrollItem, setPayrollItem] = useState<PayrollItem | null>(null)
     const [loading, setLoading] = useState(true)
+    const [holidayDates, setHolidayDates] = useState<Set<string>>(new Set())
 
     // أقسام قابلة للطى
     const [showPayroll, setShowPayroll] = useState(true)
@@ -54,19 +54,26 @@ const TechProfilePage: React.FC = () => {
         if (!workerId) return
         setLoading(true)
         try {
-            const [attendanceData, advancesData, adjustmentsData, bonusData, payrollData] = await Promise.all([
+            const [attendanceData, advancesData, adjustmentsData, bonusData, payrollData, holidays] = await Promise.all([
                 AttendanceAPI.getAttendanceByWorker(workerId, viewMonth, viewYear),
                 AdvancesAPI.getAdvancesByWorker(workerId),
                 AdjustmentsAPI.getAdjustments({ worker_id: workerId }).catch(() => []),
                 BonusesAPI.getWorkerBonuses(`${viewYear}-${String(viewMonth).padStart(2, '0')}-01`).catch(() => []),
                 PayrollAPI.getWorkerPayrollItem(workerId, viewMonth, viewYear).catch(() => null),
+                PublicHolidaysAPI.getHolidays(viewYear),
             ])
-            setAttendance(attendanceData)
+            setRecords(attendanceData)
             setAdvances(advancesData)
             setAdjustments(adjustmentsData as HrAdjustment[])
             setPayrollItem(payrollData)
             const myBonus = (bonusData as WorkerBonus[]).find(b => b.worker_id === workerId)
             setBonus(myBonus || null)
+            // بناء مجموعة تواريخ العطلات الرسمية
+            const hSet = new Set<string>()
+            for (const h of holidays) {
+                if (h.is_active) hSet.add(h.date)
+            }
+            setHolidayDates(hSet)
         } catch (err: any) {
             toast.error(err.message || 'حدث خطأ فى تحميل البيانات')
         } finally {
@@ -92,13 +99,31 @@ const TechProfilePage: React.FC = () => {
 
     const formatCurrency = (n: number) => formatAmount(n)
 
-    // حساب ملخص الحضور
-    const presentDays = attendance.filter(a => a.status === 'present' || a.status === 'late').length
-    const absentDays = attendance.filter(a => a.status === 'absent').length
-    const leaveDays = attendance.filter(a => a.status === 'leave').length
-    const holidayDays = attendance.filter(a => a.status === 'holiday').length
-    const lateDays = attendance.filter(a => a.status === 'late').length
-    const totalDays = attendance.length
+    // حساب ملخص الحضور (يشمل الأيام بدون سجل = غياب)
+    const presentDays = records.filter(a => a.status === 'present' || a.status === 'late').length
+    const recordedAbsentDays = records.filter(a => a.status === 'absent').length
+    const leaveDays = records.filter(a => a.status === 'leave').length
+    const holidayDays = records.filter(a => a.status === 'holiday').length
+    const lateDays = records.filter(a => a.status === 'late').length
+
+    // حساب الأيام الماضية بدون سجل (= غياب بدون تسجيل)
+    const unrecordedAbsentDays = (() => {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const daysInMonth = new Date(viewYear, viewMonth, 0).getDate()
+        const recordDates = new Set(records.map(r => r.date))
+        let count = 0
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+            const cellDate = new Date(viewYear, viewMonth - 1, d)
+            if (cellDate < today && !recordDates.has(dateStr) && !holidayDates.has(dateStr)) {
+                count++
+            }
+        }
+        return count
+    })()
+
+    const absentDays = recordedAbsentDays + unrecordedAbsentDays
+    const totalDays = presentDays + absentDays + leaveDays + holidayDays
 
     // حساب السلف
     const activeAdvances = advances.filter(a => a.status === 'active' || a.status === 'pending')
@@ -544,6 +569,16 @@ const TechProfilePage: React.FC = () => {
                                                         <Clock className="w-4 h-4 text-orange-500" />
                                                         <span className="text-xs text-orange-700">
                                                             {lateDays} مرة تأخير هذا الشهر
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* أيام بدون سجل */}
+                                                {unrecordedAbsentDays > 0 && (
+                                                    <div className="flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2 border border-red-100/60">
+                                                        <XCircle className="w-4 h-4 text-red-400" />
+                                                        <span className="text-xs text-red-600">
+                                                            {unrecordedAbsentDays} يوم بدون سجل (يُحسب غياب بدون أجر)
                                                         </span>
                                                     </div>
                                                 )}

@@ -13,6 +13,8 @@ import type {
 } from '../../types/hr.types'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabase'
+import WorkerAttendanceDetail from './WorkerAttendanceDetail'
+import { getMonthName } from '../../utils/formatters'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
     present: { label: 'حاضر', color: 'text-green-700', bg: 'bg-green-100', icon: UserCheck },
@@ -57,6 +59,9 @@ const AttendanceTab: React.FC = () => {
     const [bulkAbsentWorkerIds, setBulkAbsentWorkerIds] = useState<string[]>([])
     const [bulkAbsentStatus, setBulkAbsentStatus] = useState<AttendanceStatus>('absent' as AttendanceStatus)
     const [bulkAbsentNotes, setBulkAbsentNotes] = useState('')
+
+    // ⭐ عرض تفاصيل حضور عامل
+    const [workerDetail, setWorkerDetail] = useState<{ id: string; name: string; month?: number; year?: number } | null>(null)
 
     const now = new Date()
     const [summaryMonth, setSummaryMonth] = useState(now.getMonth() + 1)
@@ -248,7 +253,12 @@ const AttendanceTab: React.FC = () => {
 
     const formatTime = (dateStr: string | null) => {
         if (!dateStr) return '—'
-        return new Date(dateStr).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        const d = new Date(dateStr)
+        const h = d.getHours()
+        const m = d.getMinutes()
+        const period = h >= 12 ? 'م' : 'ص'
+        const h12 = h % 12 || 12
+        return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`
     }
 
     const filteredRecords = records.filter(r => {
@@ -337,7 +347,7 @@ const AttendanceTab: React.FC = () => {
                             >
                                 {Array.from({ length: 12 }, (_, i) => (
                                     <option key={i + 1} value={i + 1}>
-                                        {new Date(2024, i).toLocaleDateString('ar-EG', { month: 'long' })}
+                                        {getMonthName(i)}
                                     </option>
                                 ))}
                             </select>
@@ -450,8 +460,16 @@ const AttendanceTab: React.FC = () => {
                                     const canCheckOut = (record.status === 'present' || record.status === 'late') && record.check_in_time && !record.check_out_time
                                     return (
                                         <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="py-3 px-3 font-medium text-gray-900">
-                                                {(record.worker as any)?.name || '—'}
+                                            <td className="py-3 px-3">
+                                                <button
+                                                    onClick={() => setWorkerDetail({
+                                                        id: record.worker_id,
+                                                        name: (record.worker as any)?.name || 'عامل',
+                                                    })}
+                                                    className="font-medium text-blue-700 hover:text-blue-900 hover:underline transition-colors text-right"
+                                                >
+                                                    {(record.worker as any)?.name || '—'}
+                                                </button>
                                             </td>
                                             <td className="py-3 px-3 text-center">
                                                 <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.color}`}>
@@ -541,7 +559,19 @@ const AttendanceTab: React.FC = () => {
                             ) : (
                                 summary.map((s) => (
                                     <tr key={s.worker_id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="py-3 px-3 font-medium text-gray-900">{s.worker_name}</td>
+                                        <td className="py-3 px-3">
+                                            <button
+                                                onClick={() => setWorkerDetail({
+                                                    id: s.worker_id,
+                                                    name: s.worker_name,
+                                                    month: summaryMonth,
+                                                    year: summaryYear,
+                                                })}
+                                                className="font-medium text-blue-700 hover:text-blue-900 hover:underline transition-colors text-right"
+                                            >
+                                                {s.worker_name}
+                                            </button>
+                                        </td>
                                         <td className="py-3 px-3 text-center">
                                             <span className="text-green-600 font-semibold">{s.present_days}</span>
                                         </td>
@@ -942,6 +972,17 @@ const AttendanceTab: React.FC = () => {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {/* ⭐ Worker Attendance Detail Modal */}
+            {workerDetail && (
+                <WorkerAttendanceDetail
+                    workerId={workerDetail.id}
+                    workerName={workerDetail.name}
+                    initialMonth={workerDetail.month}
+                    initialYear={workerDetail.year}
+                    onClose={() => setWorkerDetail(null)}
+                />
             )}
         </div>
     )

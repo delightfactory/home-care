@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Calendar, Clock, ChevronLeft, ChevronRight, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { formatDate as fmtDate, formatDateTime as fmtDateTime, getMonthName } from '../../utils/formatters'
 
 // Helper functions to ensure local-timezone ISO strings (avoid previous-day bug)
 const toLocalDateISO = (date: Date) => {
@@ -55,7 +56,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -105,31 +106,22 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const formatDisplayValue = () => {
     if (!value) return ''
-    
+
     if (type === 'date') {
-      return new Date(value).toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+      return fmtDate(value)
     }
     if (type === 'time') {
       return value
     }
     if (type === 'datetime') {
-      const date = new Date(value)
-      return `${date.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })} ${date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}`
+      return fmtDateTime(value)
     }
     return value
   }
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date)
-    
+
     if (type === 'date') {
       onChange(toLocalDateISO(date))
       setIsOpen(false)
@@ -142,7 +134,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const handleTimeChange = (hours: number, minutes: number) => {
     setSelectedTime({ hours, minutes })
-    
+
     if (type === 'time') {
       onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
       // Don't auto-close when changing time via increment buttons
@@ -156,7 +148,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const handlePresetTimeSelect = (hours: number, minutes: number) => {
     setSelectedTime({ hours, minutes })
-    
+
     if (type === 'time') {
       onChange(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
       if (!isMobile) setIsOpen(false) // Close on preset selection for desktop
@@ -169,13 +161,13 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const incrementTime = (unit: 'hours' | 'minutes', increment: number) => {
     const newTime = { ...selectedTime }
-    
+
     if (unit === 'hours') {
       newTime.hours = (newTime.hours + increment + 24) % 24
     } else {
       newTime.minutes = (newTime.minutes + increment + 60) % 60
     }
-    
+
     handleTimeChange(newTime.hours, newTime.minutes)
   }
 
@@ -186,19 +178,19 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     const lastDay = new Date(year, month + 1, 0)
     const daysInMonth = lastDay.getDate()
     const startingDayOfWeek = firstDay.getDay()
-    
+
     const days = []
-    
+
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null)
     }
-    
+
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day))
     }
-    
+
     return days
   }
 
@@ -225,7 +217,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const renderCalendar = () => {
     const days = getDaysInMonth(currentMonth)
     const weekDays = ['أح', 'إث', 'ث', 'أر', 'خ', 'ج', 'س']
-    
+
     return (
       <div className={`${isMobile ? 'p-4' : 'p-6'}`}>
         {/* Month Navigation */}
@@ -237,11 +229,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           >
             <ChevronRight className="h-5 w-5" />
           </button>
-          
+
           <h3 className="text-lg font-bold text-gray-900">
-            {currentMonth.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' })}
+            {getMonthName(currentMonth.getMonth())} {currentMonth.getFullYear()}
           </h3>
-          
+
           <button
             type="button"
             onClick={() => navigateMonth('next')}
@@ -250,7 +242,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             <ChevronLeft className="h-5 w-5" />
           </button>
         </div>
-        
+
         {/* Week Days */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {weekDays.map(day => (
@@ -259,18 +251,18 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             </div>
           ))}
         </div>
-        
+
         {/* Calendar Days */}
         <div className="grid grid-cols-7 gap-1">
           {days.map((day, index) => {
             if (!day) {
               return <div key={index} className="p-3" />
             }
-            
+
             const isSelected = selectedDate && day.toDateString() === selectedDate.toDateString()
             const isToday = day.toDateString() === new Date().toDateString()
             const disabled = isDateDisabled(day)
-            
+
             return (
               <button
                 key={index}
@@ -283,10 +275,10 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
                   ${isSelected
                     ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg transform scale-105'
                     : isToday
-                    ? 'bg-primary-100 text-primary-700 border-2 border-primary-300'
-                    : disabled
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+                      ? 'bg-primary-100 text-primary-700 border-2 border-primary-300'
+                      : disabled
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
                   }
                 `}
               >
@@ -307,7 +299,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
       <div className={`${isMobile ? 'p-4' : 'p-6'} border-t border-gray-200`}>
         <div className="text-center mb-6">
           <h4 className="text-lg font-semibold text-gray-900 mb-4">اختر الوقت</h4>
-          
+
           {/* Time Display */}
           <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-6 mb-6">
             <div className="text-4xl font-bold text-primary-700 mb-2">
@@ -318,7 +310,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             </div>
           </div>
         </div>
-        
+
         {/* Enhanced Time Controls */}
         <div className="flex items-center justify-center space-x-8 space-x-reverse">
           {/* Hours Control */}
@@ -332,11 +324,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               >
                 <ChevronUp className="h-5 w-5 mx-auto" />
               </button>
-              
+
               <div className="text-2xl font-bold text-gray-800 py-2 px-4 bg-gray-50 rounded-xl min-w-[60px]">
                 {selectedTime.hours.toString().padStart(2, '0')}
               </div>
-              
+
               <button
                 type="button"
                 onClick={() => incrementTime('hours', -1)}
@@ -346,10 +338,10 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               </button>
             </div>
           </div>
-          
+
           {/* Separator */}
           <div className="text-3xl font-bold text-gray-400 mt-8">:</div>
-          
+
           {/* Minutes Control */}
           <div className="text-center">
             <label className="block text-sm font-semibold text-gray-700 mb-3">الدقيقة</label>
@@ -361,11 +353,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               >
                 <ChevronUp className="h-5 w-5 mx-auto" />
               </button>
-              
+
               <div className="text-2xl font-bold text-gray-800 py-2 px-4 bg-gray-50 rounded-xl min-w-[60px]">
                 {selectedTime.minutes.toString().padStart(2, '0')}
               </div>
-              
+
               <button
                 type="button"
                 onClick={() => incrementTime('minutes', -5)}
@@ -376,7 +368,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             </div>
           </div>
         </div>
-        
+
         {/* Quick Time Presets */}
         <div className="mt-6">
           <div className="text-sm font-semibold text-gray-700 mb-3 text-center">أوقات سريعة</div>
@@ -411,11 +403,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const renderMobileModal = () => (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={() => setIsOpen(false)}
       />
-      
+
       {/* Modal */}
       <div className="relative bg-white rounded-t-3xl shadow-2xl w-full max-h-[85vh] overflow-hidden animate-slide-up">
         {/* Header */}
@@ -431,13 +423,13 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             <X className="h-6 w-6" />
           </button>
         </div>
-        
+
         {/* Content */}
         <div className="overflow-y-auto max-h-[65vh]">
           {(type === 'date' || type === 'datetime') && renderCalendar()}
           {(type === 'time' || type === 'datetime') && renderEnhancedTimePicker()}
         </div>
-        
+
         {/* Footer */}
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <button
@@ -467,13 +459,13 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           <X className="h-4 w-4" />
         </button>
       </div>
-      
+
       {/* Content */}
       <div className="max-h-[500px] overflow-y-auto">
         {(type === 'date' || type === 'datetime') && renderCalendar()}
         {(type === 'time' || type === 'datetime') && renderEnhancedTimePicker()}
       </div>
-      
+
       {/* Footer for datetime and time */}
       {(type === 'datetime' || type === 'time') && (
         <div className="p-4 border-t border-gray-200 bg-gray-50">
@@ -492,9 +484,8 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   return (
     <div className="space-y-2 relative" ref={containerRef}>
       {label && (
-        <label className={`flex items-center label text-gray-700 font-medium ${
-          required ? 'label-required' : ''
-        }`}>
+        <label className={`flex items-center label text-gray-700 font-medium ${required ? 'label-required' : ''
+          }`}>
           {type === 'time' ? (
             <Clock className="h-4 w-4 ml-2 text-primary-500" />
           ) : (
@@ -503,7 +494,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           {label}
         </label>
       )}
-      
+
       <div className="relative">
         <input
           ref={inputRef}
@@ -511,7 +502,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           name={name}
           value={formatDisplayValue()}
           onClick={() => !disabled && setIsOpen(true)}
-          onChange={() => {}} // Controlled by picker
+          onChange={() => { }} // Controlled by picker
           placeholder={placeholder}
           disabled={disabled}
           required={required}
@@ -524,7 +515,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             ${className}
           `}
         />
-        
+
         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
           {type === 'time' ? (
             <Clock className={`h-5 w-5 ${value ? 'text-green-500' : 'text-gray-400'}`} />
@@ -532,7 +523,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
             <Calendar className={`h-5 w-5 ${value ? 'text-green-500' : 'text-gray-400'}`} />
           )}
         </div>
-        
+
         {value && !disabled && (
           <button
             type="button"
@@ -548,14 +539,14 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           </button>
         )}
       </div>
-      
+
       {error && (
         <p className="text-sm text-red-600 mt-1 animate-bounce-in flex items-center">
           <X className="h-4 w-4 ml-1" />
           {error}
         </p>
       )}
-      
+
       {/* Render picker based on device */}
       {isOpen && (isMobile ? renderMobileModal() : renderDesktopDropdown())}
     </div>

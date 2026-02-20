@@ -4,9 +4,15 @@
  */
 
 // تحويل الأرقام العربية/الفارسية إلى إنجليزية
-const toEnglishDigits = (str: string): string =>
+export const toEnglishDigits = (str: string): string =>
   str.replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+
+const MONTHS_AR = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+]
+const DAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 
 /** تنسيق رقم بأرقام إنجليزية مع فواصل آلاف */
 export const formatNumber = (n: number | null | undefined): string => {
@@ -48,22 +54,41 @@ export const formatTime = (iso: string | null | undefined): string => {
 export const formatDate = (iso: string | null | undefined): string => {
   if (!iso) return '—'
   const date = new Date(iso)
-  const months = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-  ]
-  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+  return `${date.getDate()} ${MONTHS_AR[date.getMonth()]} ${date.getFullYear()}`
+}
+
+/** تنسيق تاريخ مختصر: "16/02" بأرقام إنجليزية */
+export const formatDateShort = (iso: string | null | undefined): string => {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** تنسيق تاريخ ووقت: "16 فبراير 2026 02:35 م" */
+export const formatDateTime = (iso: string | null | undefined): string => {
+  if (!iso) return '—'
+  return `${formatDate(iso)} ${formatTime(iso)}`
+}
+
+/** تنسيق اسم الشهر والسنة: "فبراير 2026" */
+export const formatMonthYear = (month: number, year: number): string => {
+  return `${MONTHS_AR[month - 1]} ${year}`
+}
+
+/** اسم الشهر فقط: "فبراير" */
+export const getMonthName = (monthIndex: number): string => {
+  return MONTHS_AR[monthIndex] || ''
+}
+
+/** اسم اليوم: "الاثنين" */
+export const getWeekdayName = (date: Date): string => {
+  return DAYS_AR[date.getDay()] || ''
 }
 
 /** تنسيق تاريخ مع اليوم: "الاثنين، 16 فبراير 2026" */
 export const formatDateFull = (iso?: string): string => {
   const date = iso ? new Date(iso) : new Date()
-  const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
-  const months = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-  ]
-  return `${days[date.getDay()]}، ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+  return `${DAYS_AR[date.getDay()]}، ${date.getDate()} ${MONTHS_AR[date.getMonth()]} ${date.getFullYear()}`
 }
 
 /** تنسيق نسبة مئوية */

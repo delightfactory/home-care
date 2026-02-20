@@ -98,7 +98,7 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
                         </div>
                         <div>
                             <h3 className="font-bold text-gray-800">تسوية عهدة</h3>
-                            <p className="text-xs text-gray-500">{getUserName(account)} — رصيد: {(account.balance || 0).toLocaleString('ar-EG')} ج.م</p>
+                            <p className="text-xs text-gray-500">{getUserName(account)} — رصيد: {(account.balance || 0).toLocaleString('en-US')} ج.م</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
@@ -160,7 +160,7 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
                                 {effectiveTarget === 'vault' ? (
                                     vaults.map(v => (
                                         <option key={v.id} value={v.id}>
-                                            {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('ar-EG')} ج.م)
+                                            {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('en-US')} ج.م)
                                         </option>
                                     ))
                                 ) : (
@@ -195,7 +195,7 @@ const CustodySettleModal: React.FC<CustodySettleModalProps> = ({
                             onClick={handleFullAmount}
                             className="mt-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium"
                         >
-                            تسوية كامل المبلغ ({(account.balance || 0).toLocaleString('ar-EG')} ج.م)
+                            تسوية كامل المبلغ ({(account.balance || 0).toLocaleString('en-US')} ج.م)
                         </button>
                     </div>
 

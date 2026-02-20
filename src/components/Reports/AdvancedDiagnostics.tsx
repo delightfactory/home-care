@@ -83,11 +83,11 @@ const AdvancedDiagnostics: React.FC<AdvancedDiagnosticsProps> = ({ timeRange = '
     const labels = metrics.map(m => {
       const date = new Date(m.timestamp);
       if (timeRange === '1h') {
-        return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       } else if (timeRange === '6h' || timeRange === '24h') {
-        return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       } else {
-        return date.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }
     });
 
@@ -338,7 +338,7 @@ const AdvancedDiagnostics: React.FC<AdvancedDiagnosticsProps> = ({ timeRange = '
               </div>
             </div>
           )}
-          
+
           {averageMetrics && averageMetrics.memory > 85 && (
             <div className="flex items-start space-x-3 rtl:space-x-reverse p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <TrendingUp className="h-5 w-5 text-yellow-600 mt-0.5" />
@@ -348,7 +348,7 @@ const AdvancedDiagnostics: React.FC<AdvancedDiagnosticsProps> = ({ timeRange = '
               </div>
             </div>
           )}
-          
+
           {averageMetrics && averageMetrics.responseTime > 200 && (
             <div className="flex items-start space-x-3 rtl:space-x-reverse p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <TrendingDown className="h-5 w-5 text-orange-600 mt-0.5" />
@@ -358,7 +358,7 @@ const AdvancedDiagnostics: React.FC<AdvancedDiagnosticsProps> = ({ timeRange = '
               </div>
             </div>
           )}
-          
+
           {averageMetrics && averageMetrics.cpu < 50 && averageMetrics.memory < 70 && averageMetrics.responseTime < 150 && (
             <div className="flex items-start space-x-3 rtl:space-x-reverse p-3 bg-green-50 border border-green-200 rounded-lg">
               <Activity className="h-5 w-5 text-green-600 mt-0.5" />

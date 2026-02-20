@@ -170,7 +170,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString('ar-EG', {
+      return new Date(dateStr).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -183,7 +183,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
   // تنسيق التاريخ مع الوقت بشكل مفصل
   const formatDateTime = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleString('ar-EG', {
+      return new Date(dateStr).toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -201,7 +201,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
       const [hours, minutes] = timeStr.split(':')
       const date = new Date()
       date.setHours(parseInt(hours), parseInt(minutes))
-      return date.toLocaleTimeString('ar-EG', {
+      return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
@@ -321,7 +321,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                   </div>
                   <div className="text-left">
                     <p className="text-sm opacity-90">تاريخ الطباعة</p>
-                    <p className="text-base font-semibold">{new Date().toLocaleDateString('ar-EG')}</p>
+                    <p className="text-base font-semibold">{new Date().toLocaleDateString('en-US')}</p>
                   </div>
                 </div>
 
@@ -428,9 +428,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                         <span className="font-semibold text-gray-700">الحالة:</span>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
+                        order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
                         }`}>
                         {getStatusText(order.status)}
                       </span>
@@ -441,8 +441,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                         <span className="font-semibold text-gray-700">الدفع:</span>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs font-medium ${order.payment_status === 'paid_cash' || order.payment_status === 'paid_card'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                         }`}>
                         {getPaymentStatusText(order.payment_status)}
                       </span>
@@ -618,16 +618,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
                     {order.status_logs.map((log) => (
                       <div key={log.id} className="flex items-start gap-3 bg-white rounded p-3 border border-gray-200">
                         <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${log.status === 'completed' ? 'bg-green-500' :
-                            log.status === 'in_progress' ? 'bg-blue-500' :
-                              log.status === 'cancelled' ? 'bg-red-500' :
-                                'bg-yellow-500'
+                          log.status === 'in_progress' ? 'bg-blue-500' :
+                            log.status === 'cancelled' ? 'bg-red-500' :
+                              'bg-yellow-500'
                           }`}></div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className={`font-semibold px-2 py-1 rounded text-xs ${log.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                log.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                                  log.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                    'bg-yellow-100 text-yellow-800'
+                              log.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                log.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  'bg-yellow-100 text-yellow-800'
                               }`}>{getStatusText(log.status)}</span>
                             <div className="text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:gap-1">
                               <span>{(log as any).created_by_user?.full_name || 'غير معروف'}</span>

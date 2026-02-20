@@ -20,7 +20,7 @@ const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
     onCollect
 }) => {
     const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('ar-EG', {
+        return new Date(date).toLocaleDateString('en-US', {
             year: 'numeric', month: 'long', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
         })
@@ -63,7 +63,7 @@ const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
                         <div className="text-left">
                             <p className="text-xs text-gray-500 mb-1">المبلغ الإجمالي</p>
                             <p className="text-2xl font-bold text-gray-800">
-                                {invoice.total_amount?.toLocaleString('ar-EG')} <span className="text-sm text-gray-500">ج.م</span>
+                                {invoice.total_amount?.toLocaleString('en-US')} <span className="text-sm text-gray-500">ج.م</span>
                             </p>
                         </div>
                     </div>
@@ -88,7 +88,7 @@ const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
                         <InfoItem
                             icon={DollarSign}
                             label="الخصم"
-                            value={invoice.discount ? `${invoice.discount.toLocaleString('ar-EG')} ج.م` : 'لا يوجد'}
+                            value={invoice.discount ? `${invoice.discount.toLocaleString('en-US')} ج.م` : 'لا يوجد'}
                         />
                     </div>
 
@@ -107,11 +107,11 @@ const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
                                                 {item.service?.name_ar || item.service?.name || item.description || 'بند'}
                                             </p>
                                             <p className="text-xs text-gray-500">
-                                                {item.quantity} × {item.unit_price?.toLocaleString('ar-EG')} ج.م
+                                                {item.quantity} × {item.unit_price?.toLocaleString('en-US')} ج.م
                                             </p>
                                         </div>
                                         <span className="text-sm font-bold text-gray-800">
-                                            {item.total_price?.toLocaleString('ar-EG') || (item.quantity * item.unit_price)?.toLocaleString('ar-EG')} ج.م
+                                            {item.total_price?.toLocaleString('en-US') || (item.quantity * item.unit_price)?.toLocaleString('en-US')} ج.م
                                         </span>
                                     </div>
                                 ))}
@@ -170,8 +170,8 @@ const InvoiceDetailsModal: React.FC<InvoiceDetailsModalProps> = ({
                             <button
                                 onClick={() => { onCancel(invoice.id); onClose() }}
                                 className={`w-full py-2.5 rounded-xl text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 ${['paid', 'confirmed', 'partially_paid'].includes(invoice.status)
-                                        ? 'bg-red-600 hover:bg-red-700'
-                                        : 'bg-red-500 hover:bg-red-600'
+                                    ? 'bg-red-600 hover:bg-red-700'
+                                    : 'bg-red-500 hover:bg-red-600'
                                     }`}
                             >
                                 <X className="w-4 h-4" />

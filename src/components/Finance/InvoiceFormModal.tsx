@@ -441,7 +441,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                                             <div className="pt-2 border-t border-dashed border-gray-300 flex justify-between items-center">
                                                 <span className="text-xs text-gray-500">إجمالي البند</span>
                                                 <span className="text-sm font-bold text-gray-800">
-                                                    {item.total_price.toLocaleString('ar-EG')} ج.م
+                                                    {item.total_price.toLocaleString('en-US')} ج.م
                                                 </span>
                                             </div>
                                         )}
@@ -468,17 +468,17 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({
                     <div className="bg-gradient-to-l from-blue-50 to-emerald-50 rounded-xl p-4 space-y-2">
                         <div className="flex justify-between text-sm text-gray-600">
                             <span>المجموع الفرعي</span>
-                            <span className="font-medium">{subtotal.toLocaleString('ar-EG')} ج.م</span>
+                            <span className="font-medium">{subtotal.toLocaleString('en-US')} ج.م</span>
                         </div>
                         {discount > 0 && (
                             <div className="flex justify-between text-sm text-red-600">
                                 <span>الخصم</span>
-                                <span className="font-medium">- {discount.toLocaleString('ar-EG')} ج.م</span>
+                                <span className="font-medium">- {discount.toLocaleString('en-US')} ج.م</span>
                             </div>
                         )}
                         <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-200">
                             <span>الإجمالي</span>
-                            <span className="text-emerald-700">{totalAmount.toLocaleString('ar-EG')} ج.م</span>
+                            <span className="text-emerald-700">{totalAmount.toLocaleString('en-US')} ج.م</span>
                         </div>
                     </div>
                 </div>

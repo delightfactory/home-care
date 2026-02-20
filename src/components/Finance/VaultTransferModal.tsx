@@ -90,7 +90,7 @@ const VaultTransferModal: React.FC<VaultTransferModalProps> = ({
                             <option value="">اختر الخزنة</option>
                             {vaults.map(v => (
                                 <option key={v.id} value={v.id} disabled={v.id === toVault}>
-                                    {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('ar-EG')} ج.م)
+                                    {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('en-US')} ج.م)
                                 </option>
                             ))}
                         </select>
@@ -107,7 +107,7 @@ const VaultTransferModal: React.FC<VaultTransferModalProps> = ({
                             <option value="">اختر الخزنة</option>
                             {vaults.map(v => (
                                 <option key={v.id} value={v.id} disabled={v.id === fromVault}>
-                                    {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('ar-EG')} ج.م)
+                                    {v.name_ar || v.name} ({(v.balance || 0).toLocaleString('en-US')} ج.م)
                                 </option>
                             ))}
                         </select>
@@ -130,7 +130,7 @@ const VaultTransferModal: React.FC<VaultTransferModalProps> = ({
                         </div>
                         {selectedFrom && (
                             <p className="text-xs text-gray-400 mt-1">
-                                الرصيد المتاح: {(selectedFrom.balance || 0).toLocaleString('ar-EG')} ج.م
+                                الرصيد المتاح: {(selectedFrom.balance || 0).toLocaleString('en-US')} ج.م
                             </p>
                         )}
                     </div>

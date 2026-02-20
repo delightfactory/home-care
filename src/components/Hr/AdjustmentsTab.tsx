@@ -12,6 +12,7 @@ import type {
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
+import { formatDate } from '../../utils/formatters'
 
 const typeConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
     bonus: { label: 'مكافأة', color: 'text-green-700', bg: 'bg-green-100', icon: TrendingUp },
@@ -154,7 +155,7 @@ const AdjustmentsTab: React.FC = () => {
     }
 
     const formatCurrency = (n: number) =>
-        new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+        new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
     // إحصائيات
     const totalBonuses = adjustments.filter(a => a.type === 'bonus' && !a.is_processed).reduce((s, a) => s + a.amount, 0)
@@ -245,12 +246,12 @@ const AdjustmentsTab: React.FC = () => {
                                             {adj.reason}
                                         </td>
                                         <td className="py-3 px-3 text-center text-gray-500 hidden md:table-cell">
-                                            {new Date(adj.date).toLocaleDateString('ar-EG')}
+                                            {formatDate(adj.date)}
                                         </td>
                                         <td className="py-3 px-3 text-center">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${adj.is_processed
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-gray-100 text-gray-600'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-gray-100 text-gray-600'
                                                 }`}>
                                                 {adj.is_processed ? 'تمت المعالجة' : 'معلقة'}
                                             </span>
@@ -324,8 +325,8 @@ const AdjustmentsTab: React.FC = () => {
                                                 type="button"
                                                 onClick={() => setFormType(key as AdjustmentType)}
                                                 className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${formType === key
-                                                        ? `${config.bg} ${config.color} border-current`
-                                                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                    ? `${config.bg} ${config.color} border-current`
+                                                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
                                                     }`}
                                             >
                                                 <Icon className="w-3.5 h-3.5" />

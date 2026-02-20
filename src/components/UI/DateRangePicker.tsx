@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Calendar, X } from 'lucide-react'
 import DateTimePicker from './DateTimePicker'
 import { toLocalDateISO } from '../../api'
+import { formatDate as fmtDate } from '../../utils/formatters'
 
 interface DateRangePickerProps {
   startDate?: string
@@ -43,7 +44,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -113,22 +114,13 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   const formatDisplayValue = () => {
     if (!startDate && !endDate) return ''
-    
-    const formatDate = (dateStr: string) => {
-      if (!dateStr) return ''
-      return new Date(dateStr).toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })
-    }
 
     if (startDate && endDate) {
-      return `${formatDate(startDate)} - ${formatDate(endDate)}`
+      return `${fmtDate(startDate)} - ${fmtDate(endDate)}`
     } else if (startDate) {
-      return `من ${formatDate(startDate)}`
+      return `من ${fmtDate(startDate)}`
     } else if (endDate) {
-      return `إلى ${formatDate(endDate)}`
+      return `إلى ${fmtDate(endDate)}`
     }
     return ''
   }
@@ -136,7 +128,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const handlePresetSelect = (preset: string) => {
     const today = new Date()
     const todayStr = toLocalDateISO(today)
-    
+
     switch (preset) {
       case 'today':
         onStartDateChange(todayStr)
@@ -225,7 +217,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
           {label}
         </label>
       )}
-      
+
       <div className="relative">
         <input
           type="text"
@@ -246,11 +238,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             ${className}
           `}
         />
-        
+
         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
           <Calendar className={`h-5 w-5 ${formatDisplayValue() ? 'text-green-500' : 'text-gray-400'}`} />
         </div>
-        
+
         {formatDisplayValue() && !disabled && (
           <button
             type="button"
@@ -264,20 +256,20 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
           </button>
         )}
       </div>
-      
+
       {error && (
         <p className="text-sm text-red-600">{error}</p>
       )}
-      
+
       {/* Dropdown Panel - Mobile Modal */}
       {isOpen && isMobile && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
             onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Modal */}
           <div className="relative bg-white rounded-t-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
             {/* Header */}
@@ -293,7 +285,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 <X className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
-            
+
             {/* Content */}
             <div className="overflow-y-auto max-h-[70vh] p-4 sm:p-6">
               {/* Presets */}
@@ -314,7 +306,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {/* Date Inputs */}
               <div className="space-y-4">
                 <div>
@@ -341,7 +333,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
               <div className="flex space-x-3 rtl:space-x-reverse">
@@ -367,7 +359,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
       {/* Dropdown Panel - Desktop */}
       {isOpen && !isMobile && (
-        <div 
+        <div
           ref={dropdownRef}
           style={dropdownStyles}
           className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-lg w-full sm:w-auto sm:min-w-[500px] lg:min-w-[600px] max-w-[95vw]"
@@ -391,7 +383,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 </div>
               </div>
             )}
-            
+
             {/* Date Inputs */}
             <div className="flex-1 p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -418,7 +410,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   />
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 rtl:space-x-reverse pt-3 border-t border-gray-200">
                 <button
                   type="button"

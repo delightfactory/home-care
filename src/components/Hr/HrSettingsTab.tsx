@@ -7,6 +7,7 @@ import {
 import { PublicHolidaysAPI, PenaltyRulesAPI } from '../../api/hr'
 import type { PublicHoliday, PenaltyRule } from '../../types/hr.types'
 import toast from 'react-hot-toast'
+import { getWeekdayName, getMonthName } from '../../utils/formatters'
 
 const HrSettingsTab: React.FC = () => {
     // ═══════ State ═══════
@@ -256,7 +257,7 @@ const HrSettingsTab: React.FC = () => {
                             {holidays.map((h) => {
                                 const isEditing = editingHolidayId === h.id
                                 const dateObj = new Date(h.date + 'T00:00:00')
-                                const dayName = dateObj.toLocaleDateString('ar-EG', { weekday: 'long' })
+                                const dayName = getWeekdayName(dateObj)
 
                                 return (
                                     <div
@@ -271,7 +272,7 @@ const HrSettingsTab: React.FC = () => {
                                                 {dateObj.getDate()}
                                             </span>
                                             <span className="text-[10px] text-gray-500">
-                                                {dateObj.toLocaleDateString('ar-EG', { month: 'short' })}
+                                                {getMonthName(dateObj.getMonth())}
                                             </span>
                                         </div>
 
@@ -354,162 +355,165 @@ const HrSettingsTab: React.FC = () => {
                         </div>
                     )}
                 </div>
-            )}
+            )
+            }
 
             {/* ═══════ Penalty Rules Section ═══════ */}
-            {activeSection === 'penalties' && (
-                <div className="space-y-3">
-                    <p className="text-sm text-gray-500">
-                        قواعد الجزاءات التلقائية المطبّقة عند حساب الرواتب.
-                        يمكنك تعديل القيم أو تعطيل/تفعيل كل قاعدة.
-                    </p>
+            {
+                activeSection === 'penalties' && (
+                    <div className="space-y-3">
+                        <p className="text-sm text-gray-500">
+                            قواعد الجزاءات التلقائية المطبّقة عند حساب الرواتب.
+                            يمكنك تعديل القيم أو تعطيل/تفعيل كل قاعدة.
+                        </p>
 
-                    {loadingRules ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                        </div>
-                    ) : rules.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                            <Shield className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                            <p>لا توجد قواعد جزاءات</p>
-                            <p className="text-xs mt-1">شغّل الميجريشن 210 أولاً</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {rules.map((rule) => {
-                                const isEditing = editingRuleId === rule.id
-                                const isGrace = rule.name === 'grace_period'
+                        {loadingRules ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                            </div>
+                        ) : rules.length === 0 ? (
+                            <div className="text-center py-12 text-gray-400">
+                                <Shield className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                <p>لا توجد قواعد جزاءات</p>
+                                <p className="text-xs mt-1">شغّل الميجريشن 210 أولاً</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {rules.map((rule) => {
+                                    const isEditing = editingRuleId === rule.id
+                                    const isGrace = rule.name === 'grace_period'
 
-                                return (
-                                    <div
-                                        key={rule.id}
-                                        className={`bg-white border rounded-xl overflow-hidden transition-all ${rule.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'
-                                            }`}
-                                    >
-                                        {/* Header */}
-                                        <div className="flex items-center gap-3 p-3 sm:p-4">
-                                            <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${isGrace ? 'bg-green-50' : 'bg-orange-50'
-                                                }`}>
-                                                <Clock className={`w-5 h-5 ${isGrace ? 'text-green-600' : 'text-orange-600'}`} />
-                                            </div>
+                                    return (
+                                        <div
+                                            key={rule.id}
+                                            className={`bg-white border rounded-xl overflow-hidden transition-all ${rule.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'
+                                                }`}
+                                        >
+                                            {/* Header */}
+                                            <div className="flex items-center gap-3 p-3 sm:p-4">
+                                                <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${isGrace ? 'bg-green-50' : 'bg-orange-50'
+                                                    }`}>
+                                                    <Clock className={`w-5 h-5 ${isGrace ? 'text-green-600' : 'text-orange-600'}`} />
+                                                </div>
 
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-sm text-gray-900">{rule.name_ar}</p>
-                                                <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
-                                                    <span>{rule.min_minutes}–{rule.max_minutes ?? '∞'} دقيقة</span>
-                                                    {isGrace ? (
-                                                        <span className="text-green-600 font-semibold">سماح {rule.grace_count} مرات</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold text-sm text-gray-900">{rule.name_ar}</p>
+                                                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                                                        <span>{rule.min_minutes}–{rule.max_minutes ?? '∞'} دقيقة</span>
+                                                        {isGrace ? (
+                                                            <span className="text-green-600 font-semibold">سماح {rule.grace_count} مرات</span>
+                                                        ) : (
+                                                            <span className="text-orange-600 font-semibold">
+                                                                {rule.deduction_days === 0 ? 'إنذار' : `خصم ${rule.deduction_days} يوم`}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    {isEditing ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleSaveRule(rule.id)}
+                                                                className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                                                            >
+                                                                <Check className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => { setEditingRuleId(null); setEditRuleValues({}) }}
+                                                                className="p-1.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </>
                                                     ) : (
-                                                        <span className="text-orange-600 font-semibold">
-                                                            {rule.deduction_days === 0 ? 'إنذار' : `خصم ${rule.deduction_days} يوم`}
-                                                        </span>
+                                                        <>
+                                                            <button
+                                                                onClick={() => startEditRule(rule)}
+                                                                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                                                            >
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleToggleRule(rule)}
+                                                                className={`p-1.5 rounded-lg ${rule.is_active
+                                                                    ? 'text-green-600 hover:bg-green-50'
+                                                                    : 'text-gray-400 hover:bg-gray-100'
+                                                                    }`}
+                                                            >
+                                                                {rule.is_active ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+                                                            </button>
+                                                        </>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-1 flex-shrink-0">
-                                                {isEditing ? (
-                                                    <>
-                                                        <button
-                                                            onClick={() => handleSaveRule(rule.id)}
-                                                            className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
-                                                        >
-                                                            <Check className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => { setEditingRuleId(null); setEditRuleValues({}) }}
-                                                            className="p-1.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <button
-                                                            onClick={() => startEditRule(rule)}
-                                                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-                                                        >
-                                                            <Edit3 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleToggleRule(rule)}
-                                                            className={`p-1.5 rounded-lg ${rule.is_active
-                                                                ? 'text-green-600 hover:bg-green-50'
-                                                                : 'text-gray-400 hover:bg-gray-100'
-                                                                }`}
-                                                        >
-                                                            {rule.is_active ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
+                                            {/* Edit Form */}
+                                            {isEditing && (
+                                                <div className="border-t border-gray-100 px-3 sm:px-4 py-3 bg-gray-50/60">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-400 mb-1">الاسم</label>
+                                                            <input
+                                                                type="text"
+                                                                value={editRuleValues.name_ar || ''}
+                                                                onChange={(e) => setEditRuleValues(v => ({ ...v, name_ar: e.target.value }))}
+                                                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-400 mb-1">من (دقيقة)</label>
+                                                            <input
+                                                                type="number"
+                                                                value={editRuleValues.min_minutes ?? 0}
+                                                                onChange={(e) => setEditRuleValues(v => ({ ...v, min_minutes: Number(e.target.value) }))}
+                                                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-400 mb-1">إلى (دقيقة)</label>
+                                                            <input
+                                                                type="number"
+                                                                value={editRuleValues.max_minutes ?? ''}
+                                                                onChange={(e) => setEditRuleValues(v => ({ ...v, max_minutes: e.target.value ? Number(e.target.value) : null }))}
+                                                                placeholder="∞"
+                                                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                                            />
+                                                        </div>
+                                                        {isGrace ? (
+                                                            <div>
+                                                                <label className="block text-[10px] text-gray-400 mb-1">عدد مرات السماح</label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={editRuleValues.grace_count ?? 0}
+                                                                    onChange={(e) => setEditRuleValues(v => ({ ...v, grace_count: Number(e.target.value) }))}
+                                                                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div>
+                                                                <label className="block text-[10px] text-gray-400 mb-1">خصم (أيام)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.25"
+                                                                    value={editRuleValues.deduction_days ?? 0}
+                                                                    onChange={(e) => setEditRuleValues(v => ({ ...v, deduction_days: Number(e.target.value) }))}
+                                                                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-
-                                        {/* Edit Form */}
-                                        {isEditing && (
-                                            <div className="border-t border-gray-100 px-3 sm:px-4 py-3 bg-gray-50/60">
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-400 mb-1">الاسم</label>
-                                                        <input
-                                                            type="text"
-                                                            value={editRuleValues.name_ar || ''}
-                                                            onChange={(e) => setEditRuleValues(v => ({ ...v, name_ar: e.target.value }))}
-                                                            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-400 mb-1">من (دقيقة)</label>
-                                                        <input
-                                                            type="number"
-                                                            value={editRuleValues.min_minutes ?? 0}
-                                                            onChange={(e) => setEditRuleValues(v => ({ ...v, min_minutes: Number(e.target.value) }))}
-                                                            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-400 mb-1">إلى (دقيقة)</label>
-                                                        <input
-                                                            type="number"
-                                                            value={editRuleValues.max_minutes ?? ''}
-                                                            onChange={(e) => setEditRuleValues(v => ({ ...v, max_minutes: e.target.value ? Number(e.target.value) : null }))}
-                                                            placeholder="∞"
-                                                            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                                        />
-                                                    </div>
-                                                    {isGrace ? (
-                                                        <div>
-                                                            <label className="block text-[10px] text-gray-400 mb-1">عدد مرات السماح</label>
-                                                            <input
-                                                                type="number"
-                                                                value={editRuleValues.grace_count ?? 0}
-                                                                onChange={(e) => setEditRuleValues(v => ({ ...v, grace_count: Number(e.target.value) }))}
-                                                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                                            />
-                                                        </div>
-                                                    ) : (
-                                                        <div>
-                                                            <label className="block text-[10px] text-gray-400 mb-1">خصم (أيام)</label>
-                                                            <input
-                                                                type="number"
-                                                                step="0.25"
-                                                                value={editRuleValues.deduction_days ?? 0}
-                                                                onChange={(e) => setEditRuleValues(v => ({ ...v, deduction_days: Number(e.target.value) }))}
-                                                                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )
+            }
+        </div >
     )
 }
 

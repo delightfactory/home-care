@@ -216,11 +216,10 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  (health.memory.percentage || 0) > 80 ? 'bg-red-500' :
-                  (health.memory.percentage || 0) > 60 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
+              <div
+                className={`h-3 rounded-full transition-all duration-300 ${(health.memory.percentage || 0) > 80 ? 'bg-red-500' :
+                    (health.memory.percentage || 0) > 60 ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}
                 style={{ width: `${Math.min(health.memory.percentage || 0, 100)}%` }}
               />
             </div>
@@ -285,11 +284,10 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  ((health.connections.active || 0) / (health.connections.max || 1)) > 0.8 ? 'bg-red-500' :
-                  ((health.connections.active || 0) / (health.connections.max || 1)) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
+              <div
+                className={`h-3 rounded-full transition-all duration-300 ${((health.connections.active || 0) / (health.connections.max || 1)) > 0.8 ? 'bg-red-500' :
+                    ((health.connections.active || 0) / (health.connections.max || 1)) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}
                 style={{ width: `${((health.connections.active || 0) / (health.connections.max || 1)) * 100}%` }}
               />
             </div>
@@ -319,10 +317,9 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <div className={`w-3 h-3 rounded-full mr-3 ${
-              health.status === 'healthy' ? 'bg-green-500' :
-              health.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-            }`} />
+            <div className={`w-3 h-3 rounded-full mr-3 ${health.status === 'healthy' ? 'bg-green-500' :
+                health.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
+              }`} />
             <div>
               <h4 className="font-medium text-gray-900 flex items-center">
                 حالة النظام
@@ -330,14 +327,14 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
               </h4>
               <p className="text-sm text-gray-600">
                 {health.status === 'healthy' ? 'النظام يعمل بشكل طبيعي' :
-                 health.status === 'warning' ? 'تحذير: يوجد مشاكل طفيفة' :
-                 'خطأ: يوجد مشاكل في النظام'}
+                  health.status === 'warning' ? 'تحذير: يوجد مشاكل طفيفة' :
+                    'خطأ: يوجد مشاكل في النظام'}
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="text-sm text-gray-500">
-              آخر تحديث: {new Date(health.last_updated).toLocaleTimeString('ar-SA')}
+              آخر تحديث: {new Date(health.last_updated).toLocaleTimeString('en-US')}
             </div>
             {onRefresh && (
               <button
@@ -365,9 +362,8 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
             return (
               <div
                 key={tab.id}
-                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedTab === tab.id ? 'bg-white border-blue-200' : 'bg-white border-gray-200 hover:border-gray-300'
-                }`}
+                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${selectedTab === tab.id ? 'bg-white border-blue-200' : 'bg-white border-gray-200 hover:border-gray-300'
+                  }`}
                 onClick={() => setSelectedTab(tab.id)}
               >
                 <Icon className="h-4 w-4 mr-2 text-gray-600" />
@@ -394,11 +390,10 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
                 <button
                   key={tab.id}
                   onClick={() => setSelectedTab(tab.id)}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedTab === tab.id
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTab === tab.id
                       ? `${getStatusColor(tab.status)} border`
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4 mr-2" />
                   {tab.label}
@@ -430,7 +425,7 @@ const SystemHealthDetails: React.FC<SystemHealthDetailsProps> = ({ health, onRef
               <FileText className="h-4 w-4 mr-2" />
               {showErrorLog ? 'إخفاء سجل الأخطاء' : 'عرض سجل الأخطاء التفصيلي'}
             </button>
-            
+
             <button
               onClick={() => setShowAdvancedDiagnostics(!showAdvancedDiagnostics)}
               className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-purple-600 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"

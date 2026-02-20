@@ -534,7 +534,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                       <div className="mt-3 pt-2.5 border-t border-dashed border-gray-200 flex items-center justify-between">
                         <span className="text-xs text-gray-500">إجمالي البند</span>
                         <span className="text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-0.5 rounded-lg">
-                          {itemTotal.toLocaleString('ar-EG')} ج.م
+                          {itemTotal.toLocaleString('en-US')} ج.م
                         </span>
                       </div>
                     )}

@@ -23,7 +23,7 @@ const BonusesTab: React.FC = () => {
     const [searched, setSearched] = useState(false)
 
     const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount)
+        new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount)
 
     const loadBonuses = useCallback(async () => {
         setLoading(true)

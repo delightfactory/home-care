@@ -59,7 +59,7 @@ const ProfitLossPage: React.FC = () => {
     }, [loadReport])
 
     const formatCurrency = (n: number) =>
-        new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+        new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
     const profitMargin = report && report.total_revenue > 0
         ? ((report.net_profit / report.total_revenue) * 100).toFixed(1)
@@ -253,8 +253,8 @@ const ProfitLossPage: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-gray-600">{months[(item.month || 1) - 1]} {item.year}</span>
                                                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${item.status === 'paid' ? 'bg-green-100 text-green-700'
-                                                            : item.status === 'partially_paid' ? 'bg-amber-100 text-amber-700'
-                                                                : 'bg-gray-100 text-gray-600'
+                                                        : item.status === 'partially_paid' ? 'bg-amber-100 text-amber-700'
+                                                            : 'bg-gray-100 text-gray-600'
                                                         }`}>
                                                         {item.status === 'paid' ? 'مكتمل' : item.status === 'partially_paid' ? 'جزئى' : item.status}
                                                     </span>

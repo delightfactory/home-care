@@ -222,7 +222,7 @@ const AdvancesTab: React.FC = () => {
     }
 
     const formatCurrency = (n: number) =>
-        new Intl.NumberFormat('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+        new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
     // إحصائيات
     const pendingCount = advances.filter(a => a.status === 'pending').length

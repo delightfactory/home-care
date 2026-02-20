@@ -7,8 +7,8 @@ import {
 } from 'lucide-react'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import { DateRangePicker } from '../../components/UI'
-import { 
-  useDashboard, 
+import {
+  useDashboard,
   useSystemHealth,
   useAnalyticsDashboard,
   useWeeklyStats,
@@ -56,7 +56,7 @@ const ReportsPageContent: React.FC = () => {
     dateFilterType === 'range' ? startDate : undefined,
     dateFilterType === 'range' ? endDate : undefined
   )
-    const { weeklyStats, loading: weeklyLoading } = useWeeklyStats()
+  const { weeklyStats, loading: weeklyLoading } = useWeeklyStats()
   const { weeklyStats: weeklyStatsRange } = useWeeklyStatsRange(
     dateFilterType === 'range' ? startDate : undefined,
     dateFilterType === 'range' ? endDate : undefined
@@ -114,13 +114,13 @@ const ReportsPageContent: React.FC = () => {
     try {
       // Clear cache first for fresh data
       EnhancedAPI.clearCache()
-      
+
       // Refresh core data first
       await Promise.all([
         refreshDashboard(),
         refreshAnalytics()
       ])
-      
+
       // Refresh materialized views separately with error handling
       try {
         const result = await ReportsAPI.refreshMaterializedViews()
@@ -144,7 +144,7 @@ const ReportsPageContent: React.FC = () => {
           toast.success('تم تحديث التقارير الأساسية بنجاح')
         }
       }
-      
+
     } catch (error) {
       console.error('Error refreshing reports:', error)
       toast.error('حدث خطأ أثناء تحديث التقارير')
@@ -170,16 +170,16 @@ const ReportsPageContent: React.FC = () => {
     // Update the orders query with new filters
     // This will trigger a re-fetch of orders with the new filters
     console.log('Filters changed:', filters)
-    
+
     // You can implement additional logic here to update the orders hook
     // For now, the filtering is handled client-side in InteractiveReports component
-    
+
     // Only show success message if filters actually contain meaningful changes
-    const hasActiveFilters = filters.teams?.length > 0 || 
-                           filters.workers?.length > 0 || 
-                           filters.orderStatus?.length > 0 || 
-                           filters.serviceTypes?.length > 0
-    
+    const hasActiveFilters = filters.teams?.length > 0 ||
+      filters.workers?.length > 0 ||
+      filters.orderStatus?.length > 0 ||
+      filters.serviceTypes?.length > 0
+
     if (hasActiveFilters) {
       toast.success('تم تطبيق الفلاتر الجديدة')
     }
@@ -188,7 +188,7 @@ const ReportsPageContent: React.FC = () => {
   // Prepare data for components
   const todayDashboard = dashboard?.daily
   const teamSummaries = dashboard?.teams || []
-  
+
   const dashboardStats = {
     totalOrders: todayDashboard?.total_orders || 0,
     totalRevenue: todayDashboard?.total_revenue || 0,
@@ -238,7 +238,7 @@ const ReportsPageContent: React.FC = () => {
 
     // Generate top performers from team summaries
     if (teamSummaries && teamSummaries.length > 0) {
-      const topTeamByRevenue = teamSummaries.reduce((prev: any, current: any) => 
+      const topTeamByRevenue = teamSummaries.reduce((prev: any, current: any) =>
         (prev.total_revenue > current.total_revenue) ? prev : current
       )
       topPerformers.push({
@@ -247,7 +247,7 @@ const ReportsPageContent: React.FC = () => {
         value: topTeamByRevenue.total_revenue
       })
 
-      const topTeamByRating = teamSummaries.reduce((prev: any, current: any) => 
+      const topTeamByRating = teamSummaries.reduce((prev: any, current: any) =>
         (prev.avg_rating > current.avg_rating) ? prev : current
       )
       topPerformers.push({
@@ -259,7 +259,7 @@ const ReportsPageContent: React.FC = () => {
 
     // Generate top worker from worker analytics
     if (workerAnalytics && workerAnalytics.length > 0) {
-      const topWorker = workerAnalytics.reduce((prev, current) => 
+      const topWorker = workerAnalytics.reduce((prev, current) =>
         (prev.completed_orders > current.completed_orders) ? prev : current
       )
       topPerformers.push({
@@ -274,10 +274,10 @@ const ReportsPageContent: React.FC = () => {
       // فى وضع النطاق نركز فقط على أفضل الفرق والعمال بناءً على الملخصات المتاحة بدون الاعتماد على dailyDashboard
     }
     if (todayDashboard) {
-      const completionRate = todayDashboard.total_orders > 0 
-        ? (todayDashboard.completed_orders / todayDashboard.total_orders) * 100 
+      const completionRate = todayDashboard.total_orders > 0
+        ? (todayDashboard.completed_orders / todayDashboard.total_orders) * 100
         : 0
-      
+
       if (completionRate < 80) {
         improvements.push({
           area: 'معدل الإنجاز',
@@ -358,8 +358,8 @@ const ReportsPageContent: React.FC = () => {
   ];
 
   return (
-    
-      <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
+
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Enhanced Header */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
         {/* Header Title - Responsive */}
@@ -371,7 +371,7 @@ const ReportsPageContent: React.FC = () => {
             نظام تقارير شامل لتحليل أداء الشركة واتخاذ القرارات الذكية
           </p>
         </div>
-        
+
         {/* Controls Section - Responsive Layout */}
         <div className="space-y-4 lg:space-y-0">
           {/* Date Filter Type Toggle - Full width on mobile */}
@@ -379,26 +379,24 @@ const ReportsPageContent: React.FC = () => {
             <div className="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
               <button
                 onClick={() => setDateFilterType('single')}
-                className={`flex-1 sm:flex-none px-3 py-2 text-sm rounded-md transition-colors ${
-                  dateFilterType === 'single'
+                className={`flex-1 sm:flex-none px-3 py-2 text-sm rounded-md transition-colors ${dateFilterType === 'single'
                     ? 'bg-white text-blue-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-800'
-                }`}
+                  }`}
               >
                 تاريخ واحد
               </button>
               <button
                 onClick={() => setDateFilterType('range')}
-                className={`flex-1 sm:flex-none px-3 py-2 text-sm rounded-md transition-colors ${
-                  dateFilterType === 'range'
+                className={`flex-1 sm:flex-none px-3 py-2 text-sm rounded-md transition-colors ${dateFilterType === 'range'
                     ? 'bg-white text-blue-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-800'
-                }`}
+                  }`}
               >
                 فترة زمنية
               </button>
             </div>
-            
+
             {/* Date Picker - Responsive */}
             <div className="w-full sm:w-auto">
               {dateFilterType === 'single' ? (
@@ -422,7 +420,7 @@ const ReportsPageContent: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           {/* Action Buttons - Responsive Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:justify-end gap-2 lg:gap-3">
             <button
@@ -433,7 +431,7 @@ const ReportsPageContent: React.FC = () => {
               <RefreshCw className={`h-4 w-4 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
               تحديث البيانات
             </button>
-            
+
             <button
               onClick={() => handleExport('pdf')}
               className="flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
@@ -443,7 +441,7 @@ const ReportsPageContent: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Section Navigation - Responsive */}
         <div className="mt-6 border-t border-gray-200 pt-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:flex lg:space-x-1 rtl:space-x-reverse gap-2 lg:gap-0">
@@ -453,11 +451,10 @@ const ReportsPageContent: React.FC = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id as any)}
-                  className={`flex items-center justify-center sm:justify-start px-4 py-3 lg:py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeSection === section.id
+                  className={`flex items-center justify-center sm:justify-start px-4 py-3 lg:py-2 rounded-lg text-sm font-medium transition-colors ${activeSection === section.id
                       ? 'bg-blue-100 text-blue-700 border border-blue-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4 ml-2" />
                   <span className="hidden sm:inline">{section.label}</span>
@@ -476,7 +473,7 @@ const ReportsPageContent: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-blue-800">عرض البيانات للفترة المحددة</h3>
               <p className="text-sm text-blue-600 mt-1">
-                من {new Date(startDate).toLocaleDateString('ar-EG')} إلى {new Date(endDate).toLocaleDateString('ar-EG')}
+                من {new Date(startDate).toLocaleDateString('en-US')} إلى {new Date(endDate).toLocaleDateString('en-US')}
               </p>
             </div>
             <div className="text-xs text-blue-600 bg-blue-100 rounded-md p-2">
@@ -485,14 +482,14 @@ const ReportsPageContent: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       {dateFilterType === 'single' && selectedDate && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
             <div>
               <h3 className="text-sm font-medium text-green-800">عرض البيانات ليوم محدد</h3>
               <p className="text-sm text-green-600 mt-1">
-                التاريخ المحدد: {new Date(selectedDate).toLocaleDateString('ar-EG')}
+                التاريخ المحدد: {new Date(selectedDate).toLocaleDateString('en-US')}
               </p>
             </div>
             <div className="text-xs text-green-600 bg-green-100 rounded-md p-2">
@@ -510,7 +507,7 @@ const ReportsPageContent: React.FC = () => {
         <div className="space-y-4 sm:space-y-6">
           {/* Dashboard Stats Grid */}
           <DashboardStatsGrid stats={dashboardStats} className="px-2 sm:px-0" />
-          
+
           {/* Performance Insights */}
           <div className="px-2 sm:px-0">
             <PerformanceInsights insights={performanceInsights} />
@@ -524,8 +521,8 @@ const ReportsPageContent: React.FC = () => {
           {/* System Health Details */}
           {health && (
             <div className="px-2 sm:px-0">
-              <SystemHealthDetails 
-                health={health} 
+              <SystemHealthDetails
+                health={health}
                 onRefresh={async () => {
                   // Refresh system health data specifically
                   try {
@@ -561,8 +558,8 @@ const ReportsPageContent: React.FC = () => {
           />
         </div>
       )}
-      </div>
-    
+    </div>
+
   )
 }
 
