@@ -8,6 +8,7 @@ import {
 import TechLayout from '../../components/Layout/TechLayout'
 import TechOrderCard from '../../components/Tech/TechOrderCard'
 import TechProgressBar from '../../components/Tech/TechProgressBar'
+import TechTeamInfo from '../../components/Tech/TechTeamInfo'
 import { useTechnicianData } from '../../hooks/useTechnicianData'
 import { useNavigate } from 'react-router-dom'
 import { formatNumber } from '../../utils/formatters'
@@ -89,6 +90,16 @@ const TechDashboard: React.FC = () => {
                     </div>
                     <h2 className="text-lg font-bold text-gray-800">مفيش شغل النهاردة 😎</h2>
                     <p className="text-gray-500 text-sm">مفيش خط سير مخصص ليك — ريّح نفسك</p>
+
+                    {/* عرض معلومات الفريق حتى فى يوم الراحة */}
+                    <div className="w-full max-w-sm">
+                        <TechTeamInfo
+                            isLeader={status.isLeader}
+                            leaderName={status.leaderName}
+                            teamMembers={status.teamMembers}
+                            teamName={status.teamName}
+                        />
+                    </div>
                 </div>
             </TechLayout>
         )
@@ -158,6 +169,14 @@ const TechDashboard: React.FC = () => {
                     {/* Progress */}
                     <TechProgressBar progress={progress} />
 
+                    {/* Team Info */}
+                    <TechTeamInfo
+                        isLeader={status.isLeader}
+                        leaderName={status.leaderName}
+                        teamMembers={status.teamMembers}
+                        teamName={status.teamName}
+                    />
+
                     {/* Celebration Card */}
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl border border-green-100 p-6 text-center space-y-4">
                         <div
@@ -218,6 +237,14 @@ const TechDashboard: React.FC = () => {
             <div className="p-4 space-y-4">
                 {/* Progress */}
                 <TechProgressBar progress={progress} />
+
+                {/* Team Info */}
+                <TechTeamInfo
+                    isLeader={status.isLeader}
+                    leaderName={status.leaderName}
+                    teamMembers={status.teamMembers}
+                    teamName={status.teamName}
+                />
 
                 {/* Current Order */}
                 {currentOrder ? (
