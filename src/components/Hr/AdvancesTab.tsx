@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
     Plus, RefreshCw, Loader2, Banknote,
-    X, Eye, Ban, CheckCircle, Landmark,
+    X, Eye, Ban, CheckCircle, Landmark, AlertTriangle,
 } from 'lucide-react'
 import { AdvancesAPI } from '../../api/hr'
 import { VaultsAPI } from '../../api/vaults'
@@ -68,6 +68,10 @@ const AdvancesTab: React.FC = () => {
     const [vaultLoading, setVaultLoading] = useState(false)
     const [approving, setApproving] = useState(false)
 
+    // نموذج تأكيد الاعتماد
+    const [showConfirmModal, setShowConfirmModal] = useState(false)
+    const [pendingAdvanceForConfirm, setPendingAdvanceForConfirm] = useState<SalaryAdvanceWithWorker | null>(null)
+
     const loadData = useCallback(async () => {
         setLoading(true)
         try {
@@ -113,34 +117,82 @@ const AdvancesTab: React.FC = () => {
 
     const handleCancel = async (id: string) => {
         if (!user?.id) return
-        if (!confirm('هل تريد إلغاء هذه السلفة؟ سيتم استرداد المبلغ المتبقى إلى الخزنة.')) return
+        if (!confirm('هل تريد إلغاء هذه السلفة؟ سيتم استرداد المبلغ المتبقى إلى مصدره الأصلي.')) return
         const result = await AdvancesAPI.cancelAdvance(id, user.id)
         if (result.success) {
-            const refund = result.data?.refund_amount || 0
-            toast.success(
-                refund > 0
-                    ? `تم إلغاء السلفة واسترداد ${refund.toLocaleString()} ج.م إلى الخزنة`
-                    : result.message || 'تم إلغاء السلفة'
-            )
+            toast.success(result.message || 'تم إلغاء السلفة')
             loadData()
         } else {
             toast.error(result.error || 'حدث خطأ')
         }
     }
 
-    // فتح modal اختيار الخزنة للاعتماد
-    const handleApproveClick = async (advance: SalaryAdvanceWithWorker) => {
-        setPendingAdvanceForVault(advance)
-        setShowVaultModal(true)
-        setVaultLoading(true)
+    // فتح نموذج تأكيد الاعتماد
+    const handleApproveClick = (advance: SalaryAdvanceWithWorker) => {
+        setPendingAdvanceForConfirm(advance)
+        setShowConfirmModal(true)
+    }
+
+    // تنفيذ الاعتماد بعد التأكيد
+    const handleConfirmApprove = async () => {
+        if (!pendingAdvanceForConfirm || !user?.id) return
+        setShowConfirmModal(false)
+        const advance = pendingAdvanceForConfirm
+        setPendingAdvanceForConfirm(null)
+        setApproving(true)
         try {
-            const vaultList = await VaultsAPI.getVaults(true)
-            setVaults(vaultList)
-        } catch {
-            toast.error('تعذر جلب الخزائن')
-            setShowVaultModal(false)
+            // محاولة الخصم من عهدة المنشئ أولاً
+            const res = await AdvancesAPI.approveAdvanceFromCustody(advance.id, user.id)
+
+            if (res.success) {
+                toast.success(
+                    `تم اعتماد السلفة وخصمها من العهدة ✅\nالرصيد الجديد: ${res.data?.new_custody_balance?.toLocaleString()} ج.م`,
+                    { duration: 4000 }
+                )
+                loadData()
+                return
+            }
+
+            // التعامل مع أخطاء العهدة
+            const errorData = res as any
+            const errorCode = errorData?.data?.code
+
+            if (errorCode === 'NO_CUSTODY' || errorCode === 'INSUFFICIENT_BALANCE') {
+                if (isSupervisor) {
+                    // ⛔ المشرف: رسالة تحذير واضحة فقط — بدون vault fallback
+                    const msg = errorCode === 'NO_CUSTODY'
+                        ? 'لا توجد عهدة مرتبطة — تواصل مع الإدارة لاعتماد السلفة'
+                        : `رصيد العهدة غير كافٍ\nالرصيد الحالي: ${errorData?.data?.current_balance?.toLocaleString()} ج.م\nالمطلوب: ${errorData?.data?.required_amount?.toLocaleString()} ج.م`
+                    toast.error(msg, { duration: 6000 })
+                    return
+                }
+
+                // ✅ الأدمن: vault fallback
+                const fallbackMsg = errorCode === 'NO_CUSTODY'
+                    ? 'لا توجد عُهدة للمنشئ — اختر خزنة للخصم'
+                    : 'رصيد العهدة غير كافٍ — اختر خزنة للخصم'
+                toast(fallbackMsg, { icon: '⚠️', duration: 3000 })
+                setPendingAdvanceForVault(advance)
+                setShowVaultModal(true)
+                setVaultLoading(true)
+                try {
+                    const vaultList = await VaultsAPI.getVaults(true)
+                    setVaults(vaultList)
+                } catch {
+                    toast.error('تعذر جلب الخزائن')
+                    setShowVaultModal(false)
+                } finally {
+                    setVaultLoading(false)
+                }
+                return
+            }
+
+            // خطأ غير متوقع
+            toast.error(res.error || 'فشل اعتماد السلفة')
+        } catch (err: any) {
+            toast.error(err.message || 'حدث خطأ أثناء اعتماد السلفة')
         } finally {
-            setVaultLoading(false)
+            setApproving(false)
         }
     }
 
@@ -342,12 +394,13 @@ const AdvancesTab: React.FC = () => {
                                         </td>
                                         <td className="py-3 px-3 text-center">
                                             <div className="flex items-center justify-center gap-1">
-                                                {/* زر اعتماد — فقط للمعلقة وللأدمن فقط */}
-                                                {!isSupervisor && advance.status === 'pending' && (
+                                                {/* زر اعتماد — للسلف المعلقة */}
+                                                {advance.status === 'pending' && (
                                                     <button
                                                         onClick={() => handleApproveClick(advance)}
                                                         className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                                        title="اعتماد وصرف من الخزنة"
+                                                        title="اعتماد السلفة"
+                                                        disabled={approving}
                                                     >
                                                         <CheckCircle className="w-4 h-4" />
                                                     </button>
@@ -359,15 +412,16 @@ const AdvancesTab: React.FC = () => {
                                                 >
                                                     <Eye className="w-4 h-4" />
                                                 </button>
-                                                {!isSupervisor && (advance.status === 'active' || advance.status === 'pending') && (
-                                                    <button
-                                                        onClick={() => handleCancel(advance.id)}
-                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="إلغاء"
-                                                    >
-                                                        <Ban className="w-4 h-4" />
-                                                    </button>
-                                                )}
+                                                {(advance.status === 'active' || advance.status === 'pending') &&
+                                                    (!isSupervisor || advance.created_by === user?.id) && (
+                                                        <button
+                                                            onClick={() => handleCancel(advance.id)}
+                                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="إلغاء"
+                                                        >
+                                                            <Ban className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                             </div>
                                         </td>
                                     </tr>
@@ -529,6 +583,100 @@ const AdvancesTab: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Modal — تأكيد اعتماد السلفة */}
+            {showConfirmModal && pendingAdvanceForConfirm && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+                    onClick={() => { setShowConfirmModal(false); setPendingAdvanceForConfirm(null) }}>
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl"
+                        onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">تأكيد اعتماد السلفة</h3>
+                            </div>
+                            <button
+                                onClick={() => { setShowConfirmModal(false); setPendingAdvanceForConfirm(null) }}
+                                className="p-1 hover:bg-gray-100 rounded-lg"
+                            >
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-gray-600">
+                                هل تريد اعتماد هذه السلفة؟ سيتم خصم المبلغ من العهدة.
+                            </p>
+
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-500">العامل</span>
+                                    <span className="text-sm font-semibold text-gray-900">
+                                        {(pendingAdvanceForConfirm.worker as any)?.name || '—'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-500">المبلغ</span>
+                                    <span className="text-sm font-bold text-red-600">
+                                        {pendingAdvanceForConfirm.total_amount.toLocaleString()} ج.م
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-500">النوع</span>
+                                    <span className="text-sm text-gray-700">
+                                        {typeLabels[pendingAdvanceForConfirm.advance_type] || pendingAdvanceForConfirm.advance_type}
+                                    </span>
+                                </div>
+                                {pendingAdvanceForConfirm.advance_type === 'installment' && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-gray-500">الأقساط</span>
+                                        <span className="text-sm text-gray-700">
+                                            {pendingAdvanceForConfirm.installments_count} قسط × {pendingAdvanceForConfirm.installment_amount.toLocaleString()} ج.م
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-500">بداية الخصم</span>
+                                    <span className="text-sm text-gray-700">
+                                        {months[pendingAdvanceForConfirm.start_month - 1]} {pendingAdvanceForConfirm.start_year}
+                                    </span>
+                                </div>
+                                {pendingAdvanceForConfirm.reason && (
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-sm text-gray-500">السبب</span>
+                                        <span className="text-sm text-gray-700 text-left max-w-[60%]">
+                                            {pendingAdvanceForConfirm.reason}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={handleConfirmApprove}
+                                    disabled={approving}
+                                    className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {approving ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <CheckCircle className="w-4 h-4" />
+                                    )}
+                                    تأكيد الاعتماد
+                                </button>
+                                <button
+                                    onClick={() => { setShowConfirmModal(false); setPendingAdvanceForConfirm(null) }}
+                                    className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

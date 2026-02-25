@@ -210,6 +210,7 @@ export interface SalaryAdvance {
     status: AdvanceStatus
     reason: string | null
     vault_id: string | null
+    custody_id: string | null
     approved_by: string | null
     created_by: string | null
     created_at: string
@@ -455,6 +456,8 @@ export interface AdvanceDetail {
     amount: number
     notes: string
     vault_name: string
+    source_name?: string
+    source_type?: 'vault' | 'custody'
     date: string
     worker_name: string
 }

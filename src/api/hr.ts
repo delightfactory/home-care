@@ -991,11 +991,11 @@ export class AdvancesAPI {
         }
     }
 
-    /** إلغاء سلفة مع استرداد المبلغ للخزنة */
+    /** إلغاء سلفة مع استرداد المبلغ للمصدر الأصلي (عهدة أو خزنة) */
     static async cancelAdvance(
         id: string,
         cancelledBy: string
-    ): Promise<ApiResponse<{ refund_amount: number; new_vault_balance: number }>> {
+    ): Promise<ApiResponse<{ refund_amount: number; refund_target: string; new_balance: number }>> {
         try {
             const { data, error } = await supabase.rpc('cancel_advance_with_refund', {
                 p_advance_id: id,
@@ -1016,7 +1016,8 @@ export class AdvancesAPI {
                 success: true,
                 data: {
                     refund_amount: result.refund_amount,
-                    new_vault_balance: result.new_vault_balance,
+                    refund_target: result.refund_target,
+                    new_balance: result.new_balance,
                 },
                 message: result.message || 'تم إلغاء السلفة واسترداد المبلغ',
             }
@@ -1076,6 +1077,45 @@ export class AdvancesAPI {
                     vault_id: result.vault_id,
                 },
                 message: result.message || 'تم اعتماد السلفة وخصمها من الخزنة',
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: handleSupabaseError(error),
+            }
+        }
+    }
+
+    /** اعتماد سلفة مع خصم من عهدة المنشئ (RPC ذرى) */
+    static async approveAdvanceFromCustody(
+        advanceId: string,
+        approvedBy: string
+    ): Promise<ApiResponse<{ new_custody_balance: number; deducted_amount: number; custody_id: string }>> {
+        try {
+            const { data, error } = await supabase.rpc('approve_advance_from_custody', {
+                p_advance_id: advanceId,
+                p_approved_by: approvedBy,
+            })
+
+            if (error) throw error
+
+            const result = data as any
+            if (!result?.success) {
+                return {
+                    success: false,
+                    error: result?.error || 'فشل في اعتماد السلفة',
+                    data: result,
+                } as any
+            }
+
+            return {
+                success: true,
+                data: {
+                    new_custody_balance: result.new_custody_balance,
+                    deducted_amount: result.deducted_amount,
+                    custody_id: result.custody_id,
+                },
+                message: result.message || 'تم اعتماد السلفة وخصمها من العهدة',
             }
         } catch (error) {
             return {

@@ -395,7 +395,9 @@ const FinancialSummaryCard: React.FC = () => {
                                             label: a.worker_name || '-',
                                             amount: a.amount,
                                             date: a.date,
-                                            badge: a.vault_name,
+                                            badge: a.source_name
+                                                ? `${a.source_type === 'custody' ? 'عهدة' : 'خزنة'}: ${a.source_name}`
+                                                : a.vault_name,
                                         }))}
                                         total={report.total_advances}
                                     />
