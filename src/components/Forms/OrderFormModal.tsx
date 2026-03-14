@@ -212,7 +212,11 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         }
       } else {
         // Update order base fields first (exclude services)
-        const { services: svc, ...orderUpdates } = formData as any
+        const { services: svc, team_id, ...orderUpdates } = formData as any
+        // نرسل team_id فقط لو بقيمة فعلية (مش فارغ) عشان مانمسحش الفريق اللي متعين من خط السير
+        if (team_id) {
+          orderUpdates.team_id = team_id
+        }
         const updateRes = await EnhancedAPI.updateOrder(order!.id, orderUpdates)
         if (!updateRes.success) throw new Error(updateRes.error || 'Update failed')
 

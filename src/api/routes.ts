@@ -190,6 +190,35 @@ export class RoutesAPI {
   // Update route
   static async updateRoute(id: string, routeData: RouteUpdate): Promise<ApiResponse<Route>> {
     try {
+      // لو الفريق اتغير — نحدّث الطلبات غير المكتملة على الخط
+      if ('team_id' in routeData) {
+        const { data: currentRoute } = await supabase
+          .from('routes')
+          .select('team_id')
+          .eq('id', id)
+          .single()
+
+        if (currentRoute && currentRoute.team_id !== routeData.team_id) {
+          const { data: routeOrders } = await supabase
+            .from('route_orders')
+            .select('order_id')
+            .eq('route_id', id)
+
+          if (routeOrders && routeOrders.length > 0) {
+            const orderIds = routeOrders.map(ro => ro.order_id)
+            // تحديث فقط الطلبات غير المكتملة/الملغية
+            await supabase
+              .from('orders')
+              .update({
+                team_id: routeData.team_id || null,
+                updated_at: new Date().toISOString()
+              })
+              .in('id', orderIds)
+              .in('status', ['pending', 'scheduled', 'in_progress'])
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('routes')
         .update({
@@ -288,10 +317,21 @@ export class RoutesAPI {
 
       if (error) throw error
 
-      // تحديث حالة الطلب إلى مجدول
+      // جلب team_id من خط السير لتعيينه على الطلب
+      const { data: routeData } = await supabase
+        .from('routes')
+        .select('team_id')
+        .eq('id', routeId)
+        .single()
+
+      // تحديث حالة الطلب إلى مجدول + تعيين الفريق من خط السير
       await supabase
         .from('orders')
-        .update({ status: 'scheduled' })
+        .update({
+          status: 'scheduled',
+          team_id: routeData?.team_id || undefined,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', orderId)
 
       return {
@@ -310,6 +350,13 @@ export class RoutesAPI {
   // Remove order from route
   static async removeOrderFromRoute(routeId: string, orderId: string): Promise<ApiResponse<void>> {
     try {
+      // جلب فريق الخط قبل الحذف للمقارنة
+      const { data: route } = await supabase
+        .from('routes')
+        .select('team_id')
+        .eq('id', routeId)
+        .single()
+
       const { error } = await supabase
         .from('route_orders')
         .delete()
@@ -318,10 +365,28 @@ export class RoutesAPI {
 
       if (error) throw error
 
-      // Update order status back to pending
+      // تحديد هل نمسح team_id — بس لو الفريق جاى من الخط ده
+      const updateData: Record<string, any> = {
+        status: 'pending',
+        updated_at: new Date().toISOString()
+      }
+
+      if (route?.team_id) {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('team_id')
+          .eq('id', orderId)
+          .single()
+
+        // نمسح team_id فقط لو هو نفس فريق الخط (يعني جاى منه)
+        if (order?.team_id === route.team_id) {
+          updateData.team_id = null
+        }
+      }
+
       await supabase
         .from('orders')
-        .update({ status: 'pending' })
+        .update(updateData)
         .eq('id', orderId)
 
       return {
