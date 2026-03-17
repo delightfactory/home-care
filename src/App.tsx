@@ -54,9 +54,15 @@ const TechAttendancePage = React.lazy(() => import('./pages/Tech/TechAttendanceP
 const TechProfilePage = React.lazy(() => import('./pages/Tech/TechProfilePage'))
 import { TechGuard } from './components/Guards/TechGuard'
 
-// Protected Route Component
+// SECURITY: قائمة الأدوار المسموح لها بالتطبيق العام
+const ALLOWED_ADMIN_ROLES = ['manager', 'operations_supervisor', 'receptionist', 'admin']
+
+// SECURITY: قائمة أدوار الفنيين
+const TECH_ROLES = ['technician', 'team_leader']
+
+// Protected Route Component - محمي بفحص الدور
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, session, loading } = useAuth()
+  const { user, session, loading, signOut } = useAuth()
 
   // لا نعرض شيئًا حتى ننتهي من التحقق من الجلسة أو جلب الملف الشخصي
   if (loading || (session && !user)) {
@@ -70,6 +76,37 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   // إذا لم تكن هناك جلسة مُصادَقة، وجّه المستخدم لصفحة الدخول
   if (!session) {
     return <Navigate to="/login" replace />
+  }
+
+  // أمان: منع الفنيين وقادة الفرق من الوصول لصفحات الأدمن
+  const userRole = (user as any)?.role?.name
+  if (TECH_ROLES.includes(userRole)) {
+    return <Navigate to="/tech" replace />
+  }
+
+  // أمان: منع الأدوار المعلقة/المجهولة من الوصول لصفحات الأدمن
+  if (!ALLOWED_ADMIN_ROLES.includes(userRole)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">حسابك قيد المراجعة</h2>
+          <p className="text-gray-600 mb-6">
+            يتم حالياً مراجعة حسابك من قبل المسؤول. سيتم إعلامك عند تفعيل حسابك.
+          </p>
+          <button
+            onClick={() => signOut()}
+            className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>
@@ -92,14 +129,13 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (session && user) {
     const userRole = (user as any)?.role?.name
 
-    // إذا كان فني أو قائد فريق فقط، وجّه لتطبيق الفنى
-    if (userRole === 'team_leader' || userRole === 'technician') {
+    // إذا كان فني أو قائد فريق، وجّه لتطبيق الفنى
+    if (TECH_ROLES.includes(userRole)) {
       return <Navigate to="/tech" replace />
     }
 
-    // باقي الأدوار المعروفة للتطبيق العام - وجّه للداشبورد
-    const knownAdminRoles = ['manager', 'operations_supervisor', 'receptionist', 'admin']
-    if (knownAdminRoles.includes(userRole)) {
+    // الأدوار المعروفة للتطبيق العام
+    if (ALLOWED_ADMIN_ROLES.includes(userRole)) {
       return <Navigate to="/dashboard" replace />
     }
 
@@ -128,6 +164,38 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   return <>{children}</>
+}
+
+// SECURITY: Catch-all redirect - مواعي للدور بدل التوجيه الأعمى للداشبورد
+const CatchAllRedirect: React.FC = () => {
+  const { user, session, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    )
+  }
+
+  if (!session) {
+    return <Navigate to="/login" replace />
+  }
+
+  const userRole = (user as any)?.role?.name
+
+  // الفنيين يتحولوا لتطبيقهم
+  if (TECH_ROLES.includes(userRole)) {
+    return <Navigate to="/tech" replace />
+  }
+
+  // الأدوار الإدارية للداشبورد
+  if (ALLOWED_ADMIN_ROLES.includes(userRole)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  // أي دور غير معروف → صفحة الدخول
+  return <Navigate to="/login" replace />
 }
 
 // App Routes Component
@@ -311,7 +379,7 @@ const AppRoutes: React.FC = () => {
           </TechGuard>
         }
       />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<CatchAllRedirect />} />
     </Routes>
   )
 }

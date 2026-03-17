@@ -126,6 +126,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
+  // أمان: منع ظهور القائمة الجانبية للفنيين وقادة الفرق
+  if (hasRole('technician') || hasRole('team_leader')) {
+    return null
+  }
+
   // Check if a single link/group should be visible
   const isVisible = (item: { adminOnly?: boolean; excludeRoles?: string[] }) => {
     if (item.adminOnly && !isAdmin()) return false

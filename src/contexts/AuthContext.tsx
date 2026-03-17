@@ -172,17 +172,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(fallbackUser as any)
       } catch (rpcError) {
         console.error('RPC fallback also failed:', rpcError)
-        const lastResortUser = {
-          id: authUser.id,
-          full_name: authUser.email?.split('@')[0] || 'مستخدم',
-          phone: null,
-          role_id: null,
-          role: { name: 'pending', name_ar: 'قيد المراجعة', permissions: {} },
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        // أمان: تسجيل خروج إجباري - لا نسمح بمستخدم بدون دور متحقق منه
+        console.warn('SECURITY: Forcing sign-out due to failed profile fetch')
+        try {
+          await supabase.auth.signOut()
+        } catch (signOutError) {
+          console.error('Sign-out also failed:', signOutError)
         }
-        setUser(lastResortUser as any)
+        setUser(null)
+        setSession(null)
       }
     }
   }

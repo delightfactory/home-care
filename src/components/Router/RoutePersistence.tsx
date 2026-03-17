@@ -44,6 +44,20 @@ const RoutePersistence: React.FC = () => {
     }
   }, [location.pathname, location.search, session, user, isTechnician, storageKey])
 
+  // أمان: مسح المسارات المحفوظة للدور الآخر عند تغيير الدور
+  useEffect(() => {
+    if (!session || !user) return
+    
+    // الفني يمسح مسارات الأدمن المحفوظة
+    if (isTechnician) {
+      const adminPath = localStorage.getItem('lastPath_admin')
+      if (adminPath) {
+        console.warn('SECURITY: Clearing stale admin path for technician user')
+        localStorage.removeItem('lastPath_admin')
+      }
+    }
+  }, [session, user, isTechnician])
+
   // Restore the last route on first mount only
   useEffect(() => {
     if (!session || !user) return
