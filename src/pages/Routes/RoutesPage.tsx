@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route as RouteIcon, Clock, CheckCircle } from 'lucide-react'
+import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route as RouteIcon, Clock, CheckCircle, AlertTriangle, Package, RefreshCw } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
 import { eventBus } from '../../utils/EventBus'
 import { useRoutes, useTeams, useSystemHealth, useRouteCounts } from '../../hooks/useEnhancedAPI'
+import { usePermissions } from '../../hooks/usePermissions'
 import { RouteWithOrders, RouteStatus } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import RouteFormModal from '../../components/Forms/RouteFormModal'
@@ -34,6 +35,7 @@ const RoutesPage: React.FC = () => {
 
   // Fetch aggregate route counts
   const { counts } = useRouteCounts()
+  const { isAdmin } = usePermissions()
 
   // Load more handler
   const handleLoadMore = async () => {
@@ -65,6 +67,10 @@ const RoutesPage: React.FC = () => {
   const [routeForOrders, setRouteForOrders] = useState<RouteWithOrders | undefined>()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
+  // حالات نافذة تأكيد تغيير حالة خط السير
+  const [routeStatusConfirm, setRouteStatusConfirm] = useState<{ route: RouteWithOrders; action: 'start' | 'complete' } | null>(null)
+  const [routeStatusLoading, setRouteStatusLoading] = useState(false)
+
   // Infinite scroll observer when dataset grows
   useEffect(() => {
     if (routes.length < 100) return;
@@ -91,30 +97,38 @@ const RoutesPage: React.FC = () => {
     )
   }
 
-  const handleStartRoute = async (route: RouteWithOrders) => {
-    try {
-      const res = await EnhancedAPI.startRoute(route.id)
-      if (!res.success) throw new Error(res.error)
-      toast.success('تم بدء خط السير')
-    } catch (error) {
-      toast.error('تعذر بدء خط السير')
-      console.error(error)
-    }
-
-
+  // Handle start route — show confirmation modal
+  const handleStartRoute = (route: RouteWithOrders) => {
+    setRouteStatusConfirm({ route, action: 'start' })
   }
 
-  const handleCompleteRoute = async (route: RouteWithOrders) => {
+  // Handle complete route — show confirmation modal
+  const handleCompleteRoute = (route: RouteWithOrders) => {
+    setRouteStatusConfirm({ route, action: 'complete' })
+  }
+
+  // Confirm route status change (actual API call)
+  const confirmRouteStatusChange = async () => {
+    if (!routeStatusConfirm) return
+    setRouteStatusLoading(true)
     try {
-      const res = await EnhancedAPI.completeRoute(route.id)
-      if (!res.success) throw new Error(res.error)
-      toast.success('تم إكمال خط السير')
+      const { route, action } = routeStatusConfirm
+      if (action === 'start') {
+        const res = await EnhancedAPI.startRoute(route.id)
+        if (!res.success) throw new Error(res.error)
+        toast.success('تم بدء خط السير')
+      } else {
+        const res = await EnhancedAPI.completeRoute(route.id)
+        if (!res.success) throw new Error(res.error)
+        toast.success('تم إكمال خط السير')
+      }
     } catch (error) {
-      toast.error('تعذر إكمال خط السير')
+      toast.error(routeStatusConfirm.action === 'start' ? 'تعذر بدء خط السير' : 'تعذر إكمال خط السير')
       console.error(error)
+    } finally {
+      setRouteStatusLoading(false)
+      setRouteStatusConfirm(null)
     }
-
-
   }
 
   const handleDeleteRoute = async (route: RouteWithOrders) => {
@@ -301,8 +315,8 @@ const RoutesPage: React.FC = () => {
                   >
                     <ListTodo className="h-4 w-4" />
                   </button>
-                  {/* Start */}
-                  {r.status === 'planned' && (
+                  {/* Start - Admin only */}
+                  {isAdmin() && r.status === 'planned' && (
                     <button
                       className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                       title="بدء الخط"
@@ -311,8 +325,8 @@ const RoutesPage: React.FC = () => {
                       <Play className="h-4 w-4" />
                     </button>
                   )}
-                  {/* Complete */}
-                  {r.status === 'in_progress' && (
+                  {/* Complete - Admin only */}
+                  {isAdmin() && r.status === 'in_progress' && (
                     <button
                       className="p-2 text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                       title="إكمال الخط"
@@ -321,8 +335,8 @@ const RoutesPage: React.FC = () => {
                       <Check className="h-4 w-4" />
                     </button>
                   )}
-                  {/* Delete */}
-                  {r.status === 'planned' && (
+                  {/* Delete - Admin only */}
+                  {isAdmin() && r.status === 'planned' && (
                     <button
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
                       title="حذف"
@@ -378,6 +392,86 @@ const RoutesPage: React.FC = () => {
           onConfirm={() => handleDeleteRoute(selectedRoute)}
           message={`هل أنت متأكد من حذف خط السير "${selectedRoute.name}"؟`}
         />
+      )}
+
+      {/* Route Status Confirmation Modal */}
+      {routeStatusConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !routeStatusLoading && setRouteStatusConfirm(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className={`px-6 py-4 ${routeStatusConfirm.action === 'start' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  {routeStatusConfirm.action === 'start'
+                    ? <Play className="w-5 h-5 text-white" />
+                    : <Check className="w-5 h-5 text-white" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    {routeStatusConfirm.action === 'start' ? 'تأكيد تشغيل خط السير' : 'تأكيد إنهاء خط السير'}
+                  </h3>
+                  <p className="text-sm text-white/80">{routeStatusConfirm.route.name}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  {routeStatusConfirm.action === 'start' ? (
+                    <p>هل أنت متأكد من <strong>تشغيل</strong> خط السير <strong>"{routeStatusConfirm.route.name}"</strong>؟ سيتم تحديث حالة الخط وجميع الطلبات المرتبطة.</p>
+                  ) : (
+                    <p>هل أنت متأكد من <strong>إنهاء</strong> خط السير <strong>"{routeStatusConfirm.route.name}"</strong>؟ سيؤدى ذلك لإنهاء الخط وتسجيل انصراف العمال المرتبطين تلقائياً.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Route Info */}
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  <Users className="w-4 h-4" />
+                  {routeStatusConfirm.route.team?.name || 'غير محدد'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Package className="w-4 h-4" />
+                  {routeStatusConfirm.route.route_orders?.length || 0} طلب
+                </span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 flex items-center gap-3 justify-end border-t border-gray-100">
+              <button
+                onClick={() => setRouteStatusConfirm(null)}
+                disabled={routeStatusLoading}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmRouteStatusChange}
+                disabled={routeStatusLoading}
+                className={`px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 flex items-center gap-2 ${routeStatusConfirm.action === 'start'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+              >
+                {routeStatusLoading ? (
+                  <><RefreshCw className="w-4 h-4 animate-spin" /> جارٍ التنفيذ...</>
+                ) : routeStatusConfirm.action === 'start' ? (
+                  <><Play className="w-4 h-4" /> تشغيل</>
+                ) : (
+                  <><Check className="w-4 h-4" /> إنهاء</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
