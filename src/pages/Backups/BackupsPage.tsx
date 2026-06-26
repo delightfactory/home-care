@@ -54,7 +54,7 @@ const BackupsPage: React.FC = () => {
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-800">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
           <p>
-            يتم الاحتفاظ بآخر نسخة مكتملة فقط لتقليل استهلاك مساحة الخطة المجانية.
+            يتم الاحتفاظ بآخر نسخة مكتملة فقط لتقليل استهلاك مساحة الكاش.
             الاستعادة غير متاحة من الواجهة حاليًا لحماية بيانات التشغيل.
           </p>
         </div>
