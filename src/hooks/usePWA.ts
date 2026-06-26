@@ -54,7 +54,8 @@ export const usePWA = (): UsePWAReturn => {
       // Register service worker
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('/sw.js');
+          const existingRegistration = await navigator.serviceWorker.getRegistration();
+          const reg = existingRegistration || await navigator.serviceWorker.register('/sw.js');
           setRegistration(reg);
 
           // Check for updates

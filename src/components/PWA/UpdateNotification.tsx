@@ -18,7 +18,10 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
 
     const setupUpdateListener = async () => {
       try {
-        const reg = await navigator.serviceWorker.ready;
+        let reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+          reg = await navigator.serviceWorker.register('/sw.js');
+        }
         setRegistration(reg);
 
         // تحقق فوري إذا كان هناك SW منتظر
@@ -58,11 +61,28 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onUpdate, onDis
 
     setupUpdateListener();
 
-    // الاستماع لتغيير الـ controller - لكن لا نُعيد التحميل تلقائياً
+    // الاستماع لتغيير الـ controller
+    // يُعيد التحميل إذا: (أ) المستخدم ضغط "تحديث الآن"، أو
+    //                      (ب) حدث تحديث تلقائي (skipWaiting في install) — مرة واحدة فقط لكل جلسة
     const handleControllerChange = () => {
       console.log('UpdateNotification: Controller changed');
-      // نُعيد التحميل فقط إذا كان المستخدم قد ضغط "تحديث الآن"
+
+      // Guard: reload at most once per browser session to prevent infinite reload loops.
+      // The flag is cleared automatically when the tab is closed.
+      const RELOAD_GUARD_KEY = 'sw-reload-guard';
+      if (sessionStorage.getItem(RELOAD_GUARD_KEY)) {
+        console.log('UpdateNotification: Reload guard active — skipping reload');
+        return;
+      }
+
       if (isUpdating) {
+        // Explicit user-initiated update
+        sessionStorage.setItem(RELOAD_GUARD_KEY, '1');
+        window.location.reload();
+      } else {
+        // Automatic skipWaiting() from healing release — reload silently once
+        sessionStorage.setItem(RELOAD_GUARD_KEY, '1');
+        console.log('UpdateNotification: Auto-reload after SW controller change');
         window.location.reload();
       }
     };

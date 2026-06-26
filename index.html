@@ -75,20 +75,9 @@
       }
     </style>
     
-    <!-- Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-      }
-    </script>
+    <!-- Service Worker is registered exclusively from usePWA.ts (React hook).
+         Having a second registration here caused duplicate lifecycle listeners
+         and race conditions. Removed in the v2 healing release. -->
   </head>
   <body class="bg-gray-50 min-h-screen">
     <div id="root">

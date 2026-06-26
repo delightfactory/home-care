@@ -14,3 +14,47 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ---------------------------------------------------------------------------
+# Cache-Control headers
+# Rules are evaluated top-to-bottom; first match wins.
+# ---------------------------------------------------------------------------
+
+# sw.js — MUST never be cached by any proxy or browser cache.
+# The browser has its own SW update mechanism (24-hour max) but must
+# always revalidate when it checks.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Root HTML — never cache; must always get the latest index.html
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# index.html — never cache (same as above, belt-and-suspenders)
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# manifest.json — short-lived cache; revalidate often so PWA metadata stays fresh
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+# Hashed assets (JS/CSS) — immutable: content-addressed, safe to cache forever.
+# Vite names them /assets/index-AbCd1234.js so a new hash = new URL = no stale hits.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Icons — long-lived but not immutable (paths may not change between versions)
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"

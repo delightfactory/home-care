@@ -75,21 +75,10 @@
       }
     </style>
     
-    <!-- Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-      }
-    </script>
-    <script type="module" crossorigin src="/assets/index-267e5907.js"></script>
+    <!-- Service Worker is registered exclusively from usePWA.ts (React hook).
+         Having a second registration here caused duplicate lifecycle listeners
+         and race conditions. Removed in the v2 healing release. -->
+    <script type="module" crossorigin src="/assets/index-255ba2da.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-0eda341e.js">
     <link rel="modulepreload" crossorigin href="/assets/supabase-a91a5665.js">
     <link rel="modulepreload" crossorigin href="/assets/router-205c68ab.js">
