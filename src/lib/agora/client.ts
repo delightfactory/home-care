@@ -2,7 +2,7 @@
  * عميل Agora للمكالمات الصوتية
  */
 
-import AgoraRTC, {
+import type {
     IAgoraRTCClient,
     IMicrophoneAudioTrack,
     IAgoraRTCRemoteUser,
@@ -10,8 +10,29 @@ import AgoraRTC, {
 } from 'agora-rtc-sdk-ng'
 import { AGORA_CONFIG } from './config'
 
-// تكوين Agora SDK
-AgoraRTC.setLogLevel(3) // تقليل السجلات (0=debug, 3=warning)
+type AgoraRTCModule = typeof import('agora-rtc-sdk-ng')['default']
+
+let agoraRTCModulePromise: Promise<AgoraRTCModule> | null = null
+
+/**
+ * تحميل SDK عند الحاجة فقط، مع إعادة استخدام نفس الطلب أثناء التحميل.
+ */
+const loadAgoraRTC = (): Promise<AgoraRTCModule> => {
+    if (!agoraRTCModulePromise) {
+        agoraRTCModulePromise = import('agora-rtc-sdk-ng')
+            .then(({ default: AgoraRTC }) => {
+                AgoraRTC.setLogLevel(3) // تقليل السجلات (0=debug, 3=warning)
+                return AgoraRTC
+            })
+            .catch((error) => {
+                // السماح بمحاولة جديدة إذا فشل التحميل مؤقتاً.
+                agoraRTCModulePromise = null
+                throw error
+            })
+    }
+
+    return agoraRTCModulePromise
+}
 
 class AgoraClient {
     private client: IAgoraRTCClient | null = null
@@ -22,14 +43,22 @@ class AgoraClient {
     /**
      * الحصول على عميل Agora (إنشاء إذا لم يكن موجوداً)
      */
-    getClient(): IAgoraRTCClient {
+    private async getClient(): Promise<IAgoraRTCClient> {
         if (!this.client) {
+            const AgoraRTC = await loadAgoraRTC()
             this.client = AgoraRTC.createClient({
                 mode: 'rtc',
                 codec: 'vp8'
             })
         }
         return this.client
+    }
+
+    /**
+     * بدء تحميل SDK مبكراً عند بدء المكالمة دون إدخاله في حزمة التطبيق الأساسية.
+     */
+    async preload(): Promise<void> {
+        await loadAgoraRTC()
     }
 
     /**
@@ -41,9 +70,11 @@ class AgoraClient {
             return
         }
 
-        const client = this.getClient()
-
         try {
+            const [client, AgoraRTC] = await Promise.all([
+                this.getClient(),
+                loadAgoraRTC()
+            ])
             // الانضمام للقناة
             await client.join(AGORA_CONFIG.appId, channelName, token, uid)
             this.isJoined = true
@@ -126,11 +157,11 @@ class AgoraClient {
      * الاستماع لأحداث المستخدمين البعيدين
      */
     onRemoteUserJoined(callback: (user: IAgoraRTCRemoteUser) => void): void {
-        this.getClient().on('user-joined', callback)
+        this.client?.on('user-joined', callback)
     }
 
     onRemoteUserLeft(callback: (user: IAgoraRTCRemoteUser) => void): void {
-        this.getClient().on('user-left', (user) => {
+        this.client?.on('user-left', (user) => {
             // إزالة مسار الصوت البعيد
             this.remoteAudioTracks.delete(user.uid)
             callback(user)
@@ -138,7 +169,7 @@ class AgoraClient {
     }
 
     onRemoteAudioPublished(callback: (user: IAgoraRTCRemoteUser) => void): void {
-        this.getClient().on('user-published', async (user, mediaType) => {
+        this.client?.on('user-published', async (user, mediaType) => {
             if (mediaType === 'audio') {
                 // الاشتراك في صوت المستخدم البعيد
                 await this.client?.subscribe(user, mediaType)
@@ -157,7 +188,7 @@ class AgoraClient {
     }
 
     onRemoteAudioUnpublished(callback: (user: IAgoraRTCRemoteUser) => void): void {
-        this.getClient().on('user-unpublished', (user, mediaType) => {
+        this.client?.on('user-unpublished', (user, mediaType) => {
             if (mediaType === 'audio') {
                 this.remoteAudioTracks.delete(user.uid)
                 callback(user)

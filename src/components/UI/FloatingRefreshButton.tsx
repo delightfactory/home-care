@@ -3,9 +3,6 @@ import { RefreshCw } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { eventBus } from '../../utils/EventBus'
-import { EnhancedAPI } from '../../api/enhanced-api'
-import { ReportsAPI } from '../../api/reports'
-import { ViewOptimizer } from '../../api/view-optimizer'
 import FloatingRefreshSettings, { RefreshSettings } from './FloatingRefreshSettings'
 
 interface FloatingRefreshButtonProps {
@@ -181,11 +178,16 @@ const FloatingRefreshButton: React.FC<FloatingRefreshButtonProps> = ({ className
       const events = getRefreshEvents()
 
       // مسح الكاش أولاً للحصول على بيانات محدثة
+      const { EnhancedAPI } = await import('../../api/enhanced-api')
       EnhancedAPI.clearCache()
 
       // تحديث خاص للتقارير
       if (path === '/reports') {
         try {
+          const [{ ReportsAPI }, { ViewOptimizer }] = await Promise.all([
+            import('../../api/reports'),
+            import('../../api/view-optimizer')
+          ])
           await ReportsAPI.refreshMaterializedViews()
           await ViewOptimizer.refreshAllViews()
         } catch (error) {

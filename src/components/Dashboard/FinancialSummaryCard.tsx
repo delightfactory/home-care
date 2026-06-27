@@ -14,7 +14,8 @@ import {
     ArrowUpCircle,
 } from 'lucide-react'
 import { ProfitLossAPI } from '../../api/profit-loss'
-import { formatCurrency, getToday, getStartOfMonth, getEndOfMonth, toLocalDateISO } from '../../api'
+import { formatCurrency } from '../../api'
+import { getToday, getStartOfMonth, getEndOfMonth, toLocalDateISO } from '../../utils/date'
 import type { ProfitLossReport } from '../../types/hr.types'
 
 // ─────────────────────────────────────────────────

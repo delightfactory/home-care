@@ -1,7 +1,7 @@
 // Orders API Layer
 import type { OrderCounts } from '../types'
 import { supabase, handleSupabaseError, generateOrderNumber } from '../lib/supabase'
-import { getToday } from '../api'
+import { getToday } from '../utils/date'
 import { 
   Order, 
   OrderInsert, 

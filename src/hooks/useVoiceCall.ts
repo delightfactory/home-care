@@ -177,7 +177,10 @@ export function useVoiceCall(): UseVoiceCallReturn {
         try {
             setState(prev => ({ ...prev, status: 'connecting' }))
 
-            const { token, uid } = await getToken(state.callInfo.channelName)
+            const [{ token, uid }] = await Promise.all([
+                getToken(state.callInfo.channelName),
+                agoraClient.preload()
+            ])
             await agoraClient.join(state.callInfo.channelName, token, uid)
 
             // الاستماع للمستخدم البعيد
@@ -292,7 +295,10 @@ export function useVoiceCall(): UseVoiceCallReturn {
             }))
 
             // الانضمام للقناة
-            const { token, uid } = await getToken(channelName)
+            const [{ token, uid }] = await Promise.all([
+                getToken(channelName),
+                agoraClient.preload()
+            ])
             await agoraClient.join(channelName, token, uid)
 
             // الاستماع للمستخدم البعيد

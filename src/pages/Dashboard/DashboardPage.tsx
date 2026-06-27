@@ -10,7 +10,8 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
-import { getToday, supabase } from '../../api'
+import { supabase } from '../../lib/supabase'
+import { getToday } from '../../utils/date'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useSystemHealth } from '../../hooks/useEnhancedAPI'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
@@ -28,25 +29,29 @@ const useDashboardStats = (date: string) => {
     setError(null)
 
     try {
-      // جلب طلبات اليوم المكتملة والمدفوعة فقط
-      const { data: todayOrders } = await supabase
-        .from('orders')
-        .select('id, status, total_amount, customer_rating, payment_status')
-        .eq('scheduled_date', date)
-
-      // جلب مصروفات اليوم المعتمدة فقط
-      const { data: todayExpenses } = await supabase
-        .from('expenses')
-        .select('id, amount, status')
-        .gte('created_at', `${date}T00:00:00`)
-        .lte('created_at', `${date}T23:59:59`)
-        .eq('status', 'approved')
-
-      // جلب الفرق النشطة
-      const { data: activeTeams } = await supabase
-        .from('teams')
-        .select('id')
-        .eq('is_active', true)
+      const [
+        { data: todayOrders },
+        { data: todayExpenses },
+        { data: activeTeams }
+      ] = await Promise.all([
+        // جلب طلبات اليوم المكتملة والمدفوعة فقط
+        supabase
+          .from('orders')
+          .select('id, status, total_amount, customer_rating, payment_status')
+          .eq('scheduled_date', date),
+        // جلب مصروفات اليوم المعتمدة فقط
+        supabase
+          .from('expenses')
+          .select('id, amount, status')
+          .gte('created_at', `${date}T00:00:00`)
+          .lte('created_at', `${date}T23:59:59`)
+          .eq('status', 'approved'),
+        // جلب الفرق النشطة
+        supabase
+          .from('teams')
+          .select('id')
+          .eq('is_active', true)
+      ])
 
       // حساب الإحصائيات
       const totalOrders = todayOrders?.length || 0
