@@ -91,7 +91,7 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({
         // في حالة التعديل، جلب العمال المتاحين + الأعضاء الحاليين
         const [availableWorkers, allWorkers] = await Promise.all([
           WorkersAPI.getAvailableWorkers(),
-          WorkersAPI.getWorkers()
+          WorkersAPI.getWorkers(undefined, false)
         ])
         
         // الحصول على معرفات الأعضاء الحاليين

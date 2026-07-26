@@ -16,16 +16,18 @@ import {
 
 export class WorkersAPI {
   // Get all workers with optional filters - OPTIMIZED
-  static async getWorkers(filters?: WorkerFilters): Promise<WorkerWithTeam[]> {
+  static async getWorkers(filters?: WorkerFilters, includeSalary = true): Promise<WorkerWithTeam[]> {
     try {
-      // Use indexed columns for better performance
-      let query = supabase
-        .from('workers')
-        .select(`
-          id, name, phone, hire_date, salary, skills, can_drive, 
-          status, rating, total_orders, created_at, updated_at, user_id
-        `)
-        .order('created_at', { ascending: false }); // Use indexed column
+      // موظف الاستقبال يحتاج البيانات التشغيلية فقط؛ لا نطلب الراتب من الشبكة.
+      let query = includeSalary
+        ? supabase
+          .from('workers')
+          .select('id, name, phone, hire_date, salary, skills, can_drive, status, rating, total_orders, created_at, updated_at, user_id')
+          .order('created_at', { ascending: false })
+        : supabase
+          .from('workers')
+          .select('id, name, phone, hire_date, skills, can_drive, status, rating, total_orders, created_at, updated_at, user_id')
+          .order('created_at', { ascending: false })
 
       // Apply filters using indexed columns
       if (filters?.status?.length) {
@@ -65,8 +67,10 @@ export class WorkersAPI {
       });
 
       // Combine data efficiently
-      const workersWithTeam = workers.map(worker => ({
+      const workersWithTeam: WorkerWithTeam[] = workers.map(worker => ({
         ...worker,
+        // نحافظ على شكل النوع محليًا بدون نقل قيمة الراتب للمستخدم غير المصرح له.
+        salary: 'salary' in worker ? worker.salary : null,
         team: teamMap.get(worker.id) || null
       }));
 
@@ -195,7 +199,8 @@ export class WorkersAPI {
       const { data, error } = await supabase
         .from('workers')
         .select(`
-          *,
+          id, name, phone, hire_date, skills, can_drive, status, rating,
+          total_orders, created_at, updated_at, user_id,
           team_members:team_members(team_id,left_at)
         `)
         .eq('status', 'active')
@@ -207,7 +212,7 @@ export class WorkersAPI {
       return (data || []).filter(worker =>
         !worker.team_members ||
         worker.team_members.every((m: any) => m.left_at !== null)
-      )
+      ).map(worker => ({ ...worker, salary: null })) as Worker[]
     } catch (error) {
       throw new Error(handleSupabaseError(error))
     }
@@ -351,10 +356,10 @@ export class TeamsAPI {
         .from('teams')
         .select(`
           *,
-          leader:workers!teams_leader_id_fkey(*),
+          leader:workers!teams_leader_id_fkey(id, name, phone, status, rating),
           members:team_members(
             *,
-            worker:workers(*)
+            worker:workers(id, name, phone, status, rating, skills, can_drive)
           )
         `)
         .eq('id', id)

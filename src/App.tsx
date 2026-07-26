@@ -60,6 +60,22 @@ const ALLOWED_ADMIN_ROLES = ['manager', 'operations_supervisor', 'receptionist',
 // SECURITY: قائمة أدوار الفنيين
 const TECH_ROLES = ['technician', 'team_leader']
 
+// المسارات الحساسة تعمل بقائمة سماح صريحة وتُغلق افتراضيًا لأي دور غير معروف.
+const SENSITIVE_AREA_ROLES = ['manager', 'operations_supervisor', 'admin']
+
+const SensitiveAreaGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <LoadingSpinner size="large" />
+  }
+
+  const userRole = (user as any)?.role?.name
+  return SENSITIVE_AREA_ROLES.includes(userRole)
+    ? <>{children}</>
+    : <Navigate to="/dashboard" replace />
+}
+
 // Protected Route Component - محمي بفحص الدور
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, session, loading, signOut } = useAuth()
@@ -248,7 +264,11 @@ const AppRoutes: React.FC = () => {
         <Route path="workers" element={<WorkersPage />} />
         <Route path="teams" element={<TeamsPage />} />
         <Route path="routes" element={<RoutesPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="expenses" element={
+          <SensitiveAreaGuard>
+            <ExpensesPage />
+          </SensitiveAreaGuard>
+        } />
         <Route path="operations" element={<OperationsPage />} />
         <Route
           path="reports"
@@ -274,7 +294,11 @@ const AppRoutes: React.FC = () => {
             </AdminGuard>
           }
         />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings" element={
+          <SensitiveAreaGuard>
+            <SettingsPage />
+          </SensitiveAreaGuard>
+        } />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="messages/:conversationId" element={<MessagesPage />} />
@@ -296,11 +320,19 @@ const AppRoutes: React.FC = () => {
         />
         <Route
           path="finance"
-          element={<FinancePage />}
+          element={
+            <SensitiveAreaGuard>
+              <FinancePage />
+            </SensitiveAreaGuard>
+          }
         />
         <Route
           path="hr"
-          element={<HrPage />}
+          element={
+            <SensitiveAreaGuard>
+              <HrPage />
+            </SensitiveAreaGuard>
+          }
         />
         <Route
           path="profit-loss"

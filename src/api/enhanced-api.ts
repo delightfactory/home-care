@@ -633,8 +633,8 @@ export class EnhancedAPI {
   }
 
   // ===== WORKERS & TEAMS API =====
-  static async getWorkers(filters?: WorkerFilters, useCache = true): Promise<WorkerWithTeam[]> {
-    const cacheKey = `enhanced:workers:${JSON.stringify(filters)}`;
+  static async getWorkers(filters?: WorkerFilters, useCache = true, includeSalary = true): Promise<WorkerWithTeam[]> {
+    const cacheKey = `enhanced:workers:${includeSalary ? 'full' : 'operational'}:${JSON.stringify(filters)}`;
 
     if (useCache) {
       const cached = CacheManager.get<WorkerWithTeam[]>(cacheKey);
@@ -645,7 +645,7 @@ export class EnhancedAPI {
       'enhanced.workers.getWorkers',
       async () => {
         const result = await ConnectionManager.executeWithConnection(() =>
-          WorkersAPI.getWorkers(filters)
+          WorkersAPI.getWorkers(filters, includeSalary)
         );
 
         if (useCache) {

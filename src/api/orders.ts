@@ -227,7 +227,7 @@ export class OrdersAPI {
           .from('order_workers')
           .select(`
             *,
-            worker:workers(*)
+            worker:workers(id, name, phone, status, rating, skills, can_drive)
           `)
           .eq('order_id', id),
         // Load team details if team exists
@@ -235,9 +235,9 @@ export class OrdersAPI {
           .from('teams')
           .select(`
             *,
-            leader:workers!teams_leader_id_fkey(*),
+            leader:workers!teams_leader_id_fkey(id, name, phone, status, rating, skills, can_drive),
             members:team_members(
-              worker:workers(*)
+              worker:workers(id, name, phone, status, rating, skills, can_drive)
             )
           `)
           .eq('id', orderData.team_id)

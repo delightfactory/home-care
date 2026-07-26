@@ -8,6 +8,7 @@ import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import TransferWorkerModal from '../../components/Modals/TransferWorkerModal'
 import { useWorkers, useSystemHealth } from '../../hooks/useEnhancedAPI'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useAuth } from '../../contexts/AuthContext'
 
 const WorkersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -18,10 +19,17 @@ const WorkersPage: React.FC = () => {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  const { hasRole, hasPermission, isAdmin } = usePermissions()
+  const { user } = useAuth()
+  const canViewWorkerSalary = isAdmin()
+  const isReceptionist = (user as any)?.role?.name === 'receptionist'
+
   // Use optimized hooks for data fetching
-  const { workers, loading, error, refresh } = useWorkers()
+  const { workers, loading, error, refresh } = useWorkers(undefined, canViewWorkerSalary)
   const { health } = useSystemHealth()
-  const { hasRole } = usePermissions()
+  const canCreateWorker = hasPermission('workers', 'create')
+  const canUpdateWorker = hasPermission('workers', 'update')
+  const canDeleteWorker = hasPermission('workers', 'delete')
   const isSupervisor = hasRole('operations_supervisor')
 
   // Show error state if needed
@@ -102,7 +110,7 @@ const WorkersPage: React.FC = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">إدارة العمال</h1>
           <p className="text-gray-600 mt-2">إدارة العمال ومهاراتهم وحالتهم</p>
         </div>
-        {!isSupervisor && (
+        {!isSupervisor && !isReceptionist && canCreateWorker && (
           <button
             onClick={() => {
               setSelectedWorker(undefined)
@@ -247,7 +255,7 @@ const WorkersPage: React.FC = () => {
                   </td>
                   <td className="table-cell">
                     <div className="flex space-x-2 space-x-reverse">
-                      {!isSupervisor && (
+                      {!isSupervisor && !isReceptionist && canUpdateWorker && (
                         <button
                           onClick={() => {
                             setSelectedWorker(worker)
@@ -272,7 +280,7 @@ const WorkersPage: React.FC = () => {
                           <ArrowRightLeft className="h-4 w-4" />
                         </button>
                       )}
-                      {!isSupervisor && (
+                      {!isSupervisor && !isReceptionist && canDeleteWorker && (
                         <button
                           onClick={() => {
                             setSelectedWorker(worker)

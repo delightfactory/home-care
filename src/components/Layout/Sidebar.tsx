@@ -25,6 +25,7 @@ import {
 import { clsx } from '../../lib/clsx'
 
 import { usePermissions } from '../../hooks/usePermissions'
+import { useAuth } from '../../contexts/AuthContext'
 import { LucideIcon } from 'lucide-react'
 
 // --- Types ---
@@ -34,6 +35,7 @@ interface NavigationLink {
   href: string
   icon: LucideIcon
   adminOnly?: boolean
+  allowedRoles?: string[]
   excludeRoles?: string[]
 }
 
@@ -41,6 +43,7 @@ interface NavigationGroup {
   name: string
   icon: LucideIcon
   adminOnly?: boolean
+  allowedRoles?: string[]
   excludeRoles?: string[]
   children: NavigationLink[]
 }
@@ -52,6 +55,7 @@ function isGroup(entry: NavigationEntry): entry is NavigationGroup {
 }
 
 // --- Navigation Structure ---
+const SENSITIVE_AREA_ROLES = ['manager', 'operations_supervisor', 'admin']
 
 const navigation: NavigationEntry[] = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home },
@@ -82,19 +86,20 @@ const navigation: NavigationEntry[] = [
   },
 
   { name: 'خطوط السير', href: '/routes', icon: Map },
-  { name: 'المصروفات', href: '/expenses', icon: Receipt },
+  { name: 'المصروفات', href: '/expenses', icon: Receipt, allowedRoles: SENSITIVE_AREA_ROLES },
 
   // مجموعة المالى
   {
     name: 'النظام المالي',
     icon: Landmark,
+    allowedRoles: SENSITIVE_AREA_ROLES,
     children: [
       { name: 'الخزائن والحسابات', href: '/finance', icon: Landmark },
       { name: 'الأرباح والخسائر', href: '/profit-loss', icon: PieChart, adminOnly: true },
     ],
   },
 
-  { name: 'الموارد البشرية', href: '/hr', icon: Briefcase },
+  { name: 'الموارد البشرية', href: '/hr', icon: Briefcase, allowedRoles: SENSITIVE_AREA_ROLES },
   { name: 'إدارة العمليات', href: '/operations', icon: Activity },
   { name: 'التقارير', href: '/reports', icon: BarChart3, adminOnly: true },
 
@@ -104,6 +109,7 @@ const navigation: NavigationEntry[] = [
   {
     name: 'الإعدادات',
     icon: Settings,
+    allowedRoles: SENSITIVE_AREA_ROLES,
     children: [
       { name: 'إعدادات النظام', href: '/settings', icon: Settings },
       { name: 'الأدوار والمستخدمين', href: '/roles', icon: Shield, adminOnly: true },
@@ -122,19 +128,27 @@ interface SidebarProps {
 // --- Component ---
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { isAdmin, hasRole } = usePermissions()
+  const { isAdmin } = usePermissions()
+  const { user, loading } = useAuth()
+  const userRole = (user as any)?.role?.name
   const location = useLocation()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
+  // لا تعرض القائمة قبل اكتمال تحميل الدور حتى لا تومض روابط غير مصرح بها.
+  if (loading) {
+    return null
+  }
+
   // أمان: منع ظهور القائمة الجانبية للفنيين وقادة الفرق
-  if (hasRole('technician') || hasRole('team_leader')) {
+  if (userRole === 'technician' || userRole === 'team_leader') {
     return null
   }
 
   // Check if a single link/group should be visible
-  const isVisible = (item: { adminOnly?: boolean; excludeRoles?: string[] }) => {
+  const isVisible = (item: { adminOnly?: boolean; allowedRoles?: string[]; excludeRoles?: string[] }) => {
     if (item.adminOnly && !isAdmin()) return false
-    if (item.excludeRoles?.some(role => hasRole(role))) return false
+    if (item.allowedRoles && !item.allowedRoles.includes(userRole)) return false
+    if (item.excludeRoles?.includes(userRole)) return false
     return true
   }
 

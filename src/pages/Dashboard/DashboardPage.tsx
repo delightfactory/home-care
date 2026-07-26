@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useCallback } from 'react'
+import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -19,12 +19,14 @@ import FinancialSummaryCard from '../../components/Dashboard/FinancialSummaryCar
 import toast from 'react-hot-toast'
 
 // Hook مخصص لحساب إحصائيات لوحة التحكم بطريقة مبسطة ومباشرة
-const useDashboardStats = (date: string) => {
+const useDashboardStats = (date: string, includeFinancialStats: boolean) => {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
 
   const fetchStats = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     setLoading(true)
     setError(null)
 
@@ -40,12 +42,14 @@ const useDashboardStats = (date: string) => {
           .select('id, status, total_amount, customer_rating, payment_status')
           .eq('scheduled_date', date),
         // جلب مصروفات اليوم المعتمدة فقط
-        supabase
-          .from('expenses')
-          .select('id, amount, status')
-          .gte('created_at', `${date}T00:00:00`)
-          .lte('created_at', `${date}T23:59:59`)
-          .eq('status', 'approved'),
+        includeFinancialStats
+          ? supabase
+            .from('expenses')
+            .select('id, amount, status')
+            .gte('created_at', `${date}T00:00:00`)
+            .lte('created_at', `${date}T23:59:59`)
+            .eq('status', 'approved')
+          : Promise.resolve({ data: [] }),
         // جلب الفرق النشطة
         supabase
           .from('teams')
@@ -78,24 +82,28 @@ const useDashboardStats = (date: string) => {
         ? ratedOrders.reduce((sum, o) => sum + (o.customer_rating || 0), 0) / ratedOrders.length
         : 0
 
-      setStats({
-        total_orders: totalOrders,
-        completed_orders: completedOrders,
-        cancelled_orders: cancelledOrders,
-        total_revenue: totalRevenue,
-        total_expenses: totalExpenses,
-        net_profit: netProfit,
-        active_teams: activeTeams?.length || 0,
-        average_rating: averageRating,
-        paid_orders_count: paidOrders.length,
-        approved_expenses_count: todayExpenses?.length || 0
-      })
+      if (requestId === requestIdRef.current) {
+        setStats({
+          total_orders: totalOrders,
+          completed_orders: completedOrders,
+          cancelled_orders: cancelledOrders,
+          total_revenue: totalRevenue,
+          total_expenses: totalExpenses,
+          net_profit: netProfit,
+          active_teams: activeTeams?.length || 0,
+          average_rating: averageRating,
+          paid_orders_count: paidOrders.length,
+          approved_expenses_count: todayExpenses?.length || 0
+        })
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع')
+      if (requestId === requestIdRef.current) {
+        setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع')
+      }
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) setLoading(false)
     }
-  }, [date])
+  }, [date, includeFinancialStats])
 
   useEffect(() => {
     fetchStats()
@@ -107,18 +115,19 @@ const useDashboardStats = (date: string) => {
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
   const today = useMemo(() => getToday(), [])
+  const { hasRole, isAdmin } = usePermissions()
+  const canViewFinancialStats = isAdmin()
 
   // استخدام Hook المخصص للحساب المباشر
   const {
     stats,
     loading: statsLoading,
     error: statsError
-  } = useDashboardStats(today)
+  } = useDashboardStats(today, canViewFinancialStats)
 
   // Optional: system health (auto-refresh)
   const { health: _health } = useSystemHealth()
 
-  const { hasRole, isAdmin } = usePermissions()
   const isSupervisor = hasRole('operations_supervisor')
 
   // Active routes query (cached for 1 minute)

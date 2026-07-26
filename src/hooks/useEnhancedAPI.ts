@@ -1,7 +1,7 @@
 // React Hooks for Enhanced API with Performance Optimization
 // React Hooks للـ API المحسن مع تحسينات الأداء
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import EnhancedAPI from '../api/enhanced-api';
 import { eventBus } from '../utils/EventBus';
 import { 
@@ -222,29 +222,33 @@ export function useCustomerSearch(searchTerm: string, limit = 10) {
 }
 
 // Workers hooks
-export function useWorkers(filters?: WorkerFilters) {
+export function useWorkers(filters?: WorkerFilters, includeSalary = true) {
   const [workers, setWorkers] = useState<WorkerWithTeam[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
   
   const filtersString = JSON.stringify(filters);
 
   const fetchWorkers = useCallback(
     async (bypassCache: boolean = false) => {
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       setError(null);
 
       try {
         // إذا تم طلب تجاوز الكاش، نمرر useCache = false
-        const result = await EnhancedAPI.getWorkers(filters, !bypassCache);
-        setWorkers(result);
+        const result = await EnhancedAPI.getWorkers(filters, !bypassCache, includeSalary);
+        if (requestId === requestIdRef.current) setWorkers(result);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
+        if (requestId === requestIdRef.current) {
+          setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
+        }
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) setLoading(false);
       }
     },
-    [filtersString]
+    [filtersString, includeSalary]
   );
 
   useEffect(() => {
