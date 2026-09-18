@@ -298,7 +298,6 @@ export interface OrderForm {
     quantity: number
     custom_price?: number
   }[]
-  team_id?: string
   payment_status?: PaymentStatus
   payment_method?: PaymentMethod
   transport_method?: TransportMethod
