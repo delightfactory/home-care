@@ -436,7 +436,7 @@ export class TechnicianAPI {
     private static async validateStartContext(
         orderId: string,
         userId: string
-    ): Promise<ApiResponse<{ workerId: string; teamId: string }>> {
+    ): Promise<ApiResponse<{ teamId: string }>> {
         try {
             const workerId = await this.getMyWorkerId(userId)
             if (!workerId) {
@@ -506,7 +506,7 @@ export class TechnicianAPI {
                 }
             }
 
-            return { success: true, data: { workerId, teamId } }
+            return { success: true, data: { teamId } }
         } catch (error) {
             return { success: false, error: handleSupabaseError(error) }
         }
@@ -528,7 +528,7 @@ export class TechnicianAPI {
             if (!validation.success || !validation.data) {
                 return { success: false, error: validation.error || 'تعذر التحقق من بيانات خط السير' }
             }
-            const { workerId, teamId } = validation.data
+            const { teamId } = validation.data
 
             // تحديث حالة الطلب
             const { error } = await supabase
