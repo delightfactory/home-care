@@ -280,10 +280,14 @@ export class OrdersAPI {
 
   // Create new order
   static async createOrder(
-    orderData: Omit<OrderInsert, 'order_number'>,
+    orderData: Omit<OrderInsert, 'order_number' | 'team_id'>,
     items: Omit<OrderItemInsert, 'order_id'>[]
   ): Promise<ApiResponse<OrderWithDetails>> {
     try {
+      // Defense in depth: order team assignment is owned exclusively by route workflow.
+      const safeOrderData = { ...(orderData as Record<string, any>) }
+      delete safeOrderData.team_id
+
       // Generate order number
       const orderNumber = await generateOrderNumber()
 
@@ -294,7 +298,7 @@ export class OrdersAPI {
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          ...orderData,
+          ...safeOrderData,
           order_number: orderNumber,
           total_amount: totalAmount
         })
@@ -322,7 +326,7 @@ export class OrdersAPI {
           order_id: order.id,
           status: 'pending',
           notes: 'تم إنشاء الطلب',
-          created_by: orderData.created_by
+          created_by: safeOrderData.created_by
         })
 
       // Get complete order data
@@ -347,8 +351,10 @@ export class OrdersAPI {
     updates: OrderUpdate
   ): Promise<ApiResponse<Order>> {
     try {
-      // Exclude fields that do not belong to the `orders` table schema (e.g. services list)
-      const { services: _services, ...orderUpdates } = updates as Record<string, any>
+      // Generic order edits must never alter route-owned team assignment.
+      const orderUpdates = { ...(updates as Record<string, any>) }
+      delete orderUpdates.services
+      delete orderUpdates.team_id
 
       // Convert empty strings to null to satisfy DB constraints
       const sanitizedUpdates = Object.fromEntries(
@@ -410,6 +416,69 @@ export class OrdersAPI {
     }
   }
 
+  // Validate the business invariant required before an order can start.
+  private static async validateStartContext(orderId: string): Promise<ApiResponse<void>> {
+    try {
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id, status, team_id')
+        .eq('id', orderId)
+        .single()
+
+      if (orderError) throw orderError
+
+      if (order.status !== OrderStatus.SCHEDULED) {
+        return {
+          success: false,
+          error: 'لا يمكن بدء التنفيذ قبل إضافة الطلب إلى خط سير واعتماده كمجدول'
+        }
+      }
+
+      const { data: routeLinks, error: routeError } = await supabase
+        .from('route_orders')
+        .select(`
+          route_id,
+          route:routes(id, team_id)
+        `)
+        .eq('order_id', orderId)
+
+      if (routeError) throw routeError
+
+      if (!routeLinks || routeLinks.length !== 1) {
+        return {
+          success: false,
+          error: 'لا يمكن بدء التنفيذ: يجب أن يكون الطلب مرتبطاً بخط سير واحد فقط'
+        }
+      }
+
+      const route = (routeLinks[0] as any).route
+      if (!route?.team_id) {
+        return {
+          success: false,
+          error: 'لا يمكن بدء التنفيذ: خط السير غير مرتبط بفريق'
+        }
+      }
+
+      if (!order.team_id) {
+        return {
+          success: false,
+          error: 'لا يمكن بدء التنفيذ: لم تتم مزامنة فريق الطلب من خط السير'
+        }
+      }
+
+      if (order.team_id !== route.team_id) {
+        return {
+          success: false,
+          error: 'لا يمكن بدء التنفيذ: فريق الطلب لا يطابق فريق خط السير'
+        }
+      }
+
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: handleSupabaseError(error) }
+    }
+  }
+
   // Update order status
   static async updateOrderStatus(
     orderId: string,
@@ -419,6 +488,11 @@ export class OrdersAPI {
     images?: string[]
   ): Promise<ApiResponse<void>> {
     try {
+      if (status === OrderStatus.IN_PROGRESS) {
+        const validation = await this.validateStartContext(orderId)
+        if (!validation.success) return validation
+      }
+
       // Update order status
       const { error: orderError } = await supabase
         .from('orders')
@@ -487,46 +561,6 @@ export class OrdersAPI {
       return { success: true, message: 'تم تحديث عناصر الطلب بنجاح' }
     } catch (error) {
       return { success: false, error: handleSupabaseError(error) }
-    }
-  }
-
-  // Assign team to order
-  static async assignTeamToOrder(
-    orderId: string,
-    teamId: string,
-    userId?: string
-  ): Promise<ApiResponse<void>> {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          team_id: teamId,
-          status: 'scheduled',
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', orderId)
-
-      if (error) throw error
-
-      // Add status log
-      await supabase
-        .from('order_status_logs')
-        .insert({
-          order_id: orderId,
-          status: 'scheduled',
-          notes: 'تم تعيين فريق للطلب',
-          created_by: userId
-        })
-
-      return {
-        success: true,
-        message: 'تم تعيين الفريق للطلب بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
     }
   }
 

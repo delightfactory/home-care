@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Save, ShoppingCart, Plus, Trash2, User, Truck, FileText, CheckCircle, DollarSign, CreditCard, UserPlus, Hash } from 'lucide-react'
-import { OrdersAPI, ServicesAPI, TeamsAPI } from '../../api'
+import { Save, ShoppingCart, Plus, Trash2, Truck, FileText, CheckCircle, DollarSign, CreditCard, UserPlus, Hash } from 'lucide-react'
+import { OrdersAPI, ServicesAPI } from '../../api'
 import EnhancedAPI from '../../api/enhanced-api'
 import { useAuth } from '../../contexts/AuthContext'
-import { Order, OrderForm, ServiceWithCategory, OrderWithDetails, TeamWithMembers } from '../../types'
+import { Order, OrderForm, ServiceWithCategory, OrderWithDetails } from '../../types'
 import LoadingSpinner from '../UI/LoadingSpinner'
 import SmartModal from '../UI/SmartModal'
 import DateTimePicker from '../UI/DateTimePicker'
@@ -31,7 +31,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     scheduled_date: '',
     scheduled_time: '',
     services: [{ service_id: '', quantity: 1, custom_price: undefined }],
-    team_id: '',
     payment_status: 'unpaid' as any,
     payment_method: 'cash' as any,
     transport_method: 'company_car' as any,
@@ -39,7 +38,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   })
   // Customer search is now handled by CustomerSearchInput component
   const [services, setServices] = useState<ServiceWithCategory[]>([])
-  const [teams, setTeams] = useState<TeamWithMembers[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -64,7 +62,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           quantity: item.quantity,
           custom_price: item.unit_price ?? undefined
         })) || [{ service_id: '', quantity: 1, custom_price: undefined }],
-        team_id: order.team_id || '',
         payment_status: (order.payment_status as any) || 'unpaid',
         payment_method: (order.payment_method as any) || 'cash',
         transport_method: (order.transport_method as any) || 'company_car',
@@ -76,7 +73,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         scheduled_date: '',
         scheduled_time: '',
         services: [{ service_id: '', quantity: 1, custom_price: undefined }],
-        team_id: '',
         payment_status: 'unpaid' as any,
         payment_method: 'cash' as any,
         transport_method: 'company_car' as any,
@@ -115,13 +111,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const fetchInitialData = async () => {
     try {
       setLoadingData(true)
-      const [servicesData, teamsData] = await Promise.all([
-        ServicesAPI.getServices(),
-        TeamsAPI.getTeams()
-      ])
-
+      const servicesData = await ServicesAPI.getServices()
       setServices(servicesData)
-      setTeams(teamsData)
     } catch (error) {
       toast.error('حدث خطأ في تحميل البيانات')
       console.error('Order form data fetch error:', error)
@@ -184,7 +175,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           customer_id: formData.customer_id,
           scheduled_date: formData.scheduled_date,
           scheduled_time: formData.scheduled_time,
-          team_id: formData.team_id || null,
           payment_status: formData.payment_status,
           payment_method: formData.payment_method,
           transport_method: formData.transport_method,
@@ -211,12 +201,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           throw new Error(response.error || 'Create order failed')
         }
       } else {
-        // Update order base fields first (exclude services)
-        const { services: svc, team_id, ...orderUpdates } = formData as any
-        // نرسل team_id فقط لو بقيمة فعلية (مش فارغ) عشان مانمسحش الفريق اللي متعين من خط السير
-        if (team_id) {
-          orderUpdates.team_id = team_id
-        }
+        // Update order base fields first. Team ownership is route-managed only.
+        const { services: _services, ...orderUpdates } = formData
         const updateRes = await EnhancedAPI.updateOrder(order!.id, orderUpdates)
         if (!updateRes.success) throw new Error(updateRes.error || 'Update failed')
 
@@ -561,36 +547,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
                 <span className="text-xl font-bold text-primary-600 bg-white px-3 py-1 rounded-lg shadow-sm">
                   {calculateTotal().toFixed(2)} ج.م
                 </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Team Selection */}
-          <div className="space-y-2">
-            <label className="flex items-center label text-gray-700 font-medium">
-              <User className="h-4 w-4 ml-2 text-primary-500" />
-              الفريق (اختياري)
-            </label>
-            <div className="relative">
-              <select
-                name="team_id"
-                value={formData.team_id}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`input transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 pl-10 ${touched.team_id && formData.team_id ? 'border-green-500 focus:ring-green-500' : ''}`}
-                disabled={loading}
-              >
-                <option value="">غير محدد</option>
-                {teams.map(team => (
-                  <option key={team.id} value={team.id}>{team.name}</option>
-                ))}
-              </select>
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                {touched.team_id && formData.team_id ? (
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                ) : (
-                  <User className="h-4 w-4 text-gray-400" />
-                )}
               </div>
             </div>
           </div>

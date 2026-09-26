@@ -599,7 +599,7 @@ const OrdersPage: React.FC = () => {
                       </button>
 
                       {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
-                      {order.status === 'pending' || order.status === 'scheduled' ? (
+                      {order.status === 'scheduled' ? (
                         <button
                           onClick={() => promptStatusChange(order, OrderStatus.IN_PROGRESS)}
                           className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0"
