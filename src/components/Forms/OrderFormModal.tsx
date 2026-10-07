@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Save, ShoppingCart, Plus, Trash2, Truck, FileText, CheckCircle, DollarSign, CreditCard, UserPlus, Hash } from 'lucide-react'
-import { OrdersAPI, ServicesAPI } from '../../api'
+import { ServicesAPI } from '../../api'
 import EnhancedAPI from '../../api/enhanced-api'
 import { useAuth } from '../../contexts/AuthContext'
 import { Order, OrderForm, ServiceWithCategory, OrderWithDetails } from '../../types'
@@ -10,6 +10,8 @@ import DateTimePicker from '../UI/DateTimePicker'
 import CustomerSearchInput from '../UI/CustomerSearchInput'
 import CustomerFormModal from './CustomerFormModal'
 import toast from 'react-hot-toast'
+import { LifecycleAPI, EditOrderSnapshot } from '../../api/lifecycle'
+import { orderEditItems } from '../../api/order-edit-payload'
 
 interface OrderFormModalProps {
   isOpen: boolean
@@ -43,6 +45,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [showCustomerModal, setShowCustomerModal] = useState(false)
+  const [editSnapshot, setEditSnapshot] = useState<EditOrderSnapshot | null>(null)
+  const [editLoadError, setEditLoadError] = useState(false)
   const { user } = useAuth()
 
   useEffect(() => {
@@ -52,12 +56,17 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   }, [isOpen])
 
   useEffect(() => {
+    if (!isOpen) return
+    let disposed = false
+    setEditSnapshot(null)
+    setEditLoadError(false)
     if (order && mode === 'edit') {
       setFormData({
         customer_id: order.customer_id,
         scheduled_date: order.scheduled_date,
         scheduled_time: order.scheduled_time,
         services: (order as OrderWithDetails).items?.map((item: any) => ({
+          id: item.id,
           service_id: item.service_id,
           quantity: item.quantity,
           custom_price: item.unit_price ?? undefined
@@ -67,6 +76,13 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
         transport_method: (order.transport_method as any) || 'company_car',
         notes: order.notes || ''
       })
+      LifecycleAPI.snapshot('edit_order', order.id).then(snapshot => {
+        if (disposed) return
+        setEditSnapshot(snapshot)
+        setFormData({ ...snapshot.data, notes: snapshot.data.notes ?? '', services: snapshot.items.map(item => ({
+          id: item.id, service_id: item.service_id ?? '', quantity: item.quantity, custom_price: item.unit_price,
+        })) } as OrderForm)
+      }).catch(error => { if (!disposed) { setEditLoadError(true); toast.error(error.message) } })
     } else {
       setFormData({
         customer_id: '',
@@ -80,33 +96,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       })
     }
     setErrors({})
-
-
-  }, [order, mode, isOpen])
-
-  // Fetch detailed order items when editing and items not present
-  useEffect(() => {
-    const loadDetails = async () => {
-      if (!isOpen || mode !== 'edit' || !order) return
-      if ((order as OrderWithDetails).items && (order as OrderWithDetails).items!.length) return
-      try {
-        const detailed = await OrdersAPI.getOrderById(order.id)
-        if (detailed && detailed.items) {
-          setFormData(prev => ({
-            ...prev,
-            services: (detailed.items ?? []).map(it => ({
-              service_id: it.service_id ?? '',
-              quantity: it.quantity,
-              custom_price: it.unit_price ?? undefined
-            }))
-          }))
-        }
-      } catch (err) {
-        console.error('Could not load order items:', err)
-      }
-    }
-    loadDetails()
-  }, [isOpen, mode, order])
+    return () => { disposed = true }
+  }, [order?.id, mode, isOpen])
 
   const fetchInitialData = async () => {
     try {
@@ -201,24 +192,11 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           throw new Error(response.error || 'Create order failed')
         }
       } else {
-        // Update order base fields first. Team ownership is route-managed only.
+        if (!editSnapshot) throw new Error('تعذر تحميل نسخة الطلب. أغلق النموذج وافتحه مجددًا')
         const { services: _services, ...orderUpdates } = formData
-        const updateRes = await EnhancedAPI.updateOrder(order!.id, orderUpdates)
-        if (!updateRes.success) throw new Error(updateRes.error || 'Update failed')
-
-        // Recalculate items with prices
-        const orderItems = formData.services.map(serviceItem => {
-          const service = services.find(s => s.id === serviceItem.service_id)
-          const price = serviceItem.custom_price ?? service?.price ?? 0
-          return {
-            service_id: serviceItem.service_id,
-            quantity: serviceItem.quantity,
-            unit_price: price,
-            total_price: price * serviceItem.quantity
-          }
-        })
-        const replaceRes = await EnhancedAPI.replaceOrderItems(order!.id, orderItems)
-        if (!replaceRes.success) throw new Error(replaceRes.error || 'Failed to update الخدمات')
+        const orderItems = orderEditItems(formData.services, services)
+        const response = await EnhancedAPI.editOrder(order!.id, orderUpdates, orderItems, editSnapshot)
+        if (!response.success) throw new Error(response.error || 'تعذر حفظ الطلب')
         toast.success('تم تحديث بيانات الطلب بنجاح')
       }
 
@@ -325,7 +303,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       headerGradient="from-primary-500 via-primary-600 to-primary-700"
     >
 
-      {loadingData ? (
+      {loadingData || (mode === 'edit' && !editSnapshot && !editLoadError) ? (
         <div className="p-8 flex justify-center">
           <LoadingSpinner size="large" text="جاري تحميل البيانات..." />
         </div>

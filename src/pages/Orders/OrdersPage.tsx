@@ -321,8 +321,9 @@ const OrdersPage: React.FC = () => {
         throw new Error(response.error || 'فشل في تحديث الحالة')
       }
     } catch (error) {
-      toast.error('حدث خطأ في تحديث الحالة', { id: 'statusConfirm' })
+      toast.error(error instanceof Error ? error.message : 'حدث خطأ في تحديث الحالة', { id: 'statusConfirm' })
       console.error('Status update error:', error)
+      if (targetStatus === OrderStatus.IN_PROGRESS) refresh()
     } finally {
       setConfirmLoading(false)
     }

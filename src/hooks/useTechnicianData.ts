@@ -175,6 +175,16 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
     useEffect(() => {
         if (!route?.id) return
 
+        // These tables are published in the current production publication.
+        // A link change reloads the route and therefore rebuilds order filters.
+        const linksChannel = supabase.channel(`tech-route-links-${route.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'route_orders', filter: `route_id=eq.${route.id}` }, () => { void fetchData() })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'routes', filter: `id=eq.${route.id}` }, () => { void fetchData() })
+            .subscribe()
+        const refreshOnFocus = () => { if (document.visibilityState === 'visible') void fetchData() }
+        window.addEventListener('focus', refreshOnFocus)
+        document.addEventListener('visibilitychange', refreshOnFocus)
+
         // جلب order_ids المرتبطة بخط السير
         const setupSubscriptions = async () => {
             const { data: routeOrders } = await supabase
@@ -239,10 +249,17 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         }
 
         let cleanup: (() => void) | undefined
-        setupSubscriptions().then(fn => { cleanup = fn })
+        let disposed = false
+        setupSubscriptions().then(fn => { if (disposed) fn?.(); else cleanup = fn })
 
-        return () => { cleanup?.() }
-    }, [route?.id])
+        return () => {
+            disposed = true
+            cleanup?.()
+            void supabase.removeChannel(linksChannel)
+            window.removeEventListener('focus', refreshOnFocus)
+            document.removeEventListener('visibilitychange', refreshOnFocus)
+        }
+    }, [route?.id, route?.route_orders?.map(link => link.order_id).sort().join(','), fetchData])
 
     // بدء العمل على الطلب
     const startOrder = useCallback(async () => {
@@ -252,17 +269,17 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
             const result = await TechnicianAPI.startOrder(currentOrder.id)
             if (result.success) {
                 toast.success('يلا بينا! تم بدء الطلب 🚀')
-                setCurrentOrder(prev => prev ? { ...prev, status: 'in_progress' } : null)
             } else {
                 toast.error(result.error || 'حصل مشكلة')
             }
+            await fetchData()
         } catch (err) {
             console.error('Error starting order:', err)
             toast.error('حصل مشكلة فى بدء الطلب')
         } finally {
             setOrderLoading(false)
         }
-    }, [currentOrder])
+    }, [currentOrder, fetchData])
 
     // إكمال الطلب
     const completeOrder = useCallback(async () => {

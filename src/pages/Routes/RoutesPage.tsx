@@ -89,7 +89,7 @@ const RoutesPage: React.FC = () => {
     refresh()
   }, [refresh, dateFilter, teamFilter, statusFilter])
 
-  if (loading) {
+  if (loading && !showAssignModal && !showFormModal && !showDeleteModal) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل خطوط السير..." />
@@ -138,7 +138,7 @@ const RoutesPage: React.FC = () => {
       toast.success('تم حذف خط السير')
       setShowDeleteModal(false)
     } catch (error) {
-      toast.error('تعذر حذف خط السير')
+      toast.error(error instanceof Error ? error.message : 'تعذر حذف خط السير')
       console.error(error)
     }
   }

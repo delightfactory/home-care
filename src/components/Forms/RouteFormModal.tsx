@@ -1,3 +1,4 @@
+import { LifecycleAPI, RouteSnapshot } from '../../api/lifecycle'
 import React, { useEffect, useState } from 'react'
 import { Save, Users, FileText, CheckCircle, MapPin, X } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
@@ -38,6 +39,18 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
     notes: '',
   } as any)
   const [loading, setLoading] = useState(false)
+  const [snapshot, setSnapshot] = useState<RouteSnapshot | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    setSnapshot(null)
+    if (open && mode === 'edit' && existingRoute) {
+      LifecycleAPI.snapshot('route', existingRoute.id).then(value => {
+        if (Date.parse(value.updated_at) !== Date.parse(existingRoute.updated_at)) throw new Error('تغير خط السير. حدّث البيانات قبل التعديل')
+        if (!cancelled) setSnapshot(value)
+      }).catch(error => { if (!cancelled) toast.error(error.message) })
+    }
+    return () => { cancelled = true }
+  }, [open, mode, existingRoute?.id])
   const [touched, setTouched] = useState<{[key: string]: boolean}>({})
 
   const handleBlur = (field: string) => {
@@ -58,7 +71,7 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
         notes: '',
       } as any)
     }
-  }, [mode, existingRoute, open])
+  }, [mode, existingRoute?.id, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,6 +89,10 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
     delete (payload as any).route_orders
     delete (payload as any).orders
     delete (payload as any).team
+    delete payload.created_by
+    delete payload.status
+    delete payload.actual_start_time
+    delete payload.actual_end_time
 
     setLoading(true)
     try {
@@ -84,14 +101,15 @@ const RouteFormModal: React.FC<RouteFormModalProps> = ({
         if (!res.success) throw new Error(res.error)
         toast.success('تم إنشاء خط السير')
       } else if (existingRoute) {
-        const res = await EnhancedAPI.updateRoute(existingRoute.id, payload as RouteUpdate)
+        if (!snapshot) throw new Error('حدّث بيانات خط السير قبل حفظ التعديل')
+        const res = await EnhancedAPI.updateRoute(existingRoute.id, payload as RouteUpdate, snapshot)
         if (!res.success) throw new Error(res.error)
         toast.success('تم تحديث خط السير')
       }
       onSaved()
       onClose()
     } catch (error) {
-      toast.error('حدث خطأ، حاول مرة أخرى')
+      toast.error(error instanceof Error ? error.message : 'حدث خطأ، حاول مرة أخرى')
       console.error(error)
     } finally {
       setLoading(false)

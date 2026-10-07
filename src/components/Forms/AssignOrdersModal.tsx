@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import { LifecycleAPI, RouteSnapshot, OrderSnapshot } from '../../api/lifecycle'
+import { assignmentSequences } from '../../api/lifecycle-ordering'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { X, ArrowUp, ArrowDown, Plus, Minus, Save, ClipboardList, RefreshCw, Check, XCircle } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
 import { RoutesAPI } from '../../api'
@@ -48,6 +50,12 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const [assignedOrders, setAssignedOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [snapshot, setSnapshot] = useState<RouteSnapshot | null>(null)
+  const [newOrderSnapshots, setNewOrderSnapshots] = useState<Record<string, OrderSnapshot>>({})
+  const [destinations, setDestinations] = useState<RouteWithOrders[]>([])
+  const [destinationId, setDestinationId] = useState('')
+  const [destinationSnapshot, setDestinationSnapshot] = useState<RouteSnapshot | null>(null)
+  const destinationRequest = useRef(0)
 
   // Helper: calculate total expected execution duration (in minutes) for an order
   const getOrderDuration = (order: OrderWithDetails): number => {
@@ -72,19 +80,32 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const hours = Math.floor(totalDuration / 60)
   const minutes = totalDuration % 60
 
-  // Original ids for diff
-  const originalAssignedIds = route.route_orders?.map((ro) => ro.order_id) || []
-
   useEffect(() => {
     if (!open) return
+    let cancelled = false
 
     const init = async () => {
       try {
         setLoading(true)
-        // Fetch available orders for the route date
-        const available = await RoutesAPI.getAvailableOrders(route.date as string)
+        setSnapshot(null)
+        setNewOrderSnapshots({})
+        destinationRequest.current++
+        setDestinationId('')
+        setDestinationSnapshot(null)
+        const expected = await LifecycleAPI.snapshot('route', route.id)
+        const fresh = await RoutesAPI.getRoute(route.id)
+        if (cancelled) return
+        if (!fresh || fresh.route_orders?.length !== expected.links.length || expected.links.some(link => !fresh.route_orders?.some(ro =>
+          ro.id === link.id && ro.sequence_order === link.sequence_order && ro.order?.status === link.order.status &&
+          ro.order?.team_id === link.order.team_id && Date.parse(ro.order.updated_at) === Date.parse(link.order.updated_at))))
+          throw new Error('تغيرت بيانات الخط أثناء التحميل. أغلق النموذج وافتحه مجدداً')
+        const available = await RoutesAPI.getAvailableOrders(fresh.date as string)
+        const nextDestinations = (await RoutesAPI.getRoutesByDate(fresh.date)).filter(item => item.id !== route.id && item.status !== 'completed' && !item.actual_end_time)
+        if (cancelled) return
+        setSnapshot(expected)
+        setDestinations(nextDestinations)
         // assigned orders
-        const assigned = (route.route_orders || [])
+        const assigned = (fresh.route_orders || []).slice()
           .sort((a, b) => (a.sequence_order ?? 0) - (b.sequence_order ?? 0))
           .map((ro) => ro.order!)
 
@@ -94,19 +115,33 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         setAssignedOrders(assigned)
         setAvailableOrders(remaining)
       } catch (error) {
-        toast.error('تعذر تحميل الطلبات')
+        if (!cancelled) toast.error(error instanceof Error ? error.message : 'تعذر تحميل الطلبات')
         console.error(error)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     init()
-  }, [open, route])
+    return () => { cancelled = true; destinationRequest.current++ }
+    // Capture once per modal session. Background refresh must never replace an
+    // uncertain operation's original snapshot or discard unsaved edits.
+  }, [open, route.id])
 
-  const addOrder = (order: OrderWithDetails) => {
-    setAssignedOrders([...assignedOrders, order])
-    setAvailableOrders(availableOrders.filter((o) => o.id !== order.id))
+  const addOrder = async (order: OrderWithDetails) => {
+    try {
+      if (snapshot?.links.some(link => link.order_id === order.id)) {
+        setAssignedOrders(prev => prev.some(item => item.id === order.id) ? prev : [...prev, order])
+        setAvailableOrders(prev => prev.filter(item => item.id !== order.id))
+        return
+      }
+      const expected = await LifecycleAPI.snapshot('order', order.id)
+      if (expected.links.length || expected.history || Date.parse(expected.updated_at) !== Date.parse(order.updated_at))
+        throw new Error('تغيرت بيانات الطلب أو أصبح مرتبطاً بخط. حدّث القائمة قبل إضافته')
+      setNewOrderSnapshots(prev => ({ ...prev, [order.id]: expected }))
+      setAssignedOrders(prev => prev.some(item => item.id === order.id) ? prev : [...prev, order])
+      setAvailableOrders(prev => prev.filter(item => item.id !== order.id))
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'تعذر تحميل سياق الطلب') }
   }
   const removeOrder = (order: OrderWithDetails) => {
     setAvailableOrders([...availableOrders, order])
@@ -123,35 +158,59 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     setAssignedOrders(newArr)
   }
 
+  const canChange = (order: OrderWithDetails) => {
+    const original = snapshot?.links.find(link => link.order_id === order.id)?.order
+    return (order.status === 'pending' || order.status === 'scheduled') &&
+      (!original || (!original.history && original.links.length === 1))
+  }
+  const transferOrder = async (order: OrderWithDetails) => {
+    if (!snapshot || !destinationSnapshot) return
+    const originalIds = snapshot.links.slice().sort((a, b) => a.sequence_order - b.sequence_order).map(link => link.order_id)
+    if (originalIds.length !== assignedOrders.length || originalIds.some((id, index) => assignedOrders[index]?.id !== id)) {
+      toast.error('احفظ تعديلات القائمة أو أعد فتحها قبل نقل الطلب')
+      return
+    }
+    setSaving(true)
+    try {
+      const result = await EnhancedAPI.transferOrder(snapshot, destinationSnapshot, order.id)
+      if (!result.success) throw new Error(result.error)
+      toast.success('تم نقل الطلب وحفظ حالته وفريقه')
+      onSaved()
+      onClose()
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'تعذر نقل الطلب') }
+    finally { setSaving(false) }
+  }
+  const chooseDestination = async (id: string) => {
+    const request = ++destinationRequest.current
+    setDestinationId(id)
+    setDestinationSnapshot(null)
+    if (!id) return
+    try {
+      const expected = await LifecycleAPI.snapshot('route', id)
+      const displayed = destinations.find(item => item.id === id)
+      if (!displayed || Date.parse(displayed.updated_at) !== Date.parse(expected.updated_at))
+        throw new Error('تغير خط الوجهة. أعد تحميل القائمة قبل النقل')
+      if (request === destinationRequest.current) setDestinationSnapshot(expected)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'تعذر تحميل خط الوجهة') }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
-      const assignedIds = assignedOrders.map((o) => o.id)
-
-      // Determine removals and additions
-      const toRemove = originalAssignedIds.filter((id) => !assignedIds.includes(id))
-      const toAdd = assignedIds.filter((id) => !originalAssignedIds.includes(id))
-
-      // Perform removals
-      await Promise.all(toRemove.map((id) => EnhancedAPI.removeOrderFromRoute(route.id, id)))
-
-      // Perform additions
-      await Promise.all(
-        toAdd.map((id) => {
-          const seq = assignedIds.indexOf(id) + 1
-          return EnhancedAPI.addOrderToRoute(route.id, id, seq)
-        })
-      )
-
-      // Reorder sequence for remaining orders
-      const sequences = assignedIds.map((id, idx) => ({ order_id: id, sequence_order: idx + 1 }))
-      await EnhancedAPI.reorderRouteOrders(route.id, sequences)
+      if (!snapshot) throw new Error('انتظر تحميل بيانات خط السير قبل الحفظ')
+      const sequences = assignmentSequences(snapshot, assignedOrders.map(order => order.id))
+      const desired = assignedOrders.map((order, index) => ({
+        order_id: order.id, sequence_order: sequences[index],
+        ...(newOrderSnapshots[order.id] ? { expected: newOrderSnapshots[order.id] } : {}),
+      }))
+      const result = await EnhancedAPI.saveRouteOrders(snapshot, desired)
+      if (!result.success) throw new Error(result.error)
 
       toast.success('تم حفظ الطلبات')
       onSaved()
       onClose()
     } catch (error) {
-      toast.error('حدث خطأ أثناء الحفظ')
+      toast.error(error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ')
       console.error(error)
     } finally {
       setSaving(false)
@@ -203,6 +262,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                     <button
                       className="btn-primary btn-sm"
                       onClick={() => addOrder(o)}
+                      disabled={saving}
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -217,6 +277,13 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
             {/* Assigned orders */}
             <div>
               <h3 className="font-medium mb-2">الطلبات في الخط ({assignedOrders.length})</h3>
+              <label className="block text-sm mb-2">
+                نقل طلب إلى خط آخر
+                <select className="input mt-1 w-full" value={destinationId} disabled={saving} onChange={event => { void chooseDestination(event.target.value) }}>
+                  <option value="">اختر خط الوجهة</option>
+                  {destinations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </label>
               <div className="border rounded-lg p-2 h-96 overflow-y-auto">
                 {assignedOrders.map((o, idx) => (
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
@@ -229,23 +296,27 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                       <button
                         className="p-1 hover:bg-gray-100 rounded"
                         onClick={() => moveOrder(idx, 'up')}
-                        disabled={idx === 0}
+                        disabled={saving || idx === 0 || !canChange(o) || (idx > 0 && !canChange(assignedOrders[idx - 1]))}
                       >
                         <ArrowUp className="h-4 w-4" />
                       </button>
                       <button
                         className="p-1 hover:bg-gray-100 rounded"
                         onClick={() => moveOrder(idx, 'down')}
-                        disabled={idx === assignedOrders.length - 1}
+                        disabled={saving || idx === assignedOrders.length - 1 || !canChange(o) || (idx + 1 < assignedOrders.length && !canChange(assignedOrders[idx + 1]))}
                       >
                         <ArrowDown className="h-4 w-4" />
                       </button>
                       <button
                         className="btn-danger btn-sm"
                         onClick={() => removeOrder(o)}
+                        disabled={saving || !canChange(o)}
                       >
                         <Minus className="h-4 w-4" />
                       </button>
+                      {snapshot?.links.some(link => link.order_id === o.id) && <button
+                        className="btn-secondary btn-sm" onClick={() => transferOrder(o)}
+                        disabled={saving || !destinationSnapshot || !canChange(o)}>نقل</button>}
                     </div>
                   </div>
                 ))}
@@ -278,7 +349,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           <button
             className="btn-primary flex items-center gap-1"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loading || !snapshot}
           >
             <Save className="h-4 w-4" /> حفظ
           </button>

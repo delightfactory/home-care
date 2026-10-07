@@ -1,3 +1,4 @@
+import { LifecycleAPI, RouteSnapshot, DesiredLink } from './lifecycle'
 // Routes API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
 import { 
@@ -6,8 +7,7 @@ import {
   RouteUpdate,
   RouteWithOrders,
   RouteOrder,
-  RouteOrderInsert,
-  OrderWithDetails,
+OrderWithDetails,
   PaginatedResponse,
   ApiResponse,
   RouteStatus,
@@ -187,259 +187,80 @@ export class RoutesAPI {
     }
   }
 
-  // Update route
-  static async updateRoute(id: string, routeData: RouteUpdate): Promise<ApiResponse<Route>> {
+  // Lifecycle writes are one server transaction, with an original snapshot.
+  static async updateRoute(id: string, routeData: RouteUpdate, expected?: RouteSnapshot): Promise<ApiResponse<Route>> {
     try {
-      // لو الفريق اتغير — نحدّث الطلبات غير المكتملة على الخط
-      if ('team_id' in routeData) {
-        const { data: currentRoute } = await supabase
-          .from('routes')
-          .select('team_id')
-          .eq('id', id)
-          .single()
-
-        if (currentRoute && currentRoute.team_id !== routeData.team_id) {
-          const { data: routeOrders } = await supabase
-            .from('route_orders')
-            .select('order_id')
-            .eq('route_id', id)
-
-          if (routeOrders && routeOrders.length > 0) {
-            const orderIds = routeOrders.map(ro => ro.order_id)
-            // تحديث فقط الطلبات غير المكتملة/الملغية
-            await supabase
-              .from('orders')
-              .update({
-                team_id: routeData.team_id || null,
-                updated_at: new Date().toISOString()
-              })
-              .in('id', orderIds)
-              .in('status', ['pending', 'scheduled', 'in_progress'])
-          }
-        }
-      }
-
-      const { data, error } = await supabase
-        .from('routes')
-        .update({
-          ...routeData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      return {
-        success: true,
-        data,
-        message: 'تم تحديث خط السير بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+      const result = await LifecycleAPI.execute({ op: 'route_update', route_id: id, data: routeData, expected }, async () => ({
+        op: 'route_update', route_id: id, data: routeData, expected: expected ?? await LifecycleAPI.snapshot('route', id),
+      }))
+      return result.success ? { success: true, data: result.data?.route, message: 'تم تحديث خط السير بنجاح' } : { success: false, error: result.error }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
-  // Delete route
   static async deleteRoute(id: string): Promise<ApiResponse<void>> {
     try {
-      const { error } = await supabase
-        .from('routes')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      return {
-        success: true,
-        message: 'تم حذف خط السير بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+      const result = await LifecycleAPI.execute({ op: 'delete_route', route_id: id }, async () => ({
+        op: 'delete_route', route_id: id, expected: await LifecycleAPI.snapshot('route', id),
+      }))
+      return { success: result.success, error: result.error, message: result.success ? 'تم حذف خط السير بنجاح' : undefined }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
-  // Add order to route
-  static async addOrderToRoute(
-    routeId: string,
-    orderId: string,
-    sequenceOrder?: number,
-    estimatedArrivalTime?: string,
-    estimatedCompletionTime?: string
-  ): Promise<ApiResponse<RouteOrder>> {
+  static async saveRouteOrders(expected: RouteSnapshot, desired: DesiredLink[]): Promise<ApiResponse<void>> {
     try {
-      // احصل على أعلى قيمة حالية للتسلسل لاستعمالها فى حال التعارض
-      const { data: maxRow, error: maxSeqErr } = await supabase
-        .from('route_orders')
-        .select('sequence_order')
-        .eq('route_id', routeId)
-        .order('sequence_order', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (maxSeqErr) throw maxSeqErr
-      const nextSeq = (maxRow?.sequence_order ?? 0) + 1
-
-      let seq = sequenceOrder ?? nextSeq
-
-      const insertData: RouteOrderInsert = {
-        route_id: routeId,
-        order_id: orderId,
-        sequence_order: seq,
-        estimated_arrival_time: estimatedArrivalTime,
-        estimated_completion_time: estimatedCompletionTime
-      }
-
-      // محاولة الإدراج الأولية
-      let { data, error } = await supabase
-        .from('route_orders')
-        .insert(insertData)
-        .select()
-        .single()
-
-      // فى حال تعارض UNIQUE على (route_id, sequence_order) أعد المحاولة بتسلسل جديد
-      if (error && (error as any).code === '23505') {
-        seq = nextSeq
-        const retryData = { ...insertData, sequence_order: seq }
-        ;({ data, error } = await supabase
-          .from('route_orders')
-          .insert(retryData)
-          .select()
-          .single())
-      }
-
-      if (error) throw error
-
-      // جلب team_id من خط السير لتعيينه على الطلب
-      const { data: routeData } = await supabase
-        .from('routes')
-        .select('team_id')
-        .eq('id', routeId)
-        .single()
-
-      // تحديث حالة الطلب إلى مجدول + تعيين الفريق من خط السير
-      await supabase
-        .from('orders')
-        .update({
-          status: 'scheduled',
-          team_id: routeData?.team_id || undefined,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-
-      return {
-        success: true,
-        data,
-        message: 'تم إضافة الطلب إلى خط السير بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+      const result = await LifecycleAPI.save(expected, desired)
+      return { success: result.success, error: result.error, message: result.success ? 'تم حفظ طلبات خط السير' : undefined }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
-  // Remove order from route
+  static async addOrderToRoute(routeId: string, orderId: string, sequenceOrder?: number,
+    estimatedArrivalTime?: string, estimatedCompletionTime?: string): Promise<ApiResponse<RouteOrder>> {
+    try {
+      const result = await LifecycleAPI.execute({ op: 'add', routeId, orderId, sequenceOrder, estimatedArrivalTime, estimatedCompletionTime }, async () => {
+        const expected = await LifecycleAPI.snapshot('route', routeId)
+        const desired: DesiredLink[] = expected.links.map(link => ({ order_id: link.order_id, sequence_order: link.sequence_order }))
+        if (!desired.some(link => link.order_id === orderId)) desired.push({
+          order_id: orderId, sequence_order: sequenceOrder ?? Math.max(0, ...desired.map(link => link.sequence_order)) + 1,
+          expected: await LifecycleAPI.snapshot('order', orderId), estimated_arrival_time: estimatedArrivalTime,
+          estimated_completion_time: estimatedCompletionTime,
+        })
+        return { op: 'save', route_id: routeId, expected, desired }
+      })
+      if (!result.success) return { success: false, error: result.error }
+      const route = await this.getRoute(routeId)
+      return { success: true, data: route?.route_orders?.find(link => link.order_id === orderId), message: 'تم إضافة الطلب إلى خط السير' }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
+  }
+
   static async removeOrderFromRoute(routeId: string, orderId: string): Promise<ApiResponse<void>> {
     try {
-      // جلب فريق الخط قبل الحذف للمقارنة
-      const { data: route } = await supabase
-        .from('routes')
-        .select('team_id')
-        .eq('id', routeId)
-        .single()
-
-      const { error } = await supabase
-        .from('route_orders')
-        .delete()
-        .eq('route_id', routeId)
-        .eq('order_id', orderId)
-
-      if (error) throw error
-
-      // تحديد هل نمسح team_id — بس لو الفريق جاى من الخط ده
-      const updateData: Record<string, any> = {
-        status: 'pending',
-        updated_at: new Date().toISOString()
-      }
-
-      if (route?.team_id) {
-        const { data: order } = await supabase
-          .from('orders')
-          .select('team_id')
-          .eq('id', orderId)
-          .single()
-
-        // نمسح team_id فقط لو هو نفس فريق الخط (يعني جاى منه)
-        if (order?.team_id === route.team_id) {
-          updateData.team_id = null
-        }
-      }
-
-      await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId)
-
-      return {
-        success: true,
-        message: 'تم إزالة الطلب من خط السير بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+      const result = await LifecycleAPI.execute({ op: 'remove', routeId, orderId }, async () => {
+        const expected = await LifecycleAPI.snapshot('route', routeId)
+        return { op: 'save', route_id: routeId, expected, desired: expected.links.filter(link => link.order_id !== orderId)
+          .map(link => ({ order_id: link.order_id, sequence_order: link.sequence_order })) }
+      })
+      return { success: result.success, error: result.error, message: result.success ? 'تم حفظ التعديل' : undefined }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
-  // Reorder orders in route
-  static async reorderRouteOrders(
-    routeId: string, 
-    orderSequences: { order_id: string; sequence_order: number }[]
-  ): Promise<ApiResponse<void>> {
+  static async reorderRouteOrders(routeId: string, orderSequences: { order_id: string; sequence_order: number }[]): Promise<ApiResponse<void>> {
     try {
-      // First, set all sequence_order to negative values to avoid conflicts
-      // This is necessary because of the UNIQUE constraint on (route_id, sequence_order)
-      const tempUpdates = orderSequences.map(({ order_id }, index) =>
-        supabase
-          .from('route_orders')
-          .update({ sequence_order: -(index + 1) })
-          .eq('route_id', routeId)
-          .eq('order_id', order_id)
-      )
+      const result = await LifecycleAPI.execute({ op: 'reorder', routeId, orderSequences }, async () => {
+        const expected = await LifecycleAPI.snapshot('route', routeId)
+        if (orderSequences.length !== expected.links.length || orderSequences.some(link => !expected.links.some(current => current.order_id === link.order_id)))
+          throw new Error('تغيرت قائمة الطلبات. حدّث البيانات قبل تغيير الترتيب')
+        return { op: 'save', route_id: routeId, expected, desired: orderSequences }
+      })
+      return { success: result.success, error: result.error }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
+  }
 
-      await Promise.all(tempUpdates)
-
-      // Then update to the final sequence_order values
-      const finalUpdates = orderSequences.map(({ order_id, sequence_order }) =>
-        supabase
-          .from('route_orders')
-          .update({ sequence_order })
-          .eq('route_id', routeId)
-          .eq('order_id', order_id)
-      )
-
-      await Promise.all(finalUpdates)
-
-      return {
-        success: true,
-        message: 'تم إعادة ترتيب الطلبات بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+  static async transferOrder(source: RouteSnapshot, destination: RouteSnapshot, orderId: string): Promise<ApiResponse<void>> {
+    const link = source.links.find(item => item.order_id === orderId)
+    if (!link) return { success: false, error: 'تغير ارتباط الطلب. حدّث البيانات' }
+    const result = await LifecycleAPI.mutate({ op: 'transfer', route_id: source.id, destination_id: destination.id,
+      order_id: orderId, link_id: link.id, expected: source, destination_expected: destination, order_expected: link.order })
+    return { success: result.success, error: result.error }
   }
 
   // Start route

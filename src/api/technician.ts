@@ -1,3 +1,4 @@
+import { LifecycleAPI } from './lifecycle'
 // Technician API Layer
 // API مخصص لتطبيق الفنى - يعرض الطلب الحالى فقط بدون بيانات حساسة
 import { supabase, handleSupabaseError } from '../lib/supabase'
@@ -8,6 +9,7 @@ export interface TechnicianOrder {
     id: string
     order_number: string
     status: string
+    team_id: string | null
     payment_status?: string
     scheduled_date: string
     scheduled_time: string
@@ -278,6 +280,7 @@ export class TechnicianAPI {
             id: order.id,
             order_number: order.order_number || '',
             status: order.status,
+            team_id: order.team_id,
             payment_status: (order as any).payment_status || 'unpaid',
             scheduled_date: order.scheduled_date,
             scheduled_time: order.scheduled_time,
@@ -430,171 +433,13 @@ export class TechnicianAPI {
         }
     }
 
-    /**
-     * تحقق من اتساق الطلب مع خط السير وفريق الفني قبل بدء التنفيذ.
-     */
-    private static async validateStartContext(
-        orderId: string,
-        userId: string
-    ): Promise<ApiResponse<{ teamId: string }>> {
+    /** Start identity and temporal participants are validated atomically by the server. */
+    static async startOrder(orderId: string, _userId?: string): Promise<ApiResponse<void>> {
         try {
-            const workerId = await this.getMyWorkerId(userId)
-            if (!workerId) {
-                return { success: false, error: 'لا يمكن بدء التنفيذ: المستخدم غير مرتبط بفني' }
-            }
-
-            const teamId = await this.getMyTeamId(workerId)
-            if (!teamId) {
-                return { success: false, error: 'لا يمكن بدء التنفيذ: لا يوجد فريق نشط وواضح للفني' }
-            }
-
-            const { data: order, error: orderError } = await supabase
-                .from('orders')
-                .select('id, status, team_id')
-                .eq('id', orderId)
-                .single()
-
-            if (orderError) throw orderError
-
-            if (order.status !== 'scheduled') {
-                return {
-                    success: false,
-                    error: 'لا يمكن بدء التنفيذ قبل إضافة الطلب إلى خط السير واعتماده كمجدول'
-                }
-            }
-
-            const { data: routeLinks, error: routeError } = await supabase
-                .from('route_orders')
-                .select(`
-                    route_id,
-                    route:routes(id, team_id)
-                `)
-                .eq('order_id', orderId)
-
-            if (routeError) throw routeError
-
-            if (!routeLinks || routeLinks.length !== 1) {
-                return {
-                    success: false,
-                    error: 'لا يمكن بدء التنفيذ: يجب أن يكون الطلب مرتبطاً بخط سير واحد فقط'
-                }
-            }
-
-            const route = (routeLinks[0] as any).route
-            if (!route?.team_id) {
-                return { success: false, error: 'لا يمكن بدء التنفيذ: خط السير غير مرتبط بفريق' }
-            }
-
-            if (!order.team_id) {
-                return {
-                    success: false,
-                    error: 'لا يمكن بدء التنفيذ: لم تتم مزامنة فريق الطلب من خط السير'
-                }
-            }
-
-            if (order.team_id !== route.team_id) {
-                return {
-                    success: false,
-                    error: 'لا يمكن بدء التنفيذ: فريق الطلب لا يطابق فريق خط السير'
-                }
-            }
-
-            if (teamId !== route.team_id) {
-                return {
-                    success: false,
-                    error: 'لا يمكن بدء التنفيذ: خط السير غير تابع لفريق الفني الحالي'
-                }
-            }
-
-            return { success: true, data: { teamId } }
+            const result = await LifecycleAPI.start(orderId, true, 'تم بدء العمل على الطلب')
+            return { success: result.success, error: result.error, message: result.success ? 'تم بدء العمل على الطلب' : undefined }
         } catch (error) {
-            return { success: false, error: handleSupabaseError(error) }
-        }
-    }
-
-    /**
-     * بدء العمل على الطلب
-     * يسجل الحدث في سجل الحالات ويربط العمال بالطلب
-     */
-    static async startOrder(orderId: string, userId?: string): Promise<ApiResponse<void>> {
-        try {
-            // الحصول على معرف المستخدم الحالي
-            const currentUserId = userId || (await supabase.auth.getUser()).data.user?.id
-            if (!currentUserId) {
-                return { success: false, error: 'تعذر تحديد المستخدم الحالي' }
-            }
-
-            const validation = await this.validateStartContext(orderId, currentUserId)
-            if (!validation.success || !validation.data) {
-                return { success: false, error: validation.error || 'تعذر التحقق من بيانات خط السير' }
-            }
-            const { teamId } = validation.data
-
-            // تحديث حالة الطلب
-            const { error } = await supabase
-                .from('orders')
-                .update({
-                    status: 'in_progress',
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', orderId)
-
-            if (error) throw error
-
-            // ✅ تسجيل الحدث في سجل الحالات
-            await supabase
-                .from('order_status_logs')
-                .insert({
-                    order_id: orderId,
-                    status: 'in_progress',
-                    notes: 'تم بدء العمل على الطلب',
-                    created_by: currentUserId
-                })
-
-            // ✅ ربط أعضاء الفريق المتحقق منه بالطلب (fallback للحوافز)
-            const { data: teamMembers } = await supabase
-                .from('team_members')
-                .select('worker_id')
-                .eq('team_id', teamId)
-                .is('left_at', null)
-
-            if (teamMembers && teamMembers.length > 0) {
-                // التحقق من العمال الموجودين بالفعل في الطلب
-                const { data: existingWorkers } = await supabase
-                    .from('order_workers')
-                    .select('worker_id')
-                    .eq('order_id', orderId)
-
-                const existingWorkerIds = new Set(
-                    (existingWorkers || []).map(ew => ew.worker_id)
-                )
-
-                // إضافة العمال الجدد فقط
-                const newOrderWorkers = teamMembers
-                    .filter(tm => !existingWorkerIds.has(tm.worker_id))
-                    .map(tm => ({
-                        order_id: orderId,
-                        worker_id: tm.worker_id,
-                        team_id: teamId,
-                        started_at: new Date().toISOString()
-                    }))
-
-                if (newOrderWorkers.length > 0) {
-                    await supabase
-                        .from('order_workers')
-                        .insert(newOrderWorkers)
-                }
-            }
-
-            return {
-                success: true,
-                message: 'تم بدء العمل على الطلب'
-            }
-        } catch (error) {
-            return {
-                success: false,
-                error: handleSupabaseError(error)
-            }
+            return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) }
         }
     }
 

@@ -104,7 +104,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
     const [hasMismatch, setHasMismatch] = useState(false)
 
     const isInProgress = order.status === 'in_progress'
-    const isPending = order.status === 'pending' || order.status === 'scheduled'
+    const isPending = order.status === 'scheduled' && !!order.team_id
     const isCompleted = order.status === 'completed'
 
     // Auto-expand services when in_progress
@@ -366,7 +366,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                                     </>
                                 )}
                             </button>
-                        ) : (
+                        ) : isInProgress ? (
                             <button
                                 onClick={() => setConfirmAction('complete')}
                                 disabled={loading}
@@ -379,6 +379,10 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                                     </>
                                 )}
                             </button>
+                        ) : (
+                            <div className="py-3 text-sm text-center text-amber-700">
+                                راجع جدولة الطلب وتعيين الفريق مع العمليات قبل البدء
+                            </div>
                         )
                     ) : (
                         <div className="py-3 rounded-2xl font-medium text-center text-gray-500 bg-gray-50 border border-dashed border-gray-300 text-sm">

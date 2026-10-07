@@ -1,3 +1,4 @@
+import { LifecycleAPI, EditOrderSnapshot } from './lifecycle'
 // Orders API Layer
 import type { OrderCounts } from '../types'
 import { supabase, handleSupabaseError, generateOrderNumber } from '../lib/supabase'
@@ -346,41 +347,24 @@ export class OrdersAPI {
   }
 
   // Update order
-  static async updateOrder(
-    id: string,
-    updates: OrderUpdate
-  ): Promise<ApiResponse<Order>> {
+  static async editOrder(id: string, data: Record<string, any>, items: any[], expected?: EditOrderSnapshot): Promise<ApiResponse<Order>> {
     try {
-      // Generic order edits must never alter route-owned team assignment.
-      const orderUpdates = { ...(updates as Record<string, any>) }
-      delete orderUpdates.services
-      delete orderUpdates.team_id
+      const result = await LifecycleAPI.execute({ op: 'edit_order', order_id: id, data, items, expected }, async () => ({
+        op: 'edit_order', order_id: id, data, items, expected: expected ?? await LifecycleAPI.snapshot('edit_order', id),
+      }))
+      return { success: result.success, error: result.error, data: result.data?.order, message: result.success ? 'تم تحديث الطلب بنجاح' : undefined }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
+  }
 
-      // Convert empty strings to null to satisfy DB constraints
-      const sanitizedUpdates = Object.fromEntries(
-        Object.entries(orderUpdates).map(([key, value]) => [key, value === '' ? null : value])
-      ) as Record<string, any>
-
-      const { data, error } = await supabase
-        .from('orders')
-        .update({ ...sanitizedUpdates, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      return {
-        success: true,
-        data,
-        message: 'تم تحديث الطلب بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+  static async updateOrder(id: string, updates: OrderUpdate): Promise<ApiResponse<Order>> {
+    try {
+      const result = await LifecycleAPI.execute({ op: 'edit_base', order_id: id, updates }, async () => {
+        const expected = await LifecycleAPI.snapshot('edit_order', id)
+        const items = expected.items.map(({ id, service_id, quantity, unit_price }) => ({ id, service_id, quantity, unit_price }))
+        return { op: 'edit_order', order_id: id, data: updates, items, expected }
+      })
+      return { success: result.success, error: result.error, data: result.data?.order }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
   // Update order confirmation status
@@ -416,69 +400,6 @@ export class OrdersAPI {
     }
   }
 
-  // Validate the business invariant required before an order can start.
-  private static async validateStartContext(orderId: string): Promise<ApiResponse<void>> {
-    try {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('id, status, team_id')
-        .eq('id', orderId)
-        .single()
-
-      if (orderError) throw orderError
-
-      if (order.status !== OrderStatus.SCHEDULED) {
-        return {
-          success: false,
-          error: 'لا يمكن بدء التنفيذ قبل إضافة الطلب إلى خط سير واعتماده كمجدول'
-        }
-      }
-
-      const { data: routeLinks, error: routeError } = await supabase
-        .from('route_orders')
-        .select(`
-          route_id,
-          route:routes(id, team_id)
-        `)
-        .eq('order_id', orderId)
-
-      if (routeError) throw routeError
-
-      if (!routeLinks || routeLinks.length !== 1) {
-        return {
-          success: false,
-          error: 'لا يمكن بدء التنفيذ: يجب أن يكون الطلب مرتبطاً بخط سير واحد فقط'
-        }
-      }
-
-      const route = (routeLinks[0] as any).route
-      if (!route?.team_id) {
-        return {
-          success: false,
-          error: 'لا يمكن بدء التنفيذ: خط السير غير مرتبط بفريق'
-        }
-      }
-
-      if (!order.team_id) {
-        return {
-          success: false,
-          error: 'لا يمكن بدء التنفيذ: لم تتم مزامنة فريق الطلب من خط السير'
-        }
-      }
-
-      if (order.team_id !== route.team_id) {
-        return {
-          success: false,
-          error: 'لا يمكن بدء التنفيذ: فريق الطلب لا يطابق فريق خط السير'
-        }
-      }
-
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: handleSupabaseError(error) }
-    }
-  }
-
   // Update order status
   static async updateOrderStatus(
     orderId: string,
@@ -489,8 +410,8 @@ export class OrdersAPI {
   ): Promise<ApiResponse<void>> {
     try {
       if (status === OrderStatus.IN_PROGRESS) {
-        const validation = await this.validateStartContext(orderId)
-        if (!validation.success) return validation
+        const result = await LifecycleAPI.start(orderId, false, notes, images || [])
+        return { success: result.success, error: result.error, message: result.success ? 'تم بدء تنفيذ الطلب' : undefined }
       }
 
       // Update order status
@@ -530,38 +451,13 @@ export class OrdersAPI {
   }
 
   // Replace all order items (delete then insert new list) and update total_amount
-  static async replaceOrderItems(
-    orderId: string,
-    items: Omit<OrderItemInsert, 'order_id'>[]
-  ): Promise<ApiResponse<void>> {
+  static async replaceOrderItems(orderId: string, items: Omit<OrderItemInsert, 'order_id'>[]): Promise<ApiResponse<void>> {
     try {
-      // Begin transaction via a Postgres function – Supabase doesn't support multi-statement tx client-side, so run sequentially.
-      // Delete existing items
-      const { error: deleteError } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('order_id', orderId)
-      if (deleteError) throw deleteError
-
-      // Insert new items with order_id
-      const itemsWithOrder = items.map(item => ({ ...item, order_id: orderId }))
-      const { error: insertError } = await supabase
-        .from('order_items')
-        .insert(itemsWithOrder)
-      if (insertError) throw insertError
-
-      // Recalculate total amount
-      const totalAmount = items.reduce((sum, it) => sum + it.total_price, 0)
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ total_amount: totalAmount, updated_at: new Date().toISOString() })
-        .eq('id', orderId)
-      if (updateError) throw updateError
-
-      return { success: true, message: 'تم تحديث عناصر الطلب بنجاح' }
-    } catch (error) {
-      return { success: false, error: handleSupabaseError(error) }
-    }
+      const result = await LifecycleAPI.execute({ op: 'edit_items', order_id: orderId, items }, async () => ({
+        op: 'edit_order', order_id: orderId, data: {}, items, expected: await LifecycleAPI.snapshot('edit_order', orderId),
+      }))
+      return { success: result.success, error: result.error }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
   // Get today's orders
@@ -743,40 +639,11 @@ export class OrdersAPI {
   // Delete order
   static async deleteOrder(orderId: string): Promise<ApiResponse<void>> {
     try {
-      // First delete related order items
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('order_id', orderId)
-
-      if (itemsError) throw itemsError
-
-      // Delete order status logs
-      const { error: logsError } = await supabase
-        .from('order_status_logs')
-        .delete()
-        .eq('order_id', orderId)
-
-      if (logsError) throw logsError
-
-      // Finally delete the order
-      const { error: orderError } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderId)
-
-      if (orderError) throw orderError
-
-      return {
-        success: true,
-        message: 'تم حذف الطلب بنجاح'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: handleSupabaseError(error)
-      }
-    }
+      const result = await LifecycleAPI.execute({ op: 'delete_order', order_id: orderId }, async () => ({
+        op: 'delete_order', order_id: orderId, expected: await LifecycleAPI.snapshot('edit_order', orderId),
+      }))
+      return { success: result.success, error: result.error, message: result.success ? 'تم حذف الطلب بنجاح' : undefined }
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : handleSupabaseError(error) } }
   }
 
   // Get order statistics

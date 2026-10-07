@@ -1,3 +1,4 @@
+import { RouteSnapshot, DesiredLink, EditOrderSnapshot } from './lifecycle'
 // Enhanced API Integration with Full Performance Optimization
 // تكامل شامل لـ API مع تحسينات الأداء الكاملة
 
@@ -123,6 +124,16 @@ export class EnhancedAPI {
     );
   }
 
+  static async editOrder(id: string, data: Record<string, any>, items: any[], expected: EditOrderSnapshot): Promise<ApiResponse<any>> {
+    const result = await OrdersAPI.editOrder(id, data, items, expected);
+    if (result.success) {
+      this.clearCache('enhanced:orders'); this.clearCache('enhanced:order');
+      this.clearCache('enhanced:routes'); this.clearCache('enhanced:route'); this.clearCache('enhanced:dashboard');
+      eventBus.emit('orders:changed'); eventBus.emit('routes:changed');
+    }
+    return result;
+  }
+
   static async updateOrder(id: string, orderData: any): Promise<ApiResponse<OrderWithDetails>> {
     return performanceMonitor.monitorQuery(
       'enhanced.orders.update',
@@ -132,11 +143,13 @@ export class EnhancedAPI {
         );
 
         // Clear related caches
+        if (!result.success) return result;
         this.clearCache('enhanced:orders');
-        this.clearCache(`enhanced:order:${id}`);
+        this.clearCache('enhanced:order');
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
+        this.clearCache('enhanced:route');
         eventBus.emit('routes:changed');
 
         return result;
@@ -174,6 +187,15 @@ export class EnhancedAPI {
         );
 
         // Clear related caches
+        if (!result.success) {
+          // Refresh display caches without changing LifecycleAPI's retained retry.
+          if (status === 'in_progress') {
+            this.clearCache('enhanced:order'); this.clearCache('enhanced:route');
+            this.clearCache('enhanced:dashboard');
+          }
+          return result;
+        }
+
         this.clearCache('enhanced:orders');
         this.clearCache(`enhanced:order:${id}`);
         this.clearCache('enhanced:dashboard');
@@ -195,11 +217,13 @@ export class EnhancedAPI {
         );
 
         // Clear related caches
+        if (!result.success) return result;
         this.clearCache('enhanced:orders');
-        this.clearCache(`enhanced:order:${id}`);
+        this.clearCache('enhanced:order');
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
+        this.clearCache('enhanced:route');
         eventBus.emit('routes:changed');
 
         return result;
@@ -226,17 +250,21 @@ export class EnhancedAPI {
     );
   }
 
-  static async updateRoute(id: string, updates: any): Promise<ApiResponse<RouteWithOrders>> {
+  static async updateRoute(id: string, updates: any, expected?: RouteSnapshot): Promise<ApiResponse<RouteWithOrders>> {
     return performanceMonitor.monitorQuery(
       'enhanced.routes.update',
       async () => {
         const result = await ConnectionManager.executeWithConnection(() =>
-          RoutesAPI.updateRoute(id, updates)
+          RoutesAPI.updateRoute(id, updates, expected)
         );
+
+        if (!result.success) return result;
 
         this.clearCache('enhanced:routes');
         this.clearCache(`enhanced:route:${id}`);
         this.clearCache('enhanced:dashboard');
+        this.clearCache('enhanced:order');
+        eventBus.emit('orders:changed');
         eventBus.emit('routes:changed');
 
         return result as ApiResponse<RouteWithOrders>;
@@ -252,9 +280,13 @@ export class EnhancedAPI {
           RoutesAPI.deleteRoute(id)
         );
 
+        if (!result.success) return result;
+
         this.clearCache('enhanced:routes');
         this.clearCache(`enhanced:route:${id}`);
         this.clearCache('enhanced:dashboard');
+        this.clearCache('enhanced:order');
+        eventBus.emit('orders:changed');
         eventBus.emit('routes:changed');
 
         return result;
@@ -1092,11 +1124,13 @@ export class EnhancedAPI {
         );
 
         // Clear related caches
+        if (!result.success) return result;
         this.clearCache('enhanced:orders');
-        this.clearCache(`enhanced:order:${id}`);
+        this.clearCache('enhanced:order');
         this.clearCache('enhanced:dashboard');
         eventBus.emit('orders:changed');
         this.clearCache('enhanced:routes');
+        this.clearCache('enhanced:route');
         eventBus.emit('routes:changed');
 
         return result;
@@ -1260,6 +1294,28 @@ export class EnhancedAPI {
     return performanceMonitor.getPerformanceStats(days);
   }
 
+  static async saveRouteOrders(expected: RouteSnapshot, desired: DesiredLink[]): Promise<ApiResponse<void>> {
+    const result = await RoutesAPI.saveRouteOrders(expected, desired)
+    if (!result.success) return result
+    this.clearCache('enhanced:route')
+    this.clearCache('enhanced:order')
+    this.clearCache('enhanced:dashboard')
+    eventBus.emit('orders:changed')
+    eventBus.emit('routes:changed')
+    return result
+  }
+
+  static async transferOrder(source: RouteSnapshot, destination: RouteSnapshot, orderId: string): Promise<ApiResponse<void>> {
+    const result = await RoutesAPI.transferOrder(source, destination, orderId)
+    if (!result.success) return result
+    this.clearCache('enhanced:route')
+    this.clearCache('enhanced:order')
+    this.clearCache('enhanced:dashboard')
+    eventBus.emit('orders:changed')
+    eventBus.emit('routes:changed')
+    return result
+  }
+
   // ===== ROUTES ORDER MANAGEMENT =====
   static async addOrderToRoute(
     routeId: string,
@@ -1283,6 +1339,8 @@ export class EnhancedAPI {
         this.clearCache('enhanced:routes');
         this.clearCache(`enhanced:route:${routeId}`);
         this.clearCache('enhanced:dashboard');
+        this.clearCache('enhanced:order');
+        eventBus.emit('orders:changed');
         eventBus.emit('routes:changed');
 
         return result;
@@ -1298,9 +1356,13 @@ export class EnhancedAPI {
           RoutesAPI.removeOrderFromRoute(routeId, orderId)
         );
 
+        if (!result.success) return result;
+
         this.clearCache('enhanced:routes');
         this.clearCache(`enhanced:route:${routeId}`);
         this.clearCache('enhanced:dashboard');
+        this.clearCache('enhanced:order');
+        eventBus.emit('orders:changed');
         eventBus.emit('routes:changed');
 
         return result as ApiResponse<any>;
@@ -1319,9 +1381,13 @@ export class EnhancedAPI {
           RoutesAPI.reorderRouteOrders(routeId, orderSequences)
         );
 
+        if (!result.success) return result;
+
         this.clearCache('enhanced:routes');
         this.clearCache(`enhanced:route:${routeId}`);
         this.clearCache('enhanced:dashboard');
+        this.clearCache('enhanced:order');
+        eventBus.emit('orders:changed');
         eventBus.emit('routes:changed');
 
         return result as ApiResponse<any>;

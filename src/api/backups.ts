@@ -82,6 +82,8 @@ export async function downloadBackup(backup: BackupMeta): Promise<ApiResponse<nu
   const exportData = {
     format: 'home-care-backup-v2',
     version: 2,
+    recovery_scope: 'application-export; full-database recovery and epoch finalization required',
+    lifecycle_state_included: Array.isArray(payload['lifecycle_private.epoch']) && Array.isArray(payload['lifecycle_private.requests']),
     backup: {
       id: backup.id,
       label: backup.label,

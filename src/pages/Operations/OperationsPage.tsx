@@ -151,7 +151,7 @@ const OperationsPage: React.FC = () => {
   const hidePhone = isSupervisor
 
   // Data hooks
-  const { routes, loading: routesLoading, refresh: refreshRoutes } = useRoutes(
+  const { routes, loading: routesLoading, error: routesError, refresh: refreshRoutes } = useRoutes(
     { date: selectedDate }, 1, 50
   )
   const { teams, loading: teamsLoading, refresh: refreshTeams } = useTeams()
@@ -278,8 +278,9 @@ const OperationsPage: React.FC = () => {
         throw new Error(response.error || 'فشل في تحديث الحالة')
       }
     } catch (error) {
-      toast.error('حدث خطأ في تحديث الحالة', { id: 'statusConfirm' })
+      toast.error(error instanceof Error ? error.message : 'حدث خطأ في تحديث الحالة', { id: 'statusConfirm' })
       console.error('Status update error:', error)
+      if (targetStatus === 'in_progress') refreshRoutes()
     } finally {
       setConfirmLoading(false)
     }
@@ -1104,6 +1105,14 @@ const OperationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {routesError && (
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+          <p>تعذر تحديث بيانات العمليات. قد تكون البيانات المعروضة قديمة: {routesError}</p>
+          <button type="button" onClick={() => refreshRoutes()} className="mt-2 underline">
+            إعادة تحميل بيانات العمليات
+          </button>
+        </div>
+      )}
       {/* Header - Responsive */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div className="flex-1">
@@ -1718,7 +1727,7 @@ const OperationsPage: React.FC = () => {
                                   )}
 
                                   {/* الأزرار الشرطية - تظهر حسب حالة الطلب */}
-                                  {routeOrder.order.status === 'pending' || routeOrder.order.status === 'scheduled' ? (
+                                  {routeOrder.order.status === 'scheduled' && !!route.team_id && routeOrder.order.team_id === route.team_id ? (
                                     <button
                                       onClick={() => handleStatusChange(routeOrder.order, 'in_progress')}
                                       className="p-1.5 sm:p-2 text-yellow-600 hover:bg-yellow-50 rounded transition-colors flex-shrink-0 touch-manipulation"

@@ -294,6 +294,7 @@ export interface OrderForm {
   scheduled_date: string
   scheduled_time: string
   services: {
+    id?: string
     service_id: string
     quantity: number
     custom_price?: number

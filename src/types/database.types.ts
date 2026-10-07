@@ -1099,7 +1099,14 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      lifecycle_snapshot: {
+        Args: { p_kind: string; p_id: string }
+        Returns: any
+      }
+      lifecycle_mutate: {
+        Args: { p_request: string; p_payload: any }
+        Returns: any
+      }
     }
     Enums: {
       [_ in never]: never
