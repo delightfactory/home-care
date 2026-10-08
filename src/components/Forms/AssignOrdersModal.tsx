@@ -56,6 +56,21 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const [destinationId, setDestinationId] = useState('')
   const [destinationSnapshot, setDestinationSnapshot] = useState<RouteSnapshot | null>(null)
   const destinationRequest = useRef(0)
+  const session = useRef(0)
+  const currentModal = useRef({ open, routeId: route.id })
+  currentModal.current = { open, routeId: route.id }
+  const pendingAdditions = useRef(new Set<string>())
+  const [addingOrders, setAddingOrders] = useState<string[]>([])
+  const savingNow = useRef(false)
+  const isCurrentSession = (version: number) => version === session.current &&
+    currentModal.current.open && currentModal.current.routeId === route.id
+  const closeModal = () => {
+    session.current++
+    pendingAdditions.current.clear()
+    setAddingOrders([])
+    destinationRequest.current++
+    onClose()
+  }
 
   // Helper: calculate total expected execution duration (in minutes) for an order
   const getOrderDuration = (order: OrderWithDetails): number => {
@@ -81,7 +96,13 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const minutes = totalDuration % 60
 
   useEffect(() => {
+    session.current++
+    pendingAdditions.current.clear()
+    setAddingOrders([])
+    savingNow.current = false
+    setSaving(false)
     if (!open) return
+    const version = session.current
     let cancelled = false
 
     const init = async () => {
@@ -94,14 +115,14 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         setDestinationSnapshot(null)
         const expected = await LifecycleAPI.snapshot('route', route.id)
         const fresh = await RoutesAPI.getRoute(route.id)
-        if (cancelled) return
+        if (cancelled || !isCurrentSession(version)) return
         if (!fresh || fresh.route_orders?.length !== expected.links.length || expected.links.some(link => !fresh.route_orders?.some(ro =>
           ro.id === link.id && ro.sequence_order === link.sequence_order && ro.order?.status === link.order.status &&
           ro.order?.team_id === link.order.team_id && Date.parse(ro.order.updated_at) === Date.parse(link.order.updated_at))))
           throw new Error('تغيرت بيانات الخط أثناء التحميل. أغلق النموذج وافتحه مجدداً')
         const available = await RoutesAPI.getAvailableOrders(fresh.date as string)
         const nextDestinations = (await RoutesAPI.getRoutesByDate(fresh.date)).filter(item => item.id !== route.id && item.status !== 'completed' && !item.actual_end_time)
-        if (cancelled) return
+        if (cancelled || !isCurrentSession(version)) return
         setSnapshot(expected)
         setDestinations(nextDestinations)
         // assigned orders
@@ -115,20 +136,24 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         setAssignedOrders(assigned)
         setAvailableOrders(remaining)
       } catch (error) {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : 'تعذر تحميل الطلبات')
+        if (!cancelled && isCurrentSession(version)) toast.error(error instanceof Error ? error.message : 'تعذر تحميل الطلبات')
         console.error(error)
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && isCurrentSession(version)) setLoading(false)
       }
     }
 
     init()
-    return () => { cancelled = true; destinationRequest.current++ }
+    return () => { cancelled = true; session.current++; pendingAdditions.current.clear(); destinationRequest.current++ }
     // Capture once per modal session. Background refresh must never replace an
     // uncertain operation's original snapshot or discard unsaved edits.
   }, [open, route.id])
 
   const addOrder = async (order: OrderWithDetails) => {
+    if (!isCurrentSession(session.current) || !snapshot || savingNow.current || pendingAdditions.current.has(order.id)) return
+    const version = session.current
+    pendingAdditions.current.add(order.id)
+    setAddingOrders([...pendingAdditions.current])
     try {
       if (snapshot?.links.some(link => link.order_id === order.id)) {
         setAssignedOrders(prev => prev.some(item => item.id === order.id) ? prev : [...prev, order])
@@ -136,12 +161,20 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         return
       }
       const expected = await LifecycleAPI.snapshot('order', order.id)
+      if (!isCurrentSession(version)) return
       if (expected.links.length || expected.history || Date.parse(expected.updated_at) !== Date.parse(order.updated_at))
         throw new Error('تغيرت بيانات الطلب أو أصبح مرتبطاً بخط. حدّث القائمة قبل إضافته')
       setNewOrderSnapshots(prev => ({ ...prev, [order.id]: expected }))
       setAssignedOrders(prev => prev.some(item => item.id === order.id) ? prev : [...prev, order])
       setAvailableOrders(prev => prev.filter(item => item.id !== order.id))
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'تعذر تحميل سياق الطلب') }
+    } catch (error) {
+      if (isCurrentSession(version)) toast.error(error instanceof Error ? error.message : 'تعذر تحميل سياق الطلب')
+    } finally {
+      if (isCurrentSession(version)) {
+        pendingAdditions.current.delete(order.id)
+        setAddingOrders([...pendingAdditions.current])
+      }
+    }
   }
   const removeOrder = (order: OrderWithDetails) => {
     setAvailableOrders([...availableOrders, order])
@@ -164,21 +197,25 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
       (!original || (!original.history && original.links.length === 1))
   }
   const transferOrder = async (order: OrderWithDetails) => {
+    if (savingNow.current || pendingAdditions.current.size || !isCurrentSession(session.current)) return
     if (!snapshot || !destinationSnapshot) return
     const originalIds = snapshot.links.slice().sort((a, b) => a.sequence_order - b.sequence_order).map(link => link.order_id)
     if (originalIds.length !== assignedOrders.length || originalIds.some((id, index) => assignedOrders[index]?.id !== id)) {
       toast.error('احفظ تعديلات القائمة أو أعد فتحها قبل نقل الطلب')
       return
     }
+    const version = session.current
+    savingNow.current = true
     setSaving(true)
     try {
       const result = await EnhancedAPI.transferOrder(snapshot, destinationSnapshot, order.id)
+      if (!isCurrentSession(version)) return
       if (!result.success) throw new Error(result.error)
       toast.success('تم نقل الطلب وحفظ حالته وفريقه')
       onSaved()
-      onClose()
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'تعذر نقل الطلب') }
-    finally { setSaving(false) }
+      closeModal()
+    } catch (error) { if (isCurrentSession(version)) toast.error(error instanceof Error ? error.message : 'تعذر نقل الطلب') }
+    finally { if (isCurrentSession(version)) { savingNow.current = false; setSaving(false) } }
   }
   const chooseDestination = async (id: string) => {
     const request = ++destinationRequest.current
@@ -191,10 +228,16 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
       if (!displayed || Date.parse(displayed.updated_at) !== Date.parse(expected.updated_at))
         throw new Error('تغير خط الوجهة. أعد تحميل القائمة قبل النقل')
       if (request === destinationRequest.current) setDestinationSnapshot(expected)
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'تعذر تحميل خط الوجهة') }
+    } catch (error) {
+      if (request === destinationRequest.current)
+        toast.error(error instanceof Error ? error.message : 'تعذر تحميل خط الوجهة')
+    }
   }
 
   const handleSave = async () => {
+    if (savingNow.current || pendingAdditions.current.size || !isCurrentSession(session.current)) return
+    const version = session.current
+    savingNow.current = true
     setSaving(true)
     try {
       if (!snapshot) throw new Error('انتظر تحميل بيانات خط السير قبل الحفظ')
@@ -204,16 +247,17 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         ...(newOrderSnapshots[order.id] ? { expected: newOrderSnapshots[order.id] } : {}),
       }))
       const result = await EnhancedAPI.saveRouteOrders(snapshot, desired)
+      if (!isCurrentSession(version)) return
       if (!result.success) throw new Error(result.error)
 
       toast.success('تم حفظ الطلبات')
       onSaved()
-      onClose()
+      closeModal()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ')
+      if (isCurrentSession(version)) toast.error(error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ')
       console.error(error)
     } finally {
-      setSaving(false)
+      if (isCurrentSession(version)) { savingNow.current = false; setSaving(false) }
     }
   }
 
@@ -222,7 +266,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   return (
     <SmartModal
       isOpen={open}
-      onClose={onClose}
+      onClose={closeModal}
       title={`إدارة طلبات خط السير: ${route.name}`}
       subtitle={`التاريخ: ${route.date}`}
       icon={<ClipboardList className="h-6 w-6 text-white" />}
@@ -235,7 +279,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           <h2 className="text-lg font-semibold">إدارة طلبات خط السير: {route.name}</h2>
           <button
             className="text-gray-400 hover:text-gray-600"
-            onClick={onClose}
+            onClick={closeModal}
             disabled={saving}
           >
             <X className="h-5 w-5" />
@@ -262,7 +306,8 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                     <button
                       className="btn-primary btn-sm"
                       onClick={() => addOrder(o)}
-                      disabled={saving}
+                      disabled={saving || !snapshot || addingOrders.includes(o.id)}
+                      aria-label={addingOrders.includes(o.id) ? 'جاري تجهيز إضافة الطلب' : 'إضافة الطلب'}
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -316,7 +361,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                       </button>
                       {snapshot?.links.some(link => link.order_id === o.id) && <button
                         className="btn-secondary btn-sm" onClick={() => transferOrder(o)}
-                        disabled={saving || !destinationSnapshot || !canChange(o)}>نقل</button>}
+                        disabled={saving || addingOrders.length > 0 || !destinationSnapshot || !canChange(o)}>نقل</button>}
                     </div>
                   </div>
                 ))}
@@ -341,15 +386,16 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
 
 
         
+        {addingOrders.length > 0 && <p role="status" className="mt-4 text-sm text-blue-700">جاري تجهيز إضافة الطلبات؛ انتظر قبل الحفظ أو النقل.</p>}
         {/* Actions */}
         <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 bg-white sticky bottom-0 left-0 right-0 z-10">
-          <button className="btn-secondary" onClick={onClose} disabled={saving}>
+          <button className="btn-secondary" onClick={closeModal} disabled={saving}>
             إلغاء
           </button>
           <button
             className="btn-primary flex items-center gap-1"
             onClick={handleSave}
-            disabled={saving || loading || !snapshot}
+            disabled={saving || addingOrders.length > 0 || loading || !snapshot}
           >
             <Save className="h-4 w-4" /> حفظ
           </button>
