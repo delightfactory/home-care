@@ -1,0 +1,2558 @@
+{
+  "createdAt": "2026-10-07T20:02:53.471Z",
+  "status": "FROZEN_PROPOSED_TARGETS_NOT_TESTED_OR_IMPLEMENTED",
+  "candidateBase": "e3fe1f6e440bdce0fd6d977b8bbb5df2af6beccd",
+  "rule": "committed DB changes only, no meaning of full business workflow inferred",
+  "publicTargetCount": 40,
+  "sourceKind": "shared DB capture with approved static fields",
+  "publicTargets": [
+    {
+      "table": "public.advance_installments",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "advance_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "month",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "year",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "payroll_item_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.app_settings",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "key",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": [
+        {
+          "field": "value",
+          "marker": "value_changed",
+          "policy": "FIXED_CHANGED_BOOLEAN_NO_VALUE",
+          "operation": "UPDATE",
+          "comparison": "typed field IS DISTINCT FROM, never serialize full value",
+          "qualification": "test value-only change, true no-op and size/performance; if too costly stop and disclose rather than omit silently"
+        }
+      ]
+    },
+    {
+      "table": "public.attendance_records",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "worker_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "date",
+          "type": "date",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "check_in_time",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "check_out_time",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "check_in_method",
+          "type": "text",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "check_out_method",
+          "type": "text",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "work_hours",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "modified_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "late_minutes",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.call_logs",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "caller_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "callee_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "duration_seconds",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.company_locations",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "radius_meters",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "work_start_time",
+          "type": "time",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.conversation_participants",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "conversation_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "user_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "role",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_muted",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "muted_until",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "left_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "joined_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.conversations",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "type",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "target_role",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "target_all",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_pinned",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.custody_accounts",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "user_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "holder_type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "balance",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.custody_transactions",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "custody_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "balance_after",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "target_custody_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "target_vault_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "reference_type",
+          "type": "text",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "reference_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "performed_by",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.customer_surveys",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "service_quality_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "staff_professionalism_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "punctuality_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "cleanliness_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "value_for_money_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "overall_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "would_recommend",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "submitted_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.customers",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "area",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.expense_categories",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "requires_approval",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "approval_limit",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.expenses",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "category_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "route_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "approved_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "approved_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.hr_adjustments",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "worker_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "date",
+          "type": "date",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "payroll_item_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_processed",
+          "type": "bool",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.invoice_items",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "invoice_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "service_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "quantity",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "unit_price",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_price",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.invoices",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "invoice_number",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "customer_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "subtotal",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "discount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "paid_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "payment_method",
+          "type": "text",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "collected_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "collected_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "cancelled_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "cancelled_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.notification_preferences",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "user_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "in_app_enabled",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "push_enabled",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "quiet_hours_enabled",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "quiet_hours_start",
+          "type": "time",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "quiet_hours_end",
+          "type": "time",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": [
+        {
+          "field": "categories",
+          "marker": "categories_changed",
+          "policy": "FIXED_CHANGED_BOOLEAN_NO_VALUE",
+          "operation": "UPDATE",
+          "comparison": "typed field IS DISTINCT FROM, never serialize full value",
+          "qualification": "test value-only change, true no-op and size/performance; if too costly stop and disclose rather than omit silently"
+        }
+      ]
+    },
+    {
+      "table": "public.order_items",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "service_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "quantity",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "unit_price",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_price",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.order_status_logs",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.order_workers",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "worker_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "role",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "started_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "finished_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "customer_rating",
+          "type": "int2",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "performance_score",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.orders",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "order_number",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "customer_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "scheduled_date",
+          "type": "date",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "scheduled_time",
+          "type": "time",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_amount",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "transport_method",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "transport_cost",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "payment_status",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "payment_method",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "customer_rating",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "confirmation_status",
+          "type": "confirmation_status_enum",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "confirmed_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "confirmed_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.payroll_disbursements",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "payroll_period_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "vault_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "expense_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "disbursed_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "worker_ids",
+          "type": "_uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.payroll_items",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "payroll_period_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "worker_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "base_salary",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_month_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "paid_leave_allowance",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "work_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "absent_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "leave_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "late_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "holiday_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "unpaid_absent_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "daily_rate",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "absence_deduction",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "calculated_bonus",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "manual_incentives",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "manual_deductions",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "manual_penalties",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "manual_bonuses",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "advance_deduction",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "net_salary",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "disbursed_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "payment_status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "effective_days",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "required_work_days",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "public_holiday_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "leave_balance",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "leave_used",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "late_penalty_days",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "late_penalty_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "worker_start_date",
+          "type": "date",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "worker_end_date",
+          "type": "date",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.payroll_periods",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "month",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "year",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_salaries",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_incentives",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_deductions",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_penalties",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_bonuses",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_advances",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_absence_deductions",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "net_total",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "approved_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "approved_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "expense_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_disbursed",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.penalty_rules",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "min_minutes",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "max_minutes",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "deduction_days",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "grace_count",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "sort_order",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.public_holidays",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "date",
+          "type": "date",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "year",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.roles",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": [
+        {
+          "field": "permissions",
+          "marker": "permissions_changed",
+          "policy": "FIXED_CHANGED_BOOLEAN_NO_VALUE",
+          "operation": "UPDATE",
+          "comparison": "typed field IS DISTINCT FROM, never serialize full value",
+          "qualification": "test value-only change, true no-op and size/performance; if too costly stop and disclose rather than omit silently"
+        }
+      ]
+    },
+    {
+      "table": "public.route_orders",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "route_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "order_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "sequence_order",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "estimated_arrival_time",
+          "type": "time",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "actual_arrival_time",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "estimated_completion_time",
+          "type": "time",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "actual_completion_time",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.routes",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "date",
+          "type": "date",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "start_time",
+          "type": "time",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "estimated_end_time",
+          "type": "time",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "actual_start_time",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "actual_end_time",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_distance",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_estimated_time",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.salary_advances",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "worker_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "advance_type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "installments_count",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "installment_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "remaining_amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "start_month",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "start_year",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "approved_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "vault_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "custody_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.service_categories",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.services",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "category_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "price",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "unit",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "estimated_duration",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.system_settings",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "key",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "updated_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": [
+        {
+          "field": "value",
+          "marker": "value_changed",
+          "policy": "FIXED_CHANGED_BOOLEAN_NO_VALUE",
+          "operation": "UPDATE",
+          "comparison": "typed field IS DISTINCT FROM, never serialize full value",
+          "qualification": "test value-only change, true no-op and size/performance; if too costly stop and disclose rather than omit silently"
+        }
+      ]
+    },
+    {
+      "table": "public.team_members",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "team_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "worker_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "joined_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "left_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.teams",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "leader_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.users",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "role_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "full_name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.vault_transactions",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "vault_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "target_vault_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "amount",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "balance_after",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "reference_type",
+          "type": "text",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "reference_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "performed_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.vaults",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "name",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name_ar",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "type",
+          "type": "text",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "balance",
+          "type": "numeric",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "is_active",
+          "type": "bool",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.voice_calls",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "caller_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "callee_id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "text",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "answered_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "ended_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    },
+    {
+      "table": "public.workers",
+      "implementationStatus": "NOT_IMPLEMENTED",
+      "qualificationStatus": "NOT_TESTED",
+      "proofTarget": "committed_change",
+      "actor": "verified session if available, otherwise system/anonymous/unknown",
+      "fields": [
+        {
+          "field": "id",
+          "type": "uuid",
+          "nullable": false,
+          "policy": "ENTITY_ID_REFERENCE"
+        },
+        {
+          "field": "user_id",
+          "type": "uuid",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "name",
+          "type": "varchar",
+          "nullable": false,
+          "policy": "PROPOSED_BOUNDED_LABEL_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "hire_date",
+          "type": "date",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "salary",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "can_drive",
+          "type": "bool",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "status",
+          "type": "varchar",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "rating",
+          "type": "numeric",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "total_orders",
+          "type": "int4",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "paid_leave_days",
+          "type": "int4",
+          "nullable": false,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        },
+        {
+          "field": "termination_date",
+          "type": "date",
+          "nullable": true,
+          "policy": "PROPOSED_SAFE_VALUE_ADMIN_ONLY"
+        }
+      ],
+      "fieldRule": "Static selection before JSON serialization; all other fields excluded by default; selective safe change markers need explicit review",
+      "changeMarkers": []
+    }
+  ],
+  "excludedBaseTables": [
+    {
+      "table": "public.backups",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.daily_reports",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.message_read_receipts",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.messages",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.notifications",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.performance_logs",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.push_subscriptions",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.storage_usage",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    },
+    {
+      "table": "public.team_performance",
+      "status": "EXCLUDED_V3",
+      "reason": "noisy, derived, secret endpoints/content or bulky backup payload; no new adapter in this release"
+    }
+  ],
+  "extraSources": [
+    {
+      "table": "lifecycle_private.requests",
+      "operation": "INSERT",
+      "proofTarget": "committed_operation from existing receipt",
+      "implementationStatus": "NOT_IMPLEMENTED"
+    },
+    {
+      "table": "lifecycle_private.epoch",
+      "operation": "UPDATE",
+      "proofTarget": "recovery_epoch_changed only, not completion of reset/restore",
+      "implementationStatus": "NOT_IMPLEMENTED"
+    }
+  ],
+  "deferred": [
+    "external provider outcomes",
+    "Auth log integration",
+    "rejected attempts",
+    "Edge identity repairs",
+    "multi-transaction correlation",
+    "CSV export",
+    "new workers queues services cron",
+    "Backup44 modification",
+    "external immutable archive"
+  ],
+  "fieldRules": "Allowlisted scalar/reference/bounded labels only, project before JSON. roles.permissions and notification_preferences.categories are marker-only. app/system settings.value is marker-only so value-only changes are not suppressed as no-op. No raw JSON fallback.",
+  "revisedAt": "2026-10-07T20:04:54.275Z"
+}

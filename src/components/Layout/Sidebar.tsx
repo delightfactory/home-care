@@ -21,6 +21,7 @@ import {
   Briefcase,
   PieChart,
   ChevronDown,
+  History,
 } from 'lucide-react'
 import { clsx } from '../../lib/clsx'
 
@@ -114,6 +115,7 @@ const navigation: NavigationEntry[] = [
       { name: 'إعدادات النظام', href: '/settings', icon: Settings },
       { name: 'الأدوار والمستخدمين', href: '/roles', icon: Shield, adminOnly: true },
       { name: 'النسخ الاحتياطية', href: '/backups', icon: DownloadCloud, adminOnly: true },
+      { name: 'سجل الأحداث', href: '/audit', icon: History, adminOnly: true },
     ],
   },
 ]

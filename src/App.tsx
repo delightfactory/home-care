@@ -43,6 +43,7 @@ const MessagesPage = React.lazy(() => import('./pages/MessagesPage'))
 const FinancePage = React.lazy(() => import('./pages/Finance/FinancePage'))
 const HrPage = React.lazy(() => import('./pages/Hr/HrPage'))
 const ProfitLossPage = React.lazy(() => import('./pages/ProfitLoss/ProfitLossPage'))
+const AuditPage = React.lazy(() => import('./pages/Audit/AuditPage'))
 
 // Technician App - تطبيق الفنى (منفصل)
 const TechDashboard = React.lazy(() => import('./pages/Tech/TechDashboard'))
@@ -300,6 +301,11 @@ const AppRoutes: React.FC = () => {
           </SensitiveAreaGuard>
         } />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="audit" element={
+          <AdminGuard fallback={<div dir="rtl" role="alert">ليس لديك صلاحية عرض سجل الأحداث.</div>}>
+            <AuditPage />
+          </AdminGuard>
+        } />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="messages/:conversationId" element={<MessagesPage />} />
         <Route

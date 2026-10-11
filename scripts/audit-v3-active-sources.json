@@ -1,0 +1,621 @@
+{
+  "mode": "all",
+  "sources": [
+    {
+      "table": "public.advance_installments",
+      "fields": [
+        "id",
+        "advance_id",
+        "month",
+        "year",
+        "amount",
+        "status",
+        "payroll_item_id"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.app_settings",
+      "fields": [
+        "key"
+      ],
+      "markers": [
+        "value_changed"
+      ]
+    },
+    {
+      "table": "public.attendance_records",
+      "fields": [
+        "id",
+        "worker_id",
+        "date",
+        "check_in_time",
+        "check_out_time",
+        "check_in_method",
+        "check_out_method",
+        "status",
+        "work_hours",
+        "modified_by",
+        "late_minutes"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.call_logs",
+      "fields": [
+        "id",
+        "caller_id",
+        "callee_id",
+        "duration_seconds",
+        "status"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.company_locations",
+      "fields": [
+        "id",
+        "name",
+        "name_ar",
+        "radius_meters",
+        "is_active",
+        "work_start_time"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.conversation_participants",
+      "fields": [
+        "id",
+        "conversation_id",
+        "user_id",
+        "role",
+        "is_muted",
+        "muted_until",
+        "is_active",
+        "left_at",
+        "joined_at"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.conversations",
+      "fields": [
+        "id",
+        "type",
+        "team_id",
+        "target_role",
+        "target_all",
+        "created_by",
+        "is_active",
+        "is_pinned"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.custody_accounts",
+      "fields": [
+        "id",
+        "user_id",
+        "holder_type",
+        "team_id",
+        "balance",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.custody_transactions",
+      "fields": [
+        "id",
+        "custody_id",
+        "type",
+        "amount",
+        "balance_after",
+        "target_custody_id",
+        "target_vault_id",
+        "reference_type",
+        "reference_id",
+        "performed_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.customer_surveys",
+      "fields": [
+        "id",
+        "order_id",
+        "service_quality_rating",
+        "staff_professionalism_rating",
+        "punctuality_rating",
+        "cleanliness_rating",
+        "value_for_money_rating",
+        "overall_rating",
+        "would_recommend",
+        "submitted_at"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.customers",
+      "fields": [
+        "id",
+        "name",
+        "area",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.expense_categories",
+      "fields": [
+        "id",
+        "name",
+        "name_ar",
+        "requires_approval",
+        "approval_limit",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.expenses",
+      "fields": [
+        "id",
+        "category_id",
+        "order_id",
+        "route_id",
+        "team_id",
+        "amount",
+        "status",
+        "approved_by",
+        "approved_at",
+        "created_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.hr_adjustments",
+      "fields": [
+        "id",
+        "worker_id",
+        "type",
+        "amount",
+        "date",
+        "payroll_item_id",
+        "is_processed",
+        "created_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.invoice_items",
+      "fields": [
+        "id",
+        "invoice_id",
+        "service_id",
+        "quantity",
+        "unit_price",
+        "total_price"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.invoices",
+      "fields": [
+        "id",
+        "invoice_number",
+        "order_id",
+        "customer_id",
+        "team_id",
+        "subtotal",
+        "discount",
+        "total_amount",
+        "paid_amount",
+        "status",
+        "payment_method",
+        "collected_by",
+        "collected_at",
+        "cancelled_by",
+        "cancelled_at"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.notification_preferences",
+      "fields": [
+        "id",
+        "user_id",
+        "in_app_enabled",
+        "push_enabled",
+        "quiet_hours_enabled",
+        "quiet_hours_start",
+        "quiet_hours_end"
+      ],
+      "markers": [
+        "categories_changed"
+      ]
+    },
+    {
+      "table": "public.order_items",
+      "fields": [
+        "id",
+        "order_id",
+        "service_id",
+        "quantity",
+        "unit_price",
+        "total_price"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.order_status_logs",
+      "fields": [
+        "id",
+        "order_id",
+        "status",
+        "created_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.order_workers",
+      "fields": [
+        "id",
+        "order_id",
+        "worker_id",
+        "team_id",
+        "role",
+        "started_at",
+        "finished_at",
+        "customer_rating",
+        "performance_score"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.orders",
+      "fields": [
+        "id",
+        "order_number",
+        "customer_id",
+        "team_id",
+        "scheduled_date",
+        "scheduled_time",
+        "status",
+        "total_amount",
+        "transport_method",
+        "transport_cost",
+        "payment_status",
+        "payment_method",
+        "customer_rating",
+        "confirmation_status",
+        "confirmed_at",
+        "confirmed_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.payroll_disbursements",
+      "fields": [
+        "id",
+        "payroll_period_id",
+        "vault_id",
+        "amount",
+        "expense_id",
+        "disbursed_by",
+        "worker_ids"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.payroll_items",
+      "fields": [
+        "id",
+        "payroll_period_id",
+        "worker_id",
+        "base_salary",
+        "total_month_days",
+        "paid_leave_allowance",
+        "work_days",
+        "absent_days",
+        "leave_days",
+        "late_days",
+        "holiday_days",
+        "unpaid_absent_days",
+        "daily_rate",
+        "absence_deduction",
+        "calculated_bonus",
+        "manual_incentives",
+        "manual_deductions",
+        "manual_penalties",
+        "manual_bonuses",
+        "advance_deduction",
+        "net_salary",
+        "disbursed_amount",
+        "payment_status",
+        "effective_days",
+        "required_work_days",
+        "public_holiday_days",
+        "leave_balance",
+        "leave_used",
+        "late_penalty_days",
+        "late_penalty_amount",
+        "worker_start_date",
+        "worker_end_date"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.payroll_periods",
+      "fields": [
+        "id",
+        "month",
+        "year",
+        "status",
+        "total_salaries",
+        "total_incentives",
+        "total_deductions",
+        "total_penalties",
+        "total_bonuses",
+        "total_advances",
+        "total_absence_deductions",
+        "net_total",
+        "approved_by",
+        "approved_at",
+        "expense_id",
+        "created_by",
+        "total_disbursed"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.penalty_rules",
+      "fields": [
+        "id",
+        "name",
+        "name_ar",
+        "type",
+        "min_minutes",
+        "max_minutes",
+        "deduction_days",
+        "grace_count",
+        "is_active",
+        "sort_order"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.public_holidays",
+      "fields": [
+        "id",
+        "name",
+        "date",
+        "year",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.roles",
+      "fields": [
+        "id",
+        "name",
+        "name_ar",
+        "is_active"
+      ],
+      "markers": [
+        "permissions_changed"
+      ]
+    },
+    {
+      "table": "public.route_orders",
+      "fields": [
+        "id",
+        "route_id",
+        "order_id",
+        "sequence_order",
+        "estimated_arrival_time",
+        "actual_arrival_time",
+        "estimated_completion_time",
+        "actual_completion_time"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.routes",
+      "fields": [
+        "id",
+        "name",
+        "date",
+        "team_id",
+        "start_time",
+        "estimated_end_time",
+        "actual_start_time",
+        "actual_end_time",
+        "status",
+        "total_distance",
+        "total_estimated_time"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.salary_advances",
+      "fields": [
+        "id",
+        "worker_id",
+        "advance_type",
+        "total_amount",
+        "installments_count",
+        "installment_amount",
+        "remaining_amount",
+        "start_month",
+        "start_year",
+        "status",
+        "approved_by",
+        "created_by",
+        "vault_id",
+        "custody_id"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.service_categories",
+      "fields": [
+        "id",
+        "name",
+        "name_ar",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.services",
+      "fields": [
+        "id",
+        "category_id",
+        "name",
+        "name_ar",
+        "price",
+        "unit",
+        "estimated_duration",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.system_settings",
+      "fields": [
+        "id",
+        "key",
+        "updated_by"
+      ],
+      "markers": [
+        "value_changed"
+      ]
+    },
+    {
+      "table": "public.team_members",
+      "fields": [
+        "id",
+        "team_id",
+        "worker_id",
+        "joined_at",
+        "left_at"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.teams",
+      "fields": [
+        "id",
+        "name",
+        "leader_id",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.users",
+      "fields": [
+        "id",
+        "role_id",
+        "full_name",
+        "is_active"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.vault_transactions",
+      "fields": [
+        "id",
+        "vault_id",
+        "target_vault_id",
+        "type",
+        "amount",
+        "balance_after",
+        "reference_type",
+        "reference_id",
+        "performed_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.vaults",
+      "fields": [
+        "id",
+        "name",
+        "name_ar",
+        "type",
+        "balance",
+        "is_active",
+        "created_by"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.voice_calls",
+      "fields": [
+        "id",
+        "caller_id",
+        "callee_id",
+        "status",
+        "answered_at",
+        "ended_at"
+      ],
+      "markers": []
+    },
+    {
+      "table": "public.workers",
+      "fields": [
+        "id",
+        "user_id",
+        "name",
+        "hire_date",
+        "salary",
+        "can_drive",
+        "status",
+        "rating",
+        "total_orders",
+        "paid_leave_days",
+        "termination_date"
+      ],
+      "markers": []
+    }
+  ],
+  "extraSources": [
+    {
+      "table": "lifecycle_private.requests",
+      "operations": [
+        "INSERT"
+      ],
+      "eventKind": "committed_operation",
+      "fields": [
+        "actor",
+        "request",
+        "created_at",
+        "operation",
+        "epoch",
+        "order_id",
+        "route_id",
+        "destination_id"
+      ],
+      "markers": []
+    },
+    {
+      "table": "lifecycle_private.epoch",
+      "operations": [
+        "UPDATE"
+      ],
+      "eventKind": "recovery_epoch_changed",
+      "fields": [
+        "token",
+        "changed_at"
+      ],
+      "markers": []
+    }
+  ],
+  "targetCount": 40,
+  "totalSources": 42,
+  "qualificationStatus": "NOT_RELEASE_QUALIFIED"
+}
