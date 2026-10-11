@@ -77,12 +77,12 @@ export default function AuditPage() {
       entity: kind === 'entity' ? event.entity_id || '' : '',
       transaction: kind === 'transaction' ? `${event.database_generation}:${event.transaction_id}` : '',
     }
-    setSelected(null); setDraft(next); setFilters(next); setValidation('')
+    setSearch(''); setSelected(null); setDraft(next); setFilters(next); setValidation('')
   }
   const actorOptions = new Map<string, string>()
   const visibleEvents = events.filter(event => searchableEventText(event).includes(search.trim().toLocaleLowerCase()))
   events.forEach(event => { if (event.actor_id) actorOptions.set(event.actor_id, actorLabel(event)) })
-  if (draft.actor && !actorOptions.has(draft.actor)) actorOptions.set(draft.actor, draft.actor)
+  if (draft.actor && !actorOptions.has(draft.actor)) actorOptions.set(draft.actor, 'منفذ محدد؛ الاسم غير متاح في النتائج الحالية')
   return <div className="min-w-0 space-y-5" dir="rtl">
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div><h1 className="flex items-center gap-2 text-xl font-bold text-gray-900 sm:text-2xl"><History className="h-6 w-6 shrink-0" />سجل الأحداث</h1><p className="mt-1 text-sm text-gray-600">اعرف من غيّر البيانات ومتى وما الذي تغيّر. الأوقات والفلاتر بتوقيت القاهرة.</p></div>

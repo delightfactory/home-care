@@ -33,7 +33,7 @@ export function eventLabel(kind: string, operation: string) {
 }
 export function actorLabel(event: { actor_name: string | null; actor_id: string | null; actor_kind: string }) {
   if (event.actor_name) return `${event.actor_name} (الاسم الحالي)`
-  if (event.actor_id) return event.actor_id
+  if (event.actor_id) return 'اسم المنفذ غير متاح؛ المرجع محفوظ في مراجع التتبع'
   if (['service', 'system', 'service_role'].includes(event.actor_kind)) return 'حساب خدمة أو عملية نظام'
   return 'منفذ غير مثبت'
 }

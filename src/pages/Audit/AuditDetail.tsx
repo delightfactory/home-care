@@ -5,6 +5,7 @@ import type { AuditEvent } from '../../types/audit'
 import { actorLabel, eventLabel, fieldLabels, tableLabels } from './auditLabels'
 import AuditRelations from './AuditRelations'
 import { displayValue, eventTitle } from './auditPresentation'
+import { technicalFields } from './auditValues'
 
 interface Props {
   id: string
@@ -51,7 +52,7 @@ export default function AuditDetail({ id, onClose, onTimeline }: Props) {
     return () => { document.removeEventListener('keydown', keydown); if (previous?.isConnected) previous.focus() }
   }, [])
   const markerFields = event ? Array.isArray(event.change_markers) ? event.change_markers : Object.entries(event.change_markers || {}).filter(([, changed]) => changed).map(([field]) => field) : []
-  const fields = event ? Array.from(new Set([...event.changed_fields, ...markerFields])) : []
+  const fields = event ? Array.from(new Set([...event.changed_fields, ...markerFields])).filter(field => !technicalFields.has(field)) : []
   return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-3" dir="rtl">
     <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="audit-detail-title" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-4 shadow-xl sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3"><h2 id="audit-detail-title" className="text-lg font-bold">تفاصيل الحدث</h2><button ref={closeButton} onClick={onClose} aria-label="إغلاق تفاصيل الحدث" className="rounded p-2 hover:bg-gray-100 focus-visible:ring-2"><X size={20} /></button></div>
@@ -72,11 +73,12 @@ export default function AuditDetail({ id, onClose, onTimeline }: Props) {
           const marker = markerFields.includes(field)
           const redacted = event.redacted_fields?.includes(field) || event.payload_redacted && !Object.prototype.hasOwnProperty.call(event.before_values || {}, field) && !Object.prototype.hasOwnProperty.call(event.after_values || {}, field)
           return <div key={field} className="rounded-lg border p-3">
-            <h3 className="mb-2 text-sm font-semibold"><bdi>{fieldLabels[field] || field}</bdi></h3>
-            {marker || redacted ? <p className="text-sm text-gray-600">تغيّر الحقل؛ قيمته محجوبة</p> : <div className="grid min-w-0 grid-cols-1 gap-3 text-sm sm:grid-cols-2"><div className="min-w-0"><span className="text-gray-500">قبل</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{displayValue(event, field, event.before_values?.[field])}</bdi></p></div><div className="min-w-0"><span className="text-gray-500">بعد</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{displayValue(event, field, event.after_values?.[field])}</bdi></p></div></div>}
+            <h3 className="mb-2 text-sm font-semibold"><bdi>{fieldLabels[field] || 'حقل إضافي؛ اسمه في مراجع التتبع'}</bdi></h3>
+            {marker || redacted ? <p className="text-sm text-gray-600">تغيّر الحقل؛ قيمته محجوبة</p> : <div className="grid min-w-0 grid-cols-1 gap-3 text-sm sm:grid-cols-2"><div className="min-w-0"><span className="text-gray-500">قبل</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{displayValue(event, field, event.before_values?.[field], event.before_values || {})}</bdi></p></div><div className="min-w-0"><span className="text-gray-500">بعد</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{displayValue(event, field, event.after_values?.[field], event.after_values || {})}</bdi></p></div></div>}
           </div>
         })}</div>
-        {!fields.length && <p className="rounded border p-3 text-sm">لا توجد تفاصيل حقول متاحة لهذا الحدث.</p>}
+        {!fields.length && <p className="rounded border p-3 text-sm">لا توجد تفاصيل حقول متاحة لهذا الحدث؛ المراجع التقنية محفوظة في مراجع التتبع.</p>}
+        <details className="mt-4 text-xs text-gray-500"><summary className="cursor-pointer">هوية المنفذ الأصلية</summary><p className="mt-2 break-all"><bdi>{event.actor_id || 'منفذ غير مثبت'}</bdi></p></details>
         <div className="mt-5 flex flex-wrap gap-2">
           {event.entity_id && <button onClick={() => onTimeline(event, 'entity')} className="rounded border px-3 py-2 text-sm focus-visible:ring-2">عرض تسلسل الكيان</button>}
           <button onClick={() => onTimeline(event, 'transaction')} className="rounded border px-3 py-2 text-sm focus-visible:ring-2">عرض تغييرات المعاملة</button>
