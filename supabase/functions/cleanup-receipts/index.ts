@@ -10,14 +10,14 @@
 // الجدولة: يومياً الساعة 3 صباحاً عبر pg_cron
 // ===========================================
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // معايير التنظيف
 const CONFIG = {
     BUCKET_NAME: 'receipts',
     MAX_STORAGE_MB: 500,        // الحد الأقصى للتخزين
     CLEANUP_THRESHOLD: 0.8,     // بدء التنظيف عند 80%
-    MIN_FILE_AGE_DAYS: 90,      // الحد الأدنى لعمر الملفات للحذف
+    MIN_FILE_AGE_DAYS: 30,      // سياسة الشركة: الاحتفاظ بالصور 30 يومًا
     MAX_FILES_PER_RUN: 100,     // الحد الأقصى للملفات في كل تشغيل
     BATCH_SIZE: 10              // حجم الدفعة للحذف
 }
@@ -84,10 +84,10 @@ Deno.serve(async (req: Request) => {
         console.log(`   - الحجم: ${stats.total_size_mb} MB من ${CONFIG.MAX_STORAGE_MB} MB`)
         console.log(`   - النسبة: ${stats.usage_percentage}%`)
         console.log(`   - عدد الملفات: ${stats.file_count}`)
-        console.log(`   - ملفات قديمة (>90 يوم): ${stats.files_older_than_90_days}`)
+        console.log(`   - سياسة الحذف: الصور الأقدم من ${CONFIG.MIN_FILE_AGE_DAYS} يومًا`)
 
         // 2. التحقق من الحاجة للتنظيف
-        if (!stats.cleanup_recommended && stats.files_older_than_90_days === 0) {
+        if (stats.file_count === 0) {
             console.log('✅ لا حاجة للتنظيف حالياً')
 
             return new Response(JSON.stringify({
@@ -184,7 +184,7 @@ Deno.serve(async (req: Request) => {
         }
 
         return new Response(JSON.stringify({
-            success: true,
+            success: errors.length === 0,
             message: `تم حذف ${deletedCount} ملف وتحرير ${freedMB} MB`,
             stats: {
                 files_deleted: deletedCount,
@@ -194,6 +194,7 @@ Deno.serve(async (req: Request) => {
             },
             errors
         } as CleanupResult), {
+            status: errors.length > 0 ? 500 : 200,
             headers: { 'Content-Type': 'application/json' }
         })
 
