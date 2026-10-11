@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { AuditAPI, AuditReadError } from '../../api/audit'
 import type { AuditEvent } from '../../types/audit'
-import { actorLabel, eventLabel, fieldLabels, lifecycleOperationLabels, tableLabels } from './auditLabels'
+import { actorLabel, eventLabel, fieldLabels, tableLabels } from './auditLabels'
+import AuditRelations from './AuditRelations'
+import { displayValue, eventTitle } from './auditPresentation'
 
-const renderValue = (field: string, value: unknown) => value === undefined || value === null ? '—' : typeof value === 'boolean' ? (value ? 'نعم' : 'لا') : field === 'operation' && typeof value === 'string' ? lifecycleOperationLabels[value] || value : typeof value === 'object' ? JSON.stringify(value) : String(value)
 interface Props {
   id: string
   onClose: () => void
@@ -62,9 +63,9 @@ export default function AuditDetail({ id, onClose, onTimeline }: Props) {
           <div><dt className="text-gray-500">التغيير</dt><dd>{eventLabel(event.event_kind, event.operation)} · {tableLabels[event.table_name] || event.table_name}</dd></div>
           <div><dt className="text-gray-500">الوقت</dt><dd>{new Date(event.occurred_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}</dd></div>
           <div className="min-w-0"><dt className="text-gray-500">المنفذ</dt><dd className="break-words"><bdi>{actorLabel(event)}</bdi></dd></div>
-          <div className="min-w-0"><dt className="text-gray-500">مرجع الكيان</dt><dd className="break-all"><bdi>{event.entity_id || '—'}</bdi></dd></div>
+          <div className="min-w-0"><dt className="text-gray-500">السجل</dt><dd className="break-words"><bdi>{eventTitle(event)}</bdi></dd></div>
         </dl>
-        <p className="my-4 text-sm text-gray-600">المصدر: تغيير محفوظ في قاعدة البيانات. لا يثبت هذا الحدث وحده اكتمال عملية متعددة الخطوات أو نتيجة خارج النظام.</p>
+        <AuditRelations event={event} onTimeline={onTimeline} />{event.context_unavailable && <p className="my-3 text-sm text-amber-800">تعذر تحميل أسماء المراجع؛ القيم الأصلية محفوظة في مراجع التتبع.</p>}<p className="my-4 text-sm text-gray-600">المصدر: تغيير محفوظ في قاعدة البيانات. لا يثبت هذا الحدث وحده اكتمال عملية متعددة الخطوات أو نتيجة خارج النظام.</p>
         <p className="mb-4 text-sm text-gray-600">قد يتغير السجل أكثر من مرة داخل المعاملة نفسها؛ القيم المعروضة تخص هذا الحدث، وليست بالضرورة الحالة النهائية أو الحالية للسجل.</p>
         {event.payload_redacted && <p className="mb-3 rounded bg-amber-50 p-3 text-sm text-amber-900">حُجبت بعض التفاصيل ضمن حدود حفظ البيانات. لا يعني ذلك أن العملية لم تحدث.</p>}
         <div className="space-y-3">{fields.map(field => {
@@ -72,7 +73,7 @@ export default function AuditDetail({ id, onClose, onTimeline }: Props) {
           const redacted = event.redacted_fields?.includes(field) || event.payload_redacted && !Object.prototype.hasOwnProperty.call(event.before_values || {}, field) && !Object.prototype.hasOwnProperty.call(event.after_values || {}, field)
           return <div key={field} className="rounded-lg border p-3">
             <h3 className="mb-2 text-sm font-semibold"><bdi>{fieldLabels[field] || field}</bdi></h3>
-            {marker || redacted ? <p className="text-sm text-gray-600">تغيّر الحقل؛ قيمته محجوبة</p> : <div className="grid min-w-0 grid-cols-1 gap-3 text-sm sm:grid-cols-2"><div className="min-w-0"><span className="text-gray-500">قبل</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{renderValue(field, event.before_values?.[field])}</bdi></p></div><div className="min-w-0"><span className="text-gray-500">بعد</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{renderValue(field, event.after_values?.[field])}</bdi></p></div></div>}
+            {marker || redacted ? <p className="text-sm text-gray-600">تغيّر الحقل؛ قيمته محجوبة</p> : <div className="grid min-w-0 grid-cols-1 gap-3 text-sm sm:grid-cols-2"><div className="min-w-0"><span className="text-gray-500">قبل</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{displayValue(event, field, event.before_values?.[field])}</bdi></p></div><div className="min-w-0"><span className="text-gray-500">بعد</span><p className="mt-1 whitespace-pre-wrap break-all"><bdi>{displayValue(event, field, event.after_values?.[field])}</bdi></p></div></div>}
           </div>
         })}</div>
         {!fields.length && <p className="rounded border p-3 text-sm">لا توجد تفاصيل حقول متاحة لهذا الحدث.</p>}
@@ -80,7 +81,7 @@ export default function AuditDetail({ id, onClose, onTimeline }: Props) {
           {event.entity_id && <button onClick={() => onTimeline(event, 'entity')} className="rounded border px-3 py-2 text-sm focus-visible:ring-2">عرض تسلسل الكيان</button>}
           <button onClick={() => onTimeline(event, 'transaction')} className="rounded border px-3 py-2 text-sm focus-visible:ring-2">عرض تغييرات المعاملة</button>
         </div>
-        <details className="mt-4 text-xs text-gray-500"><summary className="cursor-pointer">مراجع التتبع</summary><dl className="mt-2 space-y-2 break-all"><div><dt>الحدث</dt><dd><bdi>{event.id}</bdi></dd></div><div><dt>نسخة البيانات</dt><dd><bdi>{event.database_generation}</bdi></dd></div><div><dt>المعاملة</dt><dd><bdi>{event.transaction_id}</bdi></dd></div><div><dt>المصدر</dt><dd><bdi>{event.table_schema}.{event.table_name}</bdi></dd></div></dl></details>
+        <details className="mt-4 text-xs text-gray-500"><summary className="cursor-pointer">مراجع التتبع</summary><dl className="mt-2 space-y-2 break-all"><div><dt>مرجع الكيان</dt><dd><bdi>{event.entity_id || '—'}</bdi></dd></div><div><dt>القيم الأصلية قبل التغيير</dt><dd><pre className="whitespace-pre-wrap">{JSON.stringify(event.before_values, null, 2)}</pre></dd></div><div><dt>القيم الأصلية بعد التغيير</dt><dd><pre className="whitespace-pre-wrap">{JSON.stringify(event.after_values, null, 2)}</pre></dd></div><div><dt>الحدث</dt><dd><bdi>{event.id}</bdi></dd></div><div><dt>نسخة البيانات</dt><dd><bdi>{event.database_generation}</bdi></dd></div><div><dt>المعاملة</dt><dd><bdi>{event.transaction_id}</bdi></dd></div><div><dt>المصدر</dt><dd><bdi>{event.table_schema}.{event.table_name}</bdi></dd></div></dl></details>
       </>}
     </div>
   </div>

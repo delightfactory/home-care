@@ -3,7 +3,9 @@ import { History, RefreshCw } from 'lucide-react'
 import { AuditAPI, AuditReadError } from '../../api/audit'
 import type { AuditCoverage, AuditCursor, AuditEvent, AuditFilters } from '../../types/audit'
 import AuditDetail from './AuditDetail'
-import { actorLabel, eventLabel, tableLabels } from './auditLabels'
+import AuditEventCard from './AuditEventCard'
+import { searchableEventText } from './auditPresentation'
+import { actorLabel, tableLabels } from './auditLabels'
 
 const emptyFilters: AuditFilters = { from: '', to: '', table: '', actor: '', entity: '', kind: '', transaction: '', generation: '' }
 const control = 'mt-1 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200'
@@ -13,6 +15,7 @@ function sourceName(source: AuditCoverage['sources'][number]) {
 }
 export default function AuditPage() {
   const [draft, setDraft] = useState<AuditFilters>(emptyFilters)
+  const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<AuditFilters>(emptyFilters)
   const [coverage, setCoverage] = useState<AuditCoverage | null>(null)
   const [events, setEvents] = useState<AuditEvent[]>([])
@@ -38,7 +41,7 @@ export default function AuditPage() {
       setError(error instanceof AuditReadError ? error.message : 'تعذر تحميل سجل الأحداث. يمكنك إعادة المحاولة.')
       setDenied(error instanceof AuditReadError && error.denied)
     }).finally(() => { if (sequence.current === current) setLoading(false) })
-    return () => { sequence.current++ }
+    return () => { sequence.current = current + 1 }
   }, [filters, reload])
   async function more() {
     if (!cursor || pendingMore.current) return
@@ -77,6 +80,7 @@ export default function AuditPage() {
     setSelected(null); setDraft(next); setFilters(next); setValidation('')
   }
   const actorOptions = new Map<string, string>()
+  const visibleEvents = events.filter(event => searchableEventText(event).includes(search.trim().toLocaleLowerCase()))
   events.forEach(event => { if (event.actor_id) actorOptions.set(event.actor_id, actorLabel(event)) })
   if (draft.actor && !actorOptions.has(draft.actor)) actorOptions.set(draft.actor, draft.actor)
   return <div className="min-w-0 space-y-5" dir="rtl">
@@ -106,11 +110,13 @@ export default function AuditPage() {
     </form>
     {filters.generation && <div className="rounded-lg border bg-gray-50 p-3 text-sm">{filters.transaction ? 'يعرض تغييرات المعاملة المثبتة في نسخة البيانات نفسها.' : 'يعرض تسلسل الكيان في نسخة البيانات نفسها.'} <button onClick={() => { setDraft(emptyFilters); setFilters({ ...emptyFilters }) }} className="mr-2 font-medium text-primary-700 underline">العودة إلى كل الأحداث</button></div>}
     {loading && <p role="status" className="rounded-xl border bg-white p-6">جاري تحميل سجل الأحداث…</p>}
+    <label className="block rounded-xl border bg-white p-4 text-sm">بحث في الأحداث المحمّلة<input value={search} onChange={event => setSearch(event.target.value)} placeholder="رقم الطلب، اسم الخط، الفريق أو المنفذ" className={control} /><span className="mt-2 block text-xs text-gray-500">البحث في النتائج المحمّلة فقط؛ استخدم الفلاتر وعرض المزيد للوصول إلى أحداث أخرى.</span></label>
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800"><p>{error}</p>{!denied && <button onClick={() => events.length ? more() : setReload(value => value + 1)} className="mt-3 rounded border border-red-300 bg-white px-3 py-2 text-sm focus-visible:ring-2">إعادة المحاولة</button>}</div>}
     {!loading && !error && !events.length && <div className="rounded-xl border bg-white p-6 text-center text-gray-600">لا توجد أحداث مطابقة للفلاتر الحالية.</div>}
     {!loading && !denied && events.length > 0 && <section aria-label="الأحداث المسجلة" className="space-y-3">
-      {events.map(event => <article key={event.id} className="min-w-0 rounded-xl border bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-semibold">{eventLabel(event.event_kind, event.operation)} · {tableLabels[event.table_name] || event.table_name}</h2><p className="mt-1 break-words text-sm text-gray-600"><bdi>{actorLabel(event)}</bdi></p></div><time dateTime={event.occurred_at} className="text-xs text-gray-500">{new Date(event.occurred_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}</time></div><div className="mt-3 flex flex-wrap items-end justify-between gap-3"><p className="min-w-0 break-all text-xs text-gray-500">مرجع الكيان: <bdi>{event.entity_id || '—'}</bdi></p><button onClick={() => setSelected(event.id)} className="shrink-0 rounded-lg border px-3 py-2 text-sm text-primary-700 focus-visible:ring-2">عرض التفاصيل</button></div></article>)}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500"><span>عدد الأحداث المعروضة: {events.length}</span>{cursor && <button onClick={more} disabled={loadingMore} className="rounded-lg border bg-white px-4 py-2 text-gray-800 focus-visible:ring-2 disabled:opacity-50">{loadingMore ? 'جاري تحميل المزيد…' : 'عرض المزيد'}</button>}</div>
+      {visibleEvents.map(event => <AuditEventCard key={event.id} event={event} onDetail={setSelected} onTimeline={timeline} />)}
+      {!visibleEvents.length && <p className="rounded-lg border bg-white p-4 text-gray-600">لا توجد أحداث محمّلة مطابقة للبحث.</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500"><span>عدد الأحداث المعروضة: {visibleEvents.length} من {events.length} حدث محمّل</span>{cursor && <button onClick={more} disabled={loadingMore} className="rounded-lg border bg-white px-4 py-2 text-gray-800 focus-visible:ring-2 disabled:opacity-50">{loadingMore ? 'جاري تحميل المزيد…' : 'عرض المزيد'}</button>}</div>
     </section>}
     {selected && <AuditDetail id={selected} onClose={() => setSelected(null)} onTimeline={timeline} />}
   </div>

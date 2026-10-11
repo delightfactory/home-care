@@ -1,4 +1,6 @@
 export interface AuditEvent {
+  display_context?: AuditContext
+  context_unavailable?: boolean
   id: string
   occurred_at: string
   table_schema: string
@@ -17,6 +19,10 @@ export interface AuditEvent {
   change_markers: Record<string, boolean> | string[]
   redacted_fields: string[]
   payload_redacted: boolean
+}
+export interface AuditContext {
+  labels: Record<string, { label: string | null; found: boolean }>
+  entities: Record<string, Record<string, unknown> | null>
 }
 export interface AuditCursor { occurred_at: string; id: string }
 export interface AuditPage { events: AuditEvent[]; next_cursor: AuditCursor | null }
