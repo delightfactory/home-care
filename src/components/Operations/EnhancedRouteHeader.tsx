@@ -28,6 +28,7 @@ interface RouteHeaderProps {
   onStartRoute: (e: MouseEvent) => void;
   onCompleteRoute: (e: MouseEvent) => void;
   onDeleteRoute: (e: MouseEvent) => void;
+  extensionAction?: React.ReactNode;
   getStatusBadge: (status: string, type: 'order' | 'route' | 'expense') => JSX.Element;
 }
 
@@ -40,6 +41,7 @@ const EnhancedRouteHeader: React.FC<RouteHeaderProps> = ({
   onStartRoute,
   onCompleteRoute,
   onDeleteRoute,
+  extensionAction,
   getStatusBadge
 }) => {
   // Calculate route metrics
@@ -267,6 +269,7 @@ const EnhancedRouteHeader: React.FC<RouteHeaderProps> = ({
 
             {/* Status Actions */}
             <div className="flex items-center space-x-0.5 space-x-reverse">
+              {extensionAction}
               {route.status === 'planned' && (
                 <>
                   <button

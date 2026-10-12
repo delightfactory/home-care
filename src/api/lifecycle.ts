@@ -30,6 +30,15 @@ export interface DesiredLink {
   estimated_arrival_time?: string
   estimated_completion_time?: string
 }
+export interface ExtensionSnapshot extends RouteSnapshot {
+  date: string
+  actual_start_time: string | null
+  actual_end_time: string | null
+  leader_id: string | null
+  team_name: string | null
+  members: { id: string; worker_id: string; name: string; joined_at: string; left_at: string | null }[]
+  attendance: { id: string; worker_id: string; check_in_time: string | null; check_out_time: string | null; check_out_method: string | null; auto_checkout_route_id: string | null }[]
+}
 interface LifecycleResult {
   committed: boolean
   replayed?: boolean
@@ -41,6 +50,15 @@ interface LifecycleResult {
 }
 
 const messages: Record<string, string> = {
+  LC_EXTENSION_CONFIRM: 'أكد أن الفريق ما زال يعمل ولم يغادر المنطقة',
+  LC_EXTENSION_DAY: 'التمديد متاح لطلبات وخطوط اليوم فقط. تعذر تأكيد يوم العمل الحالي',
+  LC_EXTENSION_CLOSED: 'التمديد متاح لخط انتهت جميع طلباته وسُجل إغلاقه',
+  LC_EXTENSION_MEMBERS: 'تغيرت عضوية الفريق أو قائده. يلزم مراجعة العمليات قبل التمديد',
+  LC_EXTENSION_LEADER: 'لا يمكن تمديد الخط حتى يكون حساب قائد الفريق فعّالًا ولديه صلاحية بدء الطلبات. راجع حساب القائد وصلاحياته',
+  LC_EXTENSION_ATTENDANCE: 'تعذر إثبات الانصراف الآلي لكل أعضاء الفريق من هذا الخط. لا يمكن تمديده تلقائيًا',
+  LC_EXTENSION_AUDIT: 'تعذر تسجيل دليل التمديد. لم يتم حفظ أي تغيير؛ أعد المحاولة',
+  LC_AUTO_CHECKOUT_ACTIVE: 'لا يمكن تسجيل انصراف آلي مع وجود طلب غير منتهٍ',
+  LC_AUTO_CHECKOUT_SOURCE: 'تعذر تأكيد مصدر الانصراف الآلي',
   LC_DENIED: 'ليس لديك صلاحية تنفيذ هذا الإجراء على الطلب أو الفريق الحالي',
   LC_CONFLICT: 'تغيرت بيانات الطلب أو خط السير. حدّث البيانات وراجع التعديل قبل الحفظ',
   LC_REQUEST_CONFLICT: 'هذه المحاولة تخص عملية مختلفة. حدّث البيانات قبل المحاولة',
@@ -92,7 +110,8 @@ export class LifecycleAPI {
   static async snapshot(kind: 'route', id: string): Promise<RouteSnapshot>
   static async snapshot(kind: 'order', id: string): Promise<OrderSnapshot>
   static async snapshot(kind: 'edit_order', id: string): Promise<EditOrderSnapshot>
-  static async snapshot(kind: 'route' | 'order' | 'edit_order', id: string): Promise<RouteSnapshot | OrderSnapshot | EditOrderSnapshot> {
+  static async snapshot(kind: 'extend', id: string): Promise<ExtensionSnapshot>
+  static async snapshot(kind: 'route' | 'order' | 'edit_order' | 'extend', id: string): Promise<RouteSnapshot | OrderSnapshot | EditOrderSnapshot | ExtensionSnapshot> {
     const { data, error } = await supabase.rpc('lifecycle_snapshot', { p_kind: kind, p_id: id })
     if (error) throw new Error(lifecycleError(error))
     const { data: { user } } = await supabase.auth.getUser()

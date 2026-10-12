@@ -8,6 +8,7 @@ import { RouteWithOrders, RouteStatus } from '../../types'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import RouteFormModal from '../../components/Forms/RouteFormModal'
 import AssignOrdersModal from '../../components/Forms/AssignOrdersModal'
+import { useRouteExtension } from '../../hooks/useRouteExtension'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
 
@@ -35,7 +36,9 @@ const RoutesPage: React.FC = () => {
 
   // Fetch aggregate route counts
   const { counts } = useRouteCounts()
-  const { isAdmin } = usePermissions()
+  const permissions = usePermissions()
+  const { isAdmin } = permissions
+  const extension = useRouteExtension(permissions, refresh)
 
   // Load more handler
   const handleLoadMore = async () => {
@@ -89,7 +92,7 @@ const RoutesPage: React.FC = () => {
     refresh()
   }, [refresh, dateFilter, teamFilter, statusFilter])
 
-  if (loading && !showAssignModal && !showFormModal && !showDeleteModal) {
+  if (loading && !showAssignModal && !showFormModal && !showDeleteModal && !extension.isOpen) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل خطوط السير..." />
@@ -316,6 +319,7 @@ const RoutesPage: React.FC = () => {
                     <ListTodo className="h-4 w-4" />
                   </button>
                   {/* Start - Admin only */}
+                  {extension.renderAction(r)}
                   {isAdmin() && r.status === 'planned' && (
                     <button
                       className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110 shadow-sm hover:shadow-md"
@@ -376,6 +380,7 @@ const RoutesPage: React.FC = () => {
         />
       )}
 
+      {extension.modal}
       {showAssignModal && routeForOrders && (
         <AssignOrdersModal
           open={showAssignModal}

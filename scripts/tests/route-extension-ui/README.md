@@ -1,0 +1,3 @@
+Run `npx vite --config scripts/tests/route-extension-ui/vite.config.ts` on loopback, then open `/scripts/tests/route-extension-ui/index.html`.
+
+This renders the actual extension modal with synthetic API-boundary responses. No production connection or write is available. Select the synthetic order, confirm continued work, submit, and release the delayed response. Verify the failed response preserves both values and disables changing the original intent. Select replay, submit twice before releasing, and verify one attempt runs and one current-state refresh happens. Check narrow phone, tablet, and desktop widths. Database behavior is covered by the real isolated PostgreSQL tests, not this fixture.

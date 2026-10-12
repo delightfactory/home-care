@@ -52,6 +52,7 @@ import { VaultsAPI } from '../../api/vaults'
 import LoadingSpinner from '../../components/UI/LoadingSpinner'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useRouteExtension } from '../../hooks/useRouteExtension'
 import toast from 'react-hot-toast'
 import {
   useRoutes,
@@ -146,7 +147,8 @@ const OperationsPage: React.FC = () => {
   const [selectedConfirmationOrder, setSelectedConfirmationOrder] = useState<OrderWithDetails | null>(null)
 
   const { user } = useAuth()
-  const { canApproveExpense, hasRole } = usePermissions()
+  const permissions = usePermissions()
+  const { canApproveExpense, hasRole } = permissions
   const isSupervisor = hasRole('operations_supervisor')
   const hidePhone = isSupervisor
 
@@ -159,6 +161,7 @@ const OperationsPage: React.FC = () => {
     { date_from: `${selectedDate}T00:00:00`, date_to: `${selectedDate}T23:59:59` }, 1, 100
   )
   const { health, refresh: refreshHealth } = useSystemHealth()
+  const extension = useRouteExtension(permissions, refreshRoutes)
 
   // Auto-refresh data when date changes
   useEffect(() => {
@@ -1095,7 +1098,7 @@ const OperationsPage: React.FC = () => {
     pendingExpenses: expenses?.filter((e: any) => e.status === 'pending').length || 0
   }
 
-  if (routesLoading || teamsLoading || expensesLoading) {
+  if ((routesLoading || teamsLoading || expensesLoading) && !extension.isOpen) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="large" text="جاري تحميل بيانات العمليات..." />
@@ -1273,6 +1276,7 @@ const OperationsPage: React.FC = () => {
                 onManageOrders={(e) => { e.stopPropagation(); setRouteForOrders(route); setShowAssignModal(true); }}
                 onStartRoute={(e) => { e.stopPropagation(); handleStartRoute(route); }}
                 onCompleteRoute={(e) => { e.stopPropagation(); handleCompleteRoute(route); }}
+                extensionAction={extension.renderAction(route)}
                 onDeleteRoute={(e) => { e.stopPropagation(); setSelectedRoute(route); setShowDeleteModal(true); }}
                 getStatusBadge={getStatusBadge}
               />
@@ -2072,6 +2076,8 @@ const OperationsPage: React.FC = () => {
           />
         )
       }
+
+      {extension.modal}
 
       <DeleteConfirmModal
         isOpen={showDeleteModal}

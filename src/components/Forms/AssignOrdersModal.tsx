@@ -1,4 +1,4 @@
-import { LifecycleAPI, RouteSnapshot, OrderSnapshot } from '../../api/lifecycle'
+import { LifecycleAPI, RouteSnapshot, OrderSnapshot, ExtensionSnapshot } from '../../api/lifecycle'
 import { assignmentSequences } from '../../api/lifecycle-ordering'
 import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { X, ArrowUp, ArrowDown, Plus, Minus, Save, ClipboardList, RefreshCw, Check, XCircle } from 'lucide-react'
@@ -14,9 +14,10 @@ interface AssignOrdersModalProps {
   onClose: () => void
   route: RouteWithOrders
   onSaved: () => void
+  mode?: 'assign' | 'extend'
 }
 
-const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, route, onSaved }) => {
+const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, route, onSaved, mode = 'assign' }) => {
   // Helper to render confirmation badge
   const getConfirmationBadge = (status?: ConfirmationStatus | null) => {
     const statusClasses: Record<ConfirmationStatus, string> = {
@@ -50,7 +51,16 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const [assignedOrders, setAssignedOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const [extensionError, setExtensionError] = useState('')
+  const editingLocked = saving || (mode === 'extend' && attempted)
   const [snapshot, setSnapshot] = useState<RouteSnapshot | null>(null)
+  const extensionSnapshot = mode === 'extend' ? snapshot as ExtensionSnapshot | null : null
+  const filteredOrders = useMemo(() => availableOrders.filter(order =>
+    [order.order_number, order.customer?.name, order.customer?.phone, order.customer?.area, order.customer?.address]
+      .some(value => String(value || '').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))), [availableOrders, search])
   const [newOrderSnapshots, setNewOrderSnapshots] = useState<Record<string, OrderSnapshot>>({})
   const [destinations, setDestinations] = useState<RouteWithOrders[]>([])
   const [destinationId, setDestinationId] = useState('')
@@ -65,6 +75,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   const isCurrentSession = (version: number) => version === session.current &&
     currentModal.current.open && currentModal.current.routeId === route.id
   const closeModal = () => {
+    if (mode === 'extend' && savingNow.current) return
     session.current++
     pendingAdditions.current.clear()
     setAddingOrders([])
@@ -101,6 +112,10 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     setAddingOrders([])
     savingNow.current = false
     setSaving(false)
+    setSearch('')
+    setConfirmed(false)
+    setAttempted(false)
+    setExtensionError('')
     if (!open) return
     const version = session.current
     let cancelled = false
@@ -113,7 +128,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         destinationRequest.current++
         setDestinationId('')
         setDestinationSnapshot(null)
-        const expected = await LifecycleAPI.snapshot('route', route.id)
+        const expected = mode === 'extend' ? await LifecycleAPI.snapshot('extend', route.id) : await LifecycleAPI.snapshot('route', route.id)
         const fresh = await RoutesAPI.getRoute(route.id)
         if (cancelled || !isCurrentSession(version)) return
         if (!fresh || fresh.route_orders?.length !== expected.links.length || expected.links.some(link => !fresh.route_orders?.some(ro =>
@@ -121,7 +136,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           ro.order?.team_id === link.order.team_id && Date.parse(ro.order.updated_at) === Date.parse(link.order.updated_at))))
           throw new Error('تغيرت بيانات الخط أثناء التحميل. أغلق النموذج وافتحه مجدداً')
         const available = await RoutesAPI.getAvailableOrders(fresh.date as string)
-        const nextDestinations = (await RoutesAPI.getRoutesByDate(fresh.date)).filter(item => item.id !== route.id && item.status !== 'completed' && !item.actual_end_time)
+        const nextDestinations = mode === 'extend' ? [] : (await RoutesAPI.getRoutesByDate(fresh.date)).filter(item => item.id !== route.id && item.status !== 'completed' && !item.actual_end_time)
         if (cancelled || !isCurrentSession(version)) return
         setSnapshot(expected)
         setDestinations(nextDestinations)
@@ -137,6 +152,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
         setAvailableOrders(remaining)
       } catch (error) {
         if (!cancelled && isCurrentSession(version)) toast.error(error instanceof Error ? error.message : 'تعذر تحميل الطلبات')
+        if (!cancelled && isCurrentSession(version) && mode === 'extend') setExtensionError(error instanceof Error ? error.message : 'تعذر تحميل الخط')
         console.error(error)
       } finally {
         if (!cancelled && isCurrentSession(version)) setLoading(false)
@@ -147,10 +163,10 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     return () => { cancelled = true; session.current++; pendingAdditions.current.clear(); destinationRequest.current++ }
     // Capture once per modal session. Background refresh must never replace an
     // uncertain operation's original snapshot or discard unsaved edits.
-  }, [open, route.id])
+  }, [open, route.id, mode])
 
   const addOrder = async (order: OrderWithDetails) => {
-    if (!isCurrentSession(session.current) || !snapshot || savingNow.current || pendingAdditions.current.has(order.id)) return
+    if (!isCurrentSession(session.current) || !snapshot || savingNow.current || (mode === 'extend' && attempted) || pendingAdditions.current.has(order.id)) return
     const version = session.current
     pendingAdditions.current.add(order.id)
     setAddingOrders([...pendingAdditions.current])
@@ -177,11 +193,13 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     }
   }
   const removeOrder = (order: OrderWithDetails) => {
+    if (editingLocked) return
     setAvailableOrders([...availableOrders, order])
     setAssignedOrders(assignedOrders.filter((o) => o.id !== order.id))
   }
 
   const moveOrder = (index: number, direction: 'up' | 'down') => {
+    if (editingLocked) return
     const newArr = [...assignedOrders]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
     if (targetIndex < 0 || targetIndex >= newArr.length) return
@@ -192,6 +210,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
   }
 
   const canChange = (order: OrderWithDetails) => {
+    if (mode === 'extend' && (attempted || snapshot?.links.some(link => link.order_id === order.id))) return false
     const original = snapshot?.links.find(link => link.order_id === order.id)?.order
     return (order.status === 'pending' || order.status === 'scheduled') &&
       (!original || (!original.history && original.links.length === 1))
@@ -241,20 +260,33 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     setSaving(true)
     try {
       if (!snapshot) throw new Error('انتظر تحميل بيانات خط السير قبل الحفظ')
-      const sequences = assignmentSequences(snapshot, assignedOrders.map(order => order.id))
-      const desired = assignedOrders.map((order, index) => ({
+      let result
+      if (mode === 'extend') {
+        const additions = assignedOrders.filter(order => !snapshot.links.some(link => link.order_id === order.id))
+        if (!confirmed || !additions.length) throw new Error('اختر طلبًا إضافيًا على الأقل وأكد استمرار عمل الفريق')
+        const expected = additions.map(order => newOrderSnapshots[order.id])
+        if (expected.some(order => !order)) throw new Error('انتظر تجهيز جميع الطلبات قبل الحفظ')
+        setAttempted(true)
+        setExtensionError('')
+        result = await RoutesAPI.extendRoute(snapshot as ExtensionSnapshot, expected)
+      } else {
+        const sequences = assignmentSequences(snapshot, assignedOrders.map(order => order.id))
+        const desired = assignedOrders.map((order, index) => ({
         order_id: order.id, sequence_order: sequences[index],
         ...(newOrderSnapshots[order.id] ? { expected: newOrderSnapshots[order.id] } : {}),
-      }))
-      const result = await EnhancedAPI.saveRouteOrders(snapshot, desired)
+        }))
+        result = await EnhancedAPI.saveRouteOrders(snapshot, desired)
+      }
       if (!isCurrentSession(version)) return
       if (!result.success) throw new Error(result.error)
 
-      toast.success('تم حفظ الطلبات')
+      toast.success(mode === 'extend' ? 'تم تمديد خط السير وإضافة الطلبات' : 'تم حفظ الطلبات')
       onSaved()
+      savingNow.current = false
       closeModal()
     } catch (error) {
       if (isCurrentSession(version)) toast.error(error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ')
+      if (isCurrentSession(version) && mode === 'extend') setExtensionError(error instanceof Error ? error.message : 'تعذر تأكيد التمديد')
       console.error(error)
     } finally {
       if (isCurrentSession(version)) { savingNow.current = false; setSaving(false) }
@@ -267,16 +299,19 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
     <SmartModal
       isOpen={open}
       onClose={closeModal}
-      title={`إدارة طلبات خط السير: ${route.name}`}
+      title={`${mode === 'extend' ? 'تمديد خط السير' : 'إدارة طلبات خط السير'}: ${route.name}`}
       subtitle={`التاريخ: ${route.date}`}
       icon={<ClipboardList className="h-6 w-6 text-white" />}
       size="xl"
       headerGradient="from-blue-600 via-purple-600 to-indigo-700"
+      closeOnOutsideClick={mode === 'extend' ? false : undefined}
+      closeOnEscape={mode === 'extend' ? !saving : undefined}
+      showCloseButton={mode === 'extend' ? !saving : undefined}
     >
       <div className="bg-white w-full max-w-4xl rounded-lg p-6 overflow-y-auto max-h-[90vh] pb-28">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">إدارة طلبات خط السير: {route.name}</h2>
+          <h2 className="text-lg font-semibold">{mode === 'extend' ? 'تمديد خط السير' : 'إدارة طلبات خط السير'}: {route.name}</h2>
           <button
             className="text-gray-400 hover:text-gray-600"
             onClick={closeModal}
@@ -286,6 +321,11 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           </button>
         </div>
 
+        {extensionSnapshot && <div className="bg-blue-50 p-3 rounded text-sm space-y-1 mb-4">
+          <p>الفريق: {extensionSnapshot.team_name || 'غير معين'}</p>
+          <p>العمال: {extensionSnapshot.members.filter(member => !member.left_at).map(member => member.name).join('، ') || 'لا يوجد أعضاء'}</p>
+          <p>الإغلاق السابق: {extensionSnapshot.actual_end_time ? new Date(extensionSnapshot.actual_end_time).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' }) : 'غير مثبت'}</p>
+        </div>}
         {loading ? (
           <div className="py-10 flex justify-center">
             <LoadingSpinner size="large" />
@@ -296,25 +336,26 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
             <div>
               <h3 className="font-medium mb-2">الطلبات المتاحة ({availableOrders.length})</h3>
               <div className="border rounded-lg p-2 h-96 overflow-y-auto">
-                {availableOrders.map((o) => (
+              <input className="input mb-2 w-full" aria-label="بحث في الطلبات المتاحة" placeholder="ابحث برقم الطلب أو العميل أو المنطقة" value={search} onChange={event => setSearch(event.target.value)} />
+                {filteredOrders.map((o) => (
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
                     <div>
-                      <p className="font-medium flex items-center gap-1">{o.customer?.name || o.id} {getConfirmationBadge(o.confirmation_status as any)}</p>
+                      <p className="font-medium flex items-center gap-1">{o.order_number} · {o.customer?.name || o.id} {getConfirmationBadge(o.confirmation_status as any)}</p>
                       <p className="text-xs text-gray-500">{o.scheduled_time} {o.customer?.area ? `- ${o.customer.area}` : ''}</p>
                       <p className="text-xs text-gray-500">مدة: {formatDuration(getOrderDuration(o))} • خدمات: {o.items?.length || 0}</p>
                     </div>
                     <button
                       className="btn-primary btn-sm"
                       onClick={() => addOrder(o)}
-                      disabled={saving || !snapshot || addingOrders.includes(o.id)}
+                      disabled={editingLocked || !snapshot || addingOrders.includes(o.id)}
                       aria-label={addingOrders.includes(o.id) ? 'جاري تجهيز إضافة الطلب' : 'إضافة الطلب'}
                     >
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
-                {availableOrders.length === 0 && (
-                  <p className="text-center text-gray-500 mt-4">لا توجد طلبات</p>
+                {filteredOrders.length === 0 && (
+                  <p className="text-center text-gray-500 mt-4">{search.trim() ? 'لا توجد طلبات تطابق البحث' : 'لا توجد طلبات'}</p>
                 )}
               </div>
             </div>
@@ -322,18 +363,18 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
             {/* Assigned orders */}
             <div>
               <h3 className="font-medium mb-2">الطلبات في الخط ({assignedOrders.length})</h3>
-              <label className="block text-sm mb-2">
+              {mode === 'assign' && <label className="block text-sm mb-2">
                 نقل طلب إلى خط آخر
                 <select className="input mt-1 w-full" value={destinationId} disabled={saving} onChange={event => { void chooseDestination(event.target.value) }}>
                   <option value="">اختر خط الوجهة</option>
                   {destinations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
-              </label>
+              </label>}
               <div className="border rounded-lg p-2 h-96 overflow-y-auto">
                 {assignedOrders.map((o, idx) => (
                   <div key={o.id} className="flex items-center justify-between p-2 border-b last:border-0">
                     <div>
-                      <p className="font-medium flex items-center gap-1">#{idx + 1} - {o.customer?.name || o.id} {getConfirmationBadge(o.confirmation_status as any)}</p>
+                      <p className="font-medium flex items-center gap-1">#{idx + 1} - {o.order_number} · {o.customer?.name || o.id} {getConfirmationBadge(o.confirmation_status as any)}</p>
                       <p className="text-xs text-gray-500">{o.scheduled_time} {o.customer?.area ? `- ${o.customer.area}` : ''}</p>
                       <p className="text-xs text-gray-500">مدة: {formatDuration(getOrderDuration(o))} • خدمات: {o.items?.length || 0}</p>
                     </div>
@@ -341,6 +382,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                       <button
                         className="p-1 hover:bg-gray-100 rounded"
                         onClick={() => moveOrder(idx, 'up')}
+                        aria-label="تقديم الطلب"
                         disabled={saving || idx === 0 || !canChange(o) || (idx > 0 && !canChange(assignedOrders[idx - 1]))}
                       >
                         <ArrowUp className="h-4 w-4" />
@@ -348,6 +390,7 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                       <button
                         className="p-1 hover:bg-gray-100 rounded"
                         onClick={() => moveOrder(idx, 'down')}
+                        aria-label="تأخير الطلب"
                         disabled={saving || idx === assignedOrders.length - 1 || !canChange(o) || (idx + 1 < assignedOrders.length && !canChange(assignedOrders[idx + 1]))}
                       >
                         <ArrowDown className="h-4 w-4" />
@@ -355,11 +398,12 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
                       <button
                         className="btn-danger btn-sm"
                         onClick={() => removeOrder(o)}
+                        aria-label="إزالة الطلب من القائمة"
                         disabled={saving || !canChange(o)}
                       >
                         <Minus className="h-4 w-4" />
                       </button>
-                      {snapshot?.links.some(link => link.order_id === o.id) && <button
+                      {mode === 'assign' && snapshot?.links.some(link => link.order_id === o.id) && <button
                         className="btn-secondary btn-sm" onClick={() => transferOrder(o)}
                         disabled={saving || addingOrders.length > 0 || !destinationSnapshot || !canChange(o)}>نقل</button>}
                     </div>
@@ -386,6 +430,13 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
 
 
         
+        {mode === 'extend' && <div className="mt-4 space-y-2">
+          <p className="text-sm text-gray-600">الطلبات السابقة ثابتة. أضف الطلبات الجديدة ورتّبها؛ تُحفظ جميعها معًا، ويُسجل الانصراف تلقائيًا بعد إنهاء آخر طلب.</p>
+          <label className="flex gap-2"><input type="checkbox" checked={confirmed} disabled={editingLocked} onChange={event => setConfirmed(event.target.checked)} />أؤكد أن نفس الفريق والعمال ما زالوا يعملون ولم يغادروا، وأن الفترة جزء من يوم العمل المستمر.</label>
+          <p className="text-sm text-amber-800">يُصحح الانصراف الآلي السابق وتُحتسب فترة استمرار العمل ضمن ساعات اليوم. الانصراف اليدوي أو القديم غير الموثق لا يُعدل.</p>
+          {extensionError && <p role="alert" className="text-red-700">{extensionError}</p>}
+          {attempted && extensionError && <p className="text-sm">المحاولة محفوظة بنفس الطلبات والترتيب؛ أعد نفس المحاولة لتأكيدها دون تكرار الإضافة.</p>}
+        </div>}
         {addingOrders.length > 0 && <p role="status" className="mt-4 text-sm text-blue-700">جاري تجهيز إضافة الطلبات؛ انتظر قبل الحفظ أو النقل.</p>}
         {/* Actions */}
         <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 bg-white sticky bottom-0 left-0 right-0 z-10">
@@ -395,9 +446,9 @@ const AssignOrdersModal: React.FC<AssignOrdersModalProps> = ({ open, onClose, ro
           <button
             className="btn-primary flex items-center gap-1"
             onClick={handleSave}
-            disabled={saving || addingOrders.length > 0 || loading || !snapshot}
+            disabled={saving || addingOrders.length > 0 || loading || !snapshot || (mode === 'extend' && (!confirmed || !assignedOrders.some(order => !snapshot.links.some(link => link.order_id === order.id))))}
           >
-            <Save className="h-4 w-4" /> حفظ
+            <Save className="h-4 w-4" /> {mode === 'extend' ? saving ? 'جارٍ تأكيد التمديد...' : attempted ? 'إعادة نفس المحاولة' : 'تمديد وإضافة الطلبات' : 'حفظ'}
           </button>
         </div>
       </div>

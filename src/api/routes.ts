@@ -1,4 +1,4 @@
-import { LifecycleAPI, RouteSnapshot, DesiredLink } from './lifecycle'
+import { LifecycleAPI, RouteSnapshot, DesiredLink, ExtensionSnapshot, OrderSnapshot } from './lifecycle'
 // Routes API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
 import { 
@@ -15,6 +15,10 @@ OrderWithDetails,
 } from '../types'
 
 export class RoutesAPI {
+  static async extendRoute(snapshot: ExtensionSnapshot, orders: OrderSnapshot[]) {
+    return LifecycleAPI.mutate({ op: 'extend', route_id: snapshot.id, order_id: orders[0]?.id,
+      expected: snapshot, additions: orders.map(order => ({ order_id: order.id, expected: order })), continuing_work: true })
+  }
   // Aggregate counts by status
   static async getCounts(): Promise<RouteCounts> {
     try {

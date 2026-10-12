@@ -7,7 +7,7 @@ export const tableLabels: Record<string, string> = {
 }
 export const fieldLabels: Record<string, string> = {
   id: 'المعرف', name: 'الاسم', name_ar: 'الاسم', full_name: 'الاسم الكامل', status: 'الحالة', team_id: 'الفريق', worker_id: 'العامل', order_id: 'الطلب', route_id: 'خط السير', user_id: 'المستخدم', role_id: 'الدور', customer_id: 'العميل', service_id: 'الخدمة', invoice_id: 'الفاتورة', category_id: 'التصنيف',
-  quantity: 'الكمية', unit_price: 'سعر الوحدة', total_price: 'إجمالي البند', total_amount: 'الإجمالي', amount: 'المبلغ', paid_amount: 'المبلغ المدفوع', balance: 'الرصيد', payment_method: 'طريقة الدفع', sequence_order: 'الترتيب', started_at: 'وقت البداية', completed_at: 'وقت الإكمال', ended_at: 'وقت النهاية', scheduled_date: 'التاريخ المحدد', order_number: 'رقم الطلب', invoice_number: 'رقم الفاتورة', is_active: 'نشط', rating: 'التقييم', created_by: 'منسوب إلى', performed_by: 'منسوب إلى', collected_by: 'منسوب إليه التحصيل', key: 'الإعداد', value: 'قيمة الإعداد', permissions: 'الصلاحيات', categories: 'التصنيفات', operation: 'العملية', token: 'نسخة البيانات', request_id: 'مرجع العملية', reason: 'السبب',
+  quantity: 'الكمية', unit_price: 'سعر الوحدة', total_price: 'إجمالي البند', total_amount: 'الإجمالي', amount: 'المبلغ', paid_amount: 'المبلغ المدفوع', balance: 'الرصيد', payment_method: 'طريقة الدفع', sequence_order: 'الترتيب', started_at: 'وقت البداية', completed_at: 'وقت الإكمال', ended_at: 'وقت النهاية', scheduled_date: 'التاريخ المحدد', order_number: 'رقم الطلب', invoice_number: 'رقم الفاتورة', is_active: 'نشط', rating: 'التقييم', created_by: 'منسوب إلى', performed_by: 'منسوب إلى', collected_by: 'منسوب إليه التحصيل', key: 'الإعداد', value: 'قيمة الإعداد', permissions: 'الصلاحيات', categories: 'التصنيفات', operation: 'العملية', token: 'نسخة البيانات', request_id: 'مرجع العملية', reason: 'السبب', order_count: 'عدد الطلبات المضافة',
 }
 export const operationLabels: Record<string, string> = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' }
 Object.assign(fieldLabels, { value_changed: 'قيمة الإعداد', permissions_changed: 'الصلاحيات', categories_changed: 'التصنيفات' })
@@ -24,8 +24,10 @@ Object.assign(fieldLabels, {
   advance_type: 'نوع السلفة', installments_count: 'عدد الأقساط', installment_amount: 'قيمة القسط', remaining_amount: 'المبلغ المتبقي', start_month: 'شهر البداية', start_year: 'سنة البداية', price: 'السعر', unit: 'الوحدة', estimated_duration: 'المدة المتوقعة', updated_by: 'منسوب إليه التحديث', leader_id: 'قائد الفريق', answered_at: 'وقت الرد', hire_date: 'تاريخ التعيين', salary: 'الراتب', can_drive: 'يمكنه القيادة', total_orders: 'عدد الطلبات', paid_leave_days: 'أيام الإجازة المدفوعة', termination_date: 'تاريخ انتهاء العمل',
 })
 export const lifecycleOperationLabels: Record<string, string> = {
+  extend: 'تمديد خط السير بطلب إضافي',
   save: 'حفظ تعيين الطلبات', transfer: 'نقل الطلب بين الخطوط', route_update: 'تعديل خط السير', start: 'بدء تنفيذ الطلب', delete_route: 'حذف خط السير', edit_order: 'تعديل الطلب', delete_order: 'حذف الطلب',
 }
+Object.assign(fieldLabels, { auto_checkout_route_id: 'خط السير مصدر الانصراف الآلي' })
 export function eventLabel(kind: string, operation: string) {
   if (kind === 'committed_operation') return 'عملية طلب مثبتة'
   if (kind === 'recovery_epoch_changed') return 'تغيّر نسخة البيانات'

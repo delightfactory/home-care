@@ -5,7 +5,7 @@ import {
     Clock, CalendarOff, Sun, Search, X, Edit3, LogOut, Users,
 } from 'lucide-react'
 import { AttendanceAPI } from '../../api/hr'
-import { CheckInMethod } from '../../types/hr.types'
+import { CheckInMethod, CheckOutMethod } from '../../types/hr.types'
 import type {
     AttendanceWithWorker,
     AttendanceStatus,
@@ -187,8 +187,10 @@ const AttendanceTab: React.FC = () => {
             if (editCheckIn) {
                 updates.check_in_time = `${editingRecord.date}T${editCheckIn}:00`
             }
-            if (editCheckOut) {
+            const originalCheckOut = editingRecord.check_out_time ? new Date(editingRecord.check_out_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+            if (editCheckOut && editCheckOut !== originalCheckOut) {
                 updates.check_out_time = `${editingRecord.date}T${editCheckOut}:00`
+                updates.check_out_method = CheckOutMethod.MANUAL_ADMIN
             }
             const result = await AttendanceAPI.updateAttendance(editingRecord.id, updates)
             if (result.success) {

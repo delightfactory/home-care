@@ -1,5 +1,6 @@
 // Value meanings are scoped to the field and source; identical codes can mean different things.
 const common: Record<string, Record<string, string>> = {
+  reason: { continuing_work: 'استمرار الفريق في العمل بنفس اليوم' },
   payment_method: { cash: 'نقدي', card: 'بطاقة', instapay: 'إنستاباي', bank_transfer: 'تحويل بنكي' },
   payment_status: { unpaid: 'غير مدفوع', paid: 'مدفوع', paid_cash: 'مدفوع نقدًا', paid_card: 'مدفوع ببطاقة', partial: 'مدفوع جزئيًا', partially_paid: 'مدفوع جزئيًا', pending: 'بانتظار الدفع' },
   confirmation_status: { pending: 'بانتظار التأكيد', confirmed: 'مؤكد', declined: 'تم رفض التأكيد' },

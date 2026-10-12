@@ -3,6 +3,7 @@ import { fieldLabels, lifecycleOperationLabels, tableLabels } from './auditLabel
 import { codedValue, technicalFields } from './auditValues'
 
 const referenceTables: Record<string, string> = {
+  auto_checkout_route_id: 'routes',
   team_id: 'teams', worker_id: 'workers', leader_id: 'workers', order_id: 'orders', route_id: 'routes', destination_id: 'routes',
   invoice_id: 'invoices', service_id: 'services', user_id: 'users', actor: 'users', created_by: 'users', updated_by: 'users',
   performed_by: 'users', collected_by: 'users', approved_by: 'users', cancelled_by: 'users', confirmed_by: 'users', modified_by: 'users',
