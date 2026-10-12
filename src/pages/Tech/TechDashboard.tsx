@@ -22,6 +22,7 @@ const TechDashboard: React.FC = () => {
         attendance,
         loading,
         orderLoading,
+        refreshing,
         error,
         allOrdersDone,
         startOrder,
@@ -249,13 +250,15 @@ const TechDashboard: React.FC = () => {
                 {/* Current Order */}
                 {currentOrder ? (
                     <TechOrderCard
+                        key={`${status.workerId}:${status.teamId}:${route.id}:${currentOrder.id}:${currentOrder.team_id}:${currentOrder.status}:${status.isLeader}`}
                         order={currentOrder}
                         onStart={startOrder}
                         onComplete={completeOrder}
                         onMoveToNext={moveToNextOrder}
                         onSkipCollection={skipCollection}
                         onCollectionDone={refresh}
-                        loading={orderLoading}
+                        loading={orderLoading || refreshing}
+                        refreshing={refreshing}
                         isLeader={status.isLeader}
                     />
                 ) : orderLoading ? (

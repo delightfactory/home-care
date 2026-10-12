@@ -19,6 +19,7 @@ interface TechOrderCardProps {
     onSkipCollection?: () => Promise<void>
     onCollectionDone?: () => Promise<void>
     loading?: boolean
+    refreshing?: boolean
     isLeader?: boolean
 }
 
@@ -88,7 +89,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 }
 
 export const TechOrderCard: React.FC<TechOrderCardProps> = ({
-    order, onStart, onComplete, onMoveToNext, onSkipCollection, onCollectionDone, loading = false, isLeader = true
+    order, onStart, onComplete, onMoveToNext, onSkipCollection, onCollectionDone, loading = false, refreshing = false, isLeader = true
 }) => {
     const [confirmAction, setConfirmAction] = useState<'start' | 'complete' | null>(null)
     const [showCollectionSheet, setShowCollectionSheet] = useState(false)
@@ -141,7 +142,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
             }
             fetchInvoice()
         }
-    }, [isCompleted, order.id])
+    }, [isCompleted, order.id, order.total_amount])
 
     const handleConfirm = async () => {
         if (confirmAction === 'start') await onStart()
@@ -425,6 +426,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                 <div className="mx-4 mt-3 mb-2">
                     <button
                         onClick={isCollected ? onMoveToNext : (onSkipCollection || onMoveToNext)}
+                        disabled={loading}
                         className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] ${isCollected
                             ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
                             : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300'
@@ -443,6 +445,7 @@ export const TechOrderCard: React.FC<TechOrderCardProps> = ({
                 invoiceId={invoiceId}
                 orderId={order.id}
                 amount={invoiceAmount ?? order.total_amount}
+                refreshing={refreshing}
                 onSuccess={() => {
                     setIsCollected(true)
                     setShowCollectionSheet(false)

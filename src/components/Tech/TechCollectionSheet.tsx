@@ -19,6 +19,7 @@ interface TechCollectionSheetProps {
     invoiceId: string | null
     orderId: string
     amount: number
+    refreshing?: boolean
     onSuccess: () => void
 }
 
@@ -31,6 +32,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
     invoiceId,
     orderId,
     amount,
+    refreshing = false,
     onSuccess
 }) => {
     const { user } = useAuth()
@@ -92,7 +94,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
     }
 
     const handleCollect = async () => {
-        if (!user?.id || !method) return
+        if (!user?.id || !method || refreshing) return
 
         setLoading(true)
         try {
@@ -236,6 +238,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                 </div>
 
                 {/* Amount Display */}
+                {refreshing && <p role="status" className="px-5 pt-3 text-sm text-amber-700">انتظر اكتمال تحديث بيانات الطلب قبل الإرسال؛ بيانات النموذج محفوظة.</p>}
                 {step !== 'success' && (
                     <div className="mx-5 mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
                         <p className="text-xs text-blue-500 mb-1">المبلغ المطلوب تحصيله</p>
@@ -318,7 +321,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                             </button>
                             <button
                                 onClick={handleCollect}
-                                disabled={loading}
+                                disabled={loading || refreshing}
                                 className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg hover:shadow-xl disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {loading ? (
@@ -405,7 +408,7 @@ const TechCollectionSheet: React.FC<TechCollectionSheetProps> = ({
                             </button>
                             <button
                                 onClick={handleCollect}
-                                disabled={loading || !proofFile}
+                                disabled={loading || refreshing || !proofFile}
                                 className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-bold shadow-lg hover:shadow-xl disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {loading ? (

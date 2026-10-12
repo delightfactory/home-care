@@ -30,6 +30,7 @@ interface UseTechnicianDataReturn {
     // حالات التحميل
     loading: boolean
     orderLoading: boolean
+    refreshing: boolean
 
     // الأخطاء
     error: string | null
@@ -79,7 +80,12 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
 
     const [loading, setLoading] = useState(true)
     const [orderLoading, setOrderLoading] = useState(false)
+    const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const fetchSequence = useRef(0)
+    const loadedUserId = useRef<string | null>(null)
+    const currentUserId = useRef(user?.id)
+    currentUserId.current = user?.id
 
     // فحص حالة الحضور
     const checkAttendance = useCallback(async (wId: string) => {
@@ -107,70 +113,75 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
     }, [status.workerId, checkAttendance])
 
     // جلب جميع البيانات
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (background = false) => {
+        const sequence = ++fetchSequence.current
+        const userId = user?.id
+        const isCurrent = () => sequence === fetchSequence.current && currentUserId.current === userId
+        const keepScreen = background && loadedUserId.current === userId
+        let refreshed = false
         if (!user?.id) {
             setLoading(false)
             return
         }
 
         try {
-            setLoading(true)
+            // Returning from the camera/gallery must not unmount the collection form.
+            if (!keepScreen) setLoading(true)
+            setRefreshing(true)
             setError(null)
 
             const techStatus = await TechnicianAPI.getTechnicianStatus(user.id)
+            if (!isCurrent()) return
+            let record: AttendanceRecord | null | undefined
+            if (techStatus.isTeamMember && techStatus.workerId) {
+                try { record = await AttendanceAPI.getTodayAttendance(techStatus.workerId) } catch { /* Keep the last attendance state on read failure. */ }
+            }
+            const todayRoute = techStatus.isTeamMember ? await TechnicianAPI.getMyTodayRoute(user.id) : null
+            const order = todayRoute ? await TechnicianAPI.getCurrentOrder(todayRoute.id, techStatus.isLeader) : null
+            const prog = todayRoute ? await TechnicianAPI.getTodayProgress(todayRoute.id) : { completed: 0, total: 0, percentage: 0 }
+            if (!isCurrent()) return
             setStatus(techStatus)
 
             // تخزين مؤقت لمنع flickering عند التنقل
             sessionStorage.setItem('tech_isLeader', String(techStatus.isLeader))
             sessionStorage.setItem('tech_isTeamMember', String(techStatus.isTeamMember))
 
-            if (!techStatus.isTeamMember) {
-                setRoute(null)
-                setCurrentOrder(null)
-                setProgress({ completed: 0, total: 0, percentage: 0 })
-                setAllOrdersDone(false)
-                return
+            if (record !== undefined) {
+                setAttendance({ checkedIn: record?.check_in_time != null, checkedOut: record?.check_out_time != null, todayRecord: record, loading: false })
+            } else if (techStatus.isTeamMember && techStatus.workerId) {
+                setAttendance(previous => ({ ...previous, loading: false }))
             }
-
-            // فحص الحضور
-            if (techStatus.workerId) {
-                await checkAttendance(techStatus.workerId)
-            }
-
-            // جلب خط السير
-            const todayRoute = await TechnicianAPI.getMyTodayRoute(user.id)
             setRoute(todayRoute)
-
-            if (todayRoute) {
-                // جلب الطلب الحالى — بالاعتماد على حالة DB مباشرة
-                const order = await TechnicianAPI.getCurrentOrder(todayRoute.id, techStatus.isLeader)
-                const prog = await TechnicianAPI.getTodayProgress(todayRoute.id)
-
-                setCurrentOrder(order)
-                setProgress(prog)
-                setAllOrdersDone(!order && prog.total > 0 && prog.completed === prog.total)
-            } else {
-                setCurrentOrder(null)
-                setProgress({ completed: 0, total: 0, percentage: 0 })
-                setAllOrdersDone(false)
-            }
+            setCurrentOrder(order)
+            setProgress(prog)
+            setAllOrdersDone(!order && prog.total > 0 && prog.completed === prog.total)
+            loadedUserId.current = userId || null
+            refreshed = true
         } catch (err) {
+            if (!isCurrent()) return
             console.error('Error fetching technician data:', err)
-            setError('حصل مشكلة فى جلب البيانات — جرّب تانى')
+            if (keepScreen) toast.error('تعذر تحديث البيانات؛ بيانات النموذج ما زالت محفوظة. جرّب تحديث البيانات قبل متابعة العملية.')
+            else setError('حصل مشكلة فى جلب البيانات — جرّب تانى')
         } finally {
-            setLoading(false)
+            if (isCurrent()) {
+                setLoading(false)
+                setRefreshing(keepScreen && !refreshed)
+            }
         }
-    }, [user?.id, checkAttendance])
+    }, [user?.id])
 
+    const cancelPendingFetch = useCallback(() => { fetchSequence.current++ }, [])
     useEffect(() => {
         fetchData()
-    }, [fetchData])
+        return cancelPendingFetch
+    }, [fetchData, cancelPendingFetch])
 
     // ─── Real-time subscriptions للأوامر والفواتير ─────────────────
     const routeRef = useRef(route)
     const statusRef = useRef(status)
     routeRef.current = route
     statusRef.current = status
+    const routeOrderIds = route?.route_orders?.map(link => link.order_id).sort().join(',')
 
     useEffect(() => {
         if (!route?.id) return
@@ -178,10 +189,10 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         // These tables are published in the current production publication.
         // A link change reloads the route and therefore rebuilds order filters.
         const linksChannel = supabase.channel(`tech-route-links-${route.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'route_orders', filter: `route_id=eq.${route.id}` }, () => { void fetchData() })
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'routes', filter: `id=eq.${route.id}` }, () => { void fetchData() })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'route_orders', filter: `route_id=eq.${route.id}` }, () => { void fetchData(true) })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'routes', filter: `id=eq.${route.id}` }, () => { void fetchData(true) })
             .subscribe()
-        const refreshOnFocus = () => { if (document.visibilityState === 'visible') void fetchData() }
+        const refreshOnFocus = () => { if (document.visibilityState === 'visible') void fetchData(true) }
         window.addEventListener('focus', refreshOnFocus)
         document.addEventListener('visibilitychange', refreshOnFocus)
 
@@ -209,10 +220,13 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
                     async () => {
                         // إعادة جلب الطلب الحالى والتقدم
                         if (!routeRef.current?.id) return
+                        const sequence = fetchSequence.current
+                        const routeId = routeRef.current.id
                         const [newOrder, newProgress] = await Promise.all([
-                            TechnicianAPI.getCurrentOrder(routeRef.current.id, statusRef.current.isLeader),
-                            TechnicianAPI.getTodayProgress(routeRef.current.id)
+                            TechnicianAPI.getCurrentOrder(routeId, statusRef.current.isLeader),
+                            TechnicianAPI.getTodayProgress(routeId)
                         ])
+                        if (disposed || sequence !== fetchSequence.current || routeRef.current?.id !== routeId) return
                         setCurrentOrder(newOrder)
                         setProgress(newProgress)
                         setAllOrdersDone(!newOrder && newProgress.total > 0 && newProgress.completed === newProgress.total)
@@ -236,7 +250,10 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
                         if (!changedOrderId || !orderIds.includes(changedOrderId)) return
                         if (!routeRef.current?.id) return
                         // إعادة جلب الطلب الحالى
-                        const newOrder = await TechnicianAPI.getCurrentOrder(routeRef.current.id, statusRef.current.isLeader)
+                        const sequence = fetchSequence.current
+                        const routeId = routeRef.current.id
+                        const newOrder = await TechnicianAPI.getCurrentOrder(routeId, statusRef.current.isLeader)
+                        if (disposed || sequence !== fetchSequence.current || routeRef.current?.id !== routeId) return
                         setCurrentOrder(newOrder)
                     }
                 )
@@ -259,7 +276,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
             window.removeEventListener('focus', refreshOnFocus)
             document.removeEventListener('visibilitychange', refreshOnFocus)
         }
-    }, [route?.id, route?.route_orders?.map(link => link.order_id).sort().join(','), fetchData])
+    }, [route?.id, routeOrderIds, fetchData])
 
     // بدء العمل على الطلب
     const startOrder = useCallback(async () => {
@@ -418,6 +435,7 @@ export const useTechnicianData = (): UseTechnicianDataReturn => {
         attendance,
         loading,
         orderLoading,
+        refreshing,
         error,
         allOrdersDone,
         startOrder,
