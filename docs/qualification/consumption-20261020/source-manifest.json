@@ -1,0 +1,206 @@
+{
+  "base_commit": "be6887d329f7628b503e53309348c7f520afe6b5",
+  "candidate_sha256": "3eb34681c9954c1eb85454538f43ff37b5c95b5e97b168c0db4fa14fb957f519",
+  "files": [
+    {
+      "path": "scripts/compare-consumption.mjs",
+      "sha256": "11940994bfff94f42b75f485ddf3e3777e84b6ac6d9208504dadfd6b146dc1d2"
+    },
+    {
+      "path": "scripts/diagnostics/consumption-rollback.sql",
+      "sha256": "2de08f478952404dce24ba866cf20248016ae5b6b2c59ac6e5ff9ba89bdcef63"
+    },
+    {
+      "path": "scripts/diagnostics/consumption-snapshot.sql",
+      "sha256": "c85d8ccb993fef117cf0fad1efba25373c16e6ba715b82c68347b1cc589662ac"
+    },
+    {
+      "path": "scripts/test-consumption-api.mjs",
+      "sha256": "ac1edeccf074979d2072f019a7ee6bb34a5ce7bbf036b608047c91b3e2c02902"
+    },
+    {
+      "path": "scripts/test-consumption-db.mjs",
+      "sha256": "fc476456116e69a3957da95bd5678f91a3ee31f188892ef4c0d454bd9012d37f"
+    },
+    {
+      "path": "scripts/test-consumption-notifications.mjs",
+      "sha256": "999c3a1ec56fe93c4d025d9940a3db0ca6a2a41b2336c16424a704d755d2251c"
+    },
+    {
+      "path": "scripts/tests/consumption-api/auth-supabase.ts",
+      "sha256": "349072090905133e73bd0d8642185ef33098b2a2d354bdfaf1dcc0ef5f694f1c"
+    },
+    {
+      "path": "scripts/tests/consumption-api/auth.test.tsx",
+      "sha256": "0b7b890c2b37899c90a6975839ba072795345b4ad18dac9bfb54a120180611a4"
+    },
+    {
+      "path": "scripts/tests/consumption-api/counts.test.ts",
+      "sha256": "ce45faaf8a861764eada268f37ffe71498e2fb07a35cc117e91fa402f1f6ebfe"
+    },
+    {
+      "path": "scripts/tests/consumption-api/supabase.ts",
+      "sha256": "7ee156520aae079e20e363e85bd7cff3450ff288f8916b2b26ec823ad5e0784f"
+    },
+    {
+      "path": "scripts/tests/consumption-benchmark.sql",
+      "sha256": "e4d6b47ee72a635b4ccb2557f966ac138800852c156b0574f50dc094125ea4d7"
+    },
+    {
+      "path": "scripts/tests/consumption-cache.test.mjs",
+      "sha256": "bbeb4ea2a2531c933a1d31bd501555cd0ccfdcabaa63ff323c4c2debe137c9f3"
+    },
+    {
+      "path": "scripts/tests/consumption-counts.sql",
+      "sha256": "55ddca2e9ff6bdac7b1974b2ff44dc0203944a2cd4d6f0770051d7bb3b4bd237"
+    },
+    {
+      "path": "scripts/tests/consumption-monitoring.test.mjs",
+      "sha256": "939f7dd8c58de576ef08d6844011ed685dedc2c81adc5f59d3f4f67ad75e477a"
+    },
+    {
+      "path": "scripts/tests/consumption-notifications/auth.ts",
+      "sha256": "2efdee1b5e36eaa7251e47e99df3353e0cf75e31cb9efa02e25910cdb8dc535e"
+    },
+    {
+      "path": "scripts/tests/consumption-notifications/notifications.test.tsx",
+      "sha256": "668465387b6ed3bd882f78d5a21e8e0788bcacec9d822d54c61cf0d755e9e2e2"
+    },
+    {
+      "path": "scripts/tests/consumption-notifications/supabase.ts",
+      "sha256": "31791991d3f090f0cd8e8abf4eaba287512a7a26bb94f072ab155f90ad7046e1"
+    },
+    {
+      "path": "scripts/tests/consumption-recorder.test.mjs",
+      "sha256": "f2c660667af83253e1d68b3cfca5f96a0dc634ac1ac4b22bb99570714ef8ed86"
+    },
+    {
+      "path": "scripts/tests/consumption-ui/index.html",
+      "sha256": "59571f31726e3552067d75a34bc9af3050b2359d531b075a201022860c084290"
+    },
+    {
+      "path": "scripts/tests/consumption-ui/preview.tsx",
+      "sha256": "639058cfdecb1b8c1b3d5f819363bf6d09aa2b8a9f093dcab5f7673d06ed29be"
+    },
+    {
+      "path": "scripts/tests/consumption-ui/supabase.ts",
+      "sha256": "1f38949929c9dcfd41fd319e7fc3690a3cc27018ec60a1c60b5d9c3e9f452e80"
+    },
+    {
+      "path": "scripts/tests/consumption-ui/vite.config.ts",
+      "sha256": "45cc12f4d90f9fb470c7652d87093f9ee475a6af2f9ca212b4d448044bb5467e"
+    },
+    {
+      "path": "src/App.tsx",
+      "sha256": "a95e7e378995c0c1982132c625a3890fb676ccfd415bb287e03541534f60ef8a"
+    },
+    {
+      "path": "src/api/customers.ts",
+      "sha256": "25c9c293b89ee492399d7022aff54fb165db7bb13d78f441a7dd1894413aadb7"
+    },
+    {
+      "path": "src/api/enhanced-api.ts",
+      "sha256": "12ffb660f598c68ec6ca1f8d17dc9faf82f6e32d407c9398e2c82a5afd927a39"
+    },
+    {
+      "path": "src/api/exact-counts.ts",
+      "sha256": "704175d1d0155f6caa177fb02c5345edc2d61710f4b2132251dce5b2c38ad586"
+    },
+    {
+      "path": "src/api/expenses.ts",
+      "sha256": "db68f02e3d2a93130aa06a66d7c0113eb88c5d197d3f29dd4acd794caa852067"
+    },
+    {
+      "path": "src/api/notifications.ts",
+      "sha256": "8d45a3c1a58b9d379ebedf6a901c45aa915c246ffe98ce98b2af8f50c5b777f8"
+    },
+    {
+      "path": "src/api/optimized-api.ts",
+      "sha256": "49a341d520604687772b08805bf34188f318e8b09d0cf93fdf26097ac9222daf"
+    },
+    {
+      "path": "src/api/orders.ts",
+      "sha256": "6dbb8a27260805649407f0fb49d00b9220acb7986e6b2943ef4b7e7081b3457b"
+    },
+    {
+      "path": "src/api/routes.ts",
+      "sha256": "456f8efb8c090a2ac7f02c6a5d81579b1753d351815bbebe58b6cefa3c08d3eb"
+    },
+    {
+      "path": "src/components/Notifications/NotificationBell.tsx",
+      "sha256": "258e0cc5af48353bd8f7dd452f22f4d78ac620d2f0b243405506050ab7fd9a9b"
+    },
+    {
+      "path": "src/components/UI/CountsNotice.tsx",
+      "sha256": "b70e06b4deda7237fb2fe35cad08c0dedad1ee39af9158618b7cd0fe65ef9d6a"
+    },
+    {
+      "path": "src/contexts/AuthContext.tsx",
+      "sha256": "90774f3bf525c31ccae09bab5a55d168bcd4b2768998395fce6f2861daad1f95"
+    },
+    {
+      "path": "src/contexts/NotificationsContext.tsx",
+      "sha256": "1c0408263754107aaeec1d42c226b69a8d7c88a8d7f183b2989dfa101348c6d7"
+    },
+    {
+      "path": "src/hooks/useEnhancedAPI.ts",
+      "sha256": "e98826a4e57b60f5aa57b438c6cd915a67f02b04dc8d06bfe6429ebf8a395010"
+    },
+    {
+      "path": "src/hooks/useNotifications.ts",
+      "sha256": "45acf3a28e6ec02a8650a263fc9e0b4192432251ced5b556575ce1701140d5dd"
+    },
+    {
+      "path": "src/hooks/useResourceCounts.ts",
+      "sha256": "dc29f8f2deab47ec7bf6d3a260fcf86a174c71a220250a005600334e011492d5"
+    },
+    {
+      "path": "src/lib/supabase.ts",
+      "sha256": "cdd7de17df63b31ad38e5ccb6888667e65a0b702e16e0cce465a4b0f3356044c"
+    },
+    {
+      "path": "src/pages/Customers/CustomersPage.tsx",
+      "sha256": "4c48240a9bde25cedef7ca61e8fb7d61dfb4e5147f0af98d043715cfb83e1440"
+    },
+    {
+      "path": "src/pages/Expenses/ExpensesPage.tsx",
+      "sha256": "11721db2e69b8390215e3cd925ad91eeda0bfab67590cb9f111228aa4d14199b"
+    },
+    {
+      "path": "src/pages/Orders/OrdersPage.tsx",
+      "sha256": "333ca62fda89ca47a405e53d50e39d71414d26f072f913275fa0a59a9579e3ff"
+    },
+    {
+      "path": "src/pages/Routes/RoutesPage.tsx",
+      "sha256": "685ff28acd0200a3d960b559bd45e8eac61251579c8ecce6988d0dd170407b43"
+    },
+    {
+      "path": "src/types/database.types.ts",
+      "sha256": "89257d08afa7bd380390feb533b4411a4cb47aace6780bfe643e819cc1f4113d"
+    },
+    {
+      "path": "src/utils/EventBus.ts",
+      "sha256": "7112f2e78b974b63f013523adf7ec2a43fb888663c1257fb54538d63a5efae15"
+    },
+    {
+      "path": "src/utils/notification-state.ts",
+      "sha256": "2e51d7d37f8268d1b53b8ebd0c05e66fcbb56b1be7fd348bfa67545e43a8719a"
+    },
+    {
+      "path": "src/utils/performance-recorder.ts",
+      "sha256": "7064522729f41493800d5187d3af486d1605cfb1432613b2784896052bbc00cd"
+    },
+    {
+      "path": "src/utils/performance.ts",
+      "sha256": "8d20ae45563398636fec9636dcf328bf6994566d8d07159457623fd1cb6d3f21"
+    },
+    {
+      "path": "src/utils/query-cache.ts",
+      "sha256": "d9981ea0f83ef81b3c2ed61862335f979de445c34c13b3ba33720a0a811e3ec5"
+    },
+    {
+      "path": "supabase/migrations/20261020182917_consumption_exact_counts.sql",
+      "sha256": "05a6a705ea66a85000ce52fdb772e53c70cbfad2511759c1150eb4b997f3021d"
+    }
+  ]
+}

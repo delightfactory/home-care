@@ -1,3 +1,4 @@
+import { CountsNotice } from '../../components/UI/CountsNotice'
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Users, UserCheck, UserX, ShoppingCart, RefreshCw } from 'lucide-react'
 import { ExportButton } from '../../components/UI'
@@ -95,7 +96,7 @@ const CustomersPage: React.FC = () => {
   }, [refresh])
 
   // Fetch aggregate counts for accurate KPIs
-  const { counts } = useCustomerCounts()
+  const { counts, error: countsError, refresh: refreshCounts } = useCustomerCounts()
 
   // System health monitoring (for future use)
   // const { health } = useSystemHealth()
@@ -268,6 +269,7 @@ const CustomersPage: React.FC = () => {
         </div>
       </div>
 
+      <CountsNotice error={countsError} onRetry={refreshCounts} />
       {/* Customer Statistics */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
         <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-0 shadow-lg hover:shadow-xl group hover:scale-105 transition-all duration-300">

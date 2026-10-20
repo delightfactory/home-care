@@ -1,3 +1,4 @@
+import { exactCounts } from './exact-counts'
 // Customers API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
 import { 
@@ -249,6 +250,10 @@ export class CustomersAPI {
 
   // Get aggregated customers counts (total, active, inactive)
   static async getCounts(): Promise<CustomerCounts> {
+    return exactCounts<CustomerCounts>('get_customer_counts', ["total","active","inactive"], () => this.getLegacyCounts());
+  }
+
+  private static async getLegacyCounts(): Promise<CustomerCounts> {
     try {
       // Total customers
       const { count: totalCount, error: totalErr } = await supabase

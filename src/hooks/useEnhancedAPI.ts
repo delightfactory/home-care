@@ -1,3 +1,4 @@
+import { useResourceCounts } from './useResourceCounts';
 // React Hooks for Enhanced API with Performance Optimization
 // React Hooks للـ API المحسن مع تحسينات الأداء
 
@@ -676,119 +677,29 @@ export function usePerformanceStats(days = 7) {
   return { stats, loading, error, refresh: fetchStats };
 }
 
-// Cache management hook
-// Hook to get customer counts
 export function useCustomerCounts(refreshInterval = 60000) {
-  const [counts, setCounts] = useState<CustomerCounts | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCounts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await EnhancedAPI.getCustomerCounts();
-      setCounts(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCounts();
-    // Auto refresh every refreshInterval ms
-    const id = setInterval(fetchCounts, refreshInterval);
-    return () => clearInterval(id);
-  }, [fetchCounts, refreshInterval]);
-
-  return { counts, loading, error, refresh: fetchCounts };
+  return useResourceCounts<CustomerCounts>(loadCustomerCounts, 'customers', refreshInterval);
 }
 
-// Hook to get route counts
+const loadCustomerCounts = () => EnhancedAPI.getCustomerCounts();
+
 export function useRouteCounts(refreshInterval = 60000) {
-  const [counts, setCounts] = useState<RouteCounts | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCounts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await EnhancedAPI.getRouteCounts();
-      setCounts(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCounts();
-    const id = setInterval(fetchCounts, refreshInterval);
-    return () => clearInterval(id);
-  }, [fetchCounts, refreshInterval]);
-
-  return { counts, loading, error, refresh: fetchCounts };
+  return useResourceCounts<RouteCounts>(loadRouteCounts, 'routes', refreshInterval);
 }
 
-// Hook to get order counts
+const loadRouteCounts = () => EnhancedAPI.getRouteCounts();
+
 export function useOrderCounts(refreshInterval = 60000) {
-  const [counts, setCounts] = useState<OrderCounts | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCounts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await EnhancedAPI.getOrderCounts();
-      setCounts(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCounts();
-    const id = setInterval(fetchCounts, refreshInterval);
-    return () => clearInterval(id);
-  }, [fetchCounts, refreshInterval]);
-
-  return { counts, loading, error, refresh: fetchCounts };
+  return useResourceCounts<OrderCounts>(loadOrderCounts, 'orders', refreshInterval);
 }
 
-// Hook to get expense counts
+const loadOrderCounts = () => EnhancedAPI.getOrderCounts();
+
 export function useExpenseCounts(refreshInterval = 60000) {
-  const [counts, setCounts] = useState<ExpenseCounts | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCounts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await EnhancedAPI.getExpenseCounts();
-      setCounts(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCounts();
-    const id = setInterval(fetchCounts, refreshInterval);
-    return () => clearInterval(id);
-  }, [fetchCounts, refreshInterval]);
-
-  return { counts, loading, error, refresh: fetchCounts };
+  return useResourceCounts<ExpenseCounts>(loadExpenseCounts, 'expenses', refreshInterval);
 }
+
+const loadExpenseCounts = () => EnhancedAPI.getExpenseCounts();
 
 // Hook to get filtered expense statistics
 export function useFilteredExpenseStats(filters?: ExpenseFilters) {

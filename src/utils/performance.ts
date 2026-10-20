@@ -2,6 +2,9 @@
 // شركةHOME CARE - أدوات تحسين الأداء
 
 import { supabase } from '../lib/supabase';
+import { CacheManager } from './query-cache';
+import { PerformanceRecorder, PerformanceEntry } from './performance-recorder';
+export { CacheManager } from './query-cache';
 
 // Performance monitoring interface
 export interface QueryPerformance {
@@ -13,6 +16,16 @@ export interface QueryPerformance {
 // Performance monitoring class
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
+  private recorder = new PerformanceRecorder(async (entries: PerformanceEntry[]) => {
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 10000);
+    try {
+      const { error } = await supabase.from('performance_logs').insert(entries).abortSignal(controller.signal);
+      if (error) throw error;
+    } finally {
+      clearTimeout(deadline);
+    }
+  }, () => CacheManager.scopeVersion);
   private performanceThreshold = 1000; // 1 second threshold
 
   static getInstance(): PerformanceMonitor {
@@ -28,6 +41,7 @@ export class PerformanceMonitor {
     queryFunction: () => Promise<T>
   ): Promise<T> {
     const startTime = performance.now();
+    const scopeVersion = CacheManager.scopeVersion;
     
     try {
       const result = await queryFunction();
@@ -35,7 +49,7 @@ export class PerformanceMonitor {
       
       // Log slow queries
       if (executionTime > this.performanceThreshold) {
-        await this.logSlowQuery(queryType, executionTime);
+        this.logSlowQuery(queryType, executionTime, scopeVersion);
         console.warn(`Slow query detected: ${queryType} took ${executionTime}ms`);
       }
       
@@ -48,18 +62,17 @@ export class PerformanceMonitor {
   }
 
   // Log slow queries to database
-  private async logSlowQuery(queryType: string, executionTime: number): Promise<void> {
-    try {
-      await supabase
-        .from('performance_logs')
-        .insert({
-          query_type: queryType,
-          execution_time_ms: executionTime,
-          query_hash: this.generateQueryHash(queryType)
-        });
-    } catch (error) {
-      console.error('Failed to log performance data:', error);
-    }
+  private logSlowQuery(queryType: string, executionTime: number, scopeVersion: number): void {
+    this.recorder.record({
+      query_type: queryType,
+      execution_time_ms: executionTime,
+      query_hash: this.generateQueryHash(queryType),
+      created_at: new Date().toISOString()
+    }, scopeVersion);
+  }
+
+  getCollectionStats() {
+    return this.recorder.getStats();
   }
 
   // Generate simple hash for query identification
@@ -146,58 +159,6 @@ export class BatchProcessor {
         return batch;
       }
     );
-  }
-}
-
-// Caching utilities
-export class CacheManager {
-  private static cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-  
-  // Set cache with TTL (time to live in milliseconds)
-  static set(key: string, data: any, ttl = 300000): void { // 5 minutes default
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    });
-  }
-  
-  // Get from cache
-  static get<T>(key: string): T | null {
-    const cached = this.cache.get(key);
-    
-    if (!cached) return null;
-    
-    // Check if expired
-    if (Date.now() - cached.timestamp > cached.ttl) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    return cached.data as T;
-  }
-  
-  // Clear expired entries
-  static cleanup(): void {
-    const now = Date.now();
-    for (const [key, value] of this.cache.entries()) {
-      if (now - value.timestamp > value.ttl) {
-        this.cache.delete(key);
-      }
-    }
-  }
-  
-  // Clear all cache
-  static clear(): void {
-    this.cache.clear();
-  }
-  
-  // Get cache stats
-  static getStats(): { size: number; keys: string[] } {
-    return {
-      size: this.cache.size,
-      keys: Array.from(this.cache.keys())
-    };
   }
 }
 

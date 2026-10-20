@@ -1,0 +1,62 @@
+{
+  "candidate_sha256": "3eb34681c9954c1eb85454538f43ff37b5c95b5e97b168c0db4fa14fb957f519",
+  "production_changed": false,
+  "core_tests": 9,
+  "api_tests": 10,
+  "auth_tests": 6,
+  "notification_tests": 11,
+  "database_suites": [
+    "exact-counts-seven-roles",
+    "order-lifecycle",
+    "route-extension",
+    "route-extension-membership",
+    "order-edit-delete",
+    "migration-rollback-replay"
+  ],
+  "typecheck": "PASS",
+  "vite_build": "PASS",
+  "service_worker_stamp": "2026-10-20T18-58-49",
+  "repository_lint": "BLOCKED_PREEXISTING_MISSING_ESLINT_CONFIG",
+  "focused_hooks_lint": {
+    "errors": 0,
+    "warnings": 2
+  },
+  "independent_reviews": [
+    {
+      "reviewer": "fresh Codex",
+      "verdict": "PASS",
+      "auth_tests_independently_rerun": 6
+    },
+    {
+      "reviewer": "claude-opus-5-5",
+      "session_id": "df05ddb6-9fa9-491a-a270-9931404e1505",
+      "verdict": "PASS",
+      "read_only_violation": false,
+      "condition": "Final build log subsequently passed"
+    }
+  ],
+  "benchmark": {
+    "rows": 12087,
+    "runs_per_path": 5,
+    "legacy_mean_ms": 65.07,
+    "aggregate_mean_ms": 30.99,
+    "calls_before": 6,
+    "calls_after": 1,
+    "physical_io_reduction_measured": false
+  },
+  "browser_qa": "PASS controlled real-DOM synthetic boundary scenarios; not full production/mobile UAT",
+  "storage_warning": {
+    "date": "2026-10-20",
+    "still_present": true,
+    "conditional_restriction_date": "2026-11-12",
+    "storage_gb": 0.332,
+    "storage_quota_gb": 1,
+    "database_quota_ratio": 0.7
+  },
+  "pending": [
+    "production backup/restore gate",
+    "release authorization and publication",
+    "matched production peak/day IO measurement",
+    "Supabase grace warning resolution"
+  ]
+}

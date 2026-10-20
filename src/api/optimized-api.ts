@@ -28,6 +28,7 @@ export class OptimizedOrdersAPI {
     includeDetails = false
   ): Promise<PaginatedResponse<OrderWithDetails>> {
     const cacheKey = `orders:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
+    const cacheVersion = CacheManager.version;
     
     // Try cache first
     const cached = CacheManager.get<PaginatedResponse<OrderWithDetails>>(cacheKey);
@@ -43,7 +44,7 @@ export class OptimizedOrdersAPI {
         );
         
         // Cache for 2 minutes
-        CacheManager.set(cacheKey, result, 120000);
+        CacheManager.set(cacheKey, result, 120000, cacheVersion);
         return result;
       }
     );
@@ -52,6 +53,7 @@ export class OptimizedOrdersAPI {
   // Get single order with caching
   static async getOrderById(id: string): Promise<OrderWithDetails | undefined> {
     const cacheKey = `order:${id}`;
+    const cacheVersion = CacheManager.version;
     
     const cached = CacheManager.get<OrderWithDetails>(cacheKey);
     if (cached) {
@@ -67,7 +69,7 @@ export class OptimizedOrdersAPI {
         
         if (result) {
           // Cache for 5 minutes
-          CacheManager.set(cacheKey, result, 300000);
+          CacheManager.set(cacheKey, result, 300000, cacheVersion);
         }
         
         return result;
@@ -113,6 +115,7 @@ export class OptimizedCustomersAPI {
     limit = 20
   ): Promise<PaginatedResponse<CustomerWithOrders>> {
     const cacheKey = `customers:${JSON.stringify(filters)}:${page}:${limit}`;
+    const cacheVersion = CacheManager.version;
     
     const cached = CacheManager.get<PaginatedResponse<CustomerWithOrders>>(cacheKey);
     if (cached) {
@@ -127,7 +130,7 @@ export class OptimizedCustomersAPI {
         );
         
         // Cache for 3 minutes
-        CacheManager.set(cacheKey, result, 180000);
+        CacheManager.set(cacheKey, result, 180000, cacheVersion);
         return result;
       }
     );
@@ -143,6 +146,7 @@ export class OptimizedCustomersAPI {
     }
 
     const cacheKey = `customers:search:${searchTerm}:${limit}`;
+    const cacheVersion = CacheManager.version;
     
     const cached = CacheManager.get<CustomerWithOrders[]>(cacheKey);
     if (cached) {
@@ -159,7 +163,7 @@ export class OptimizedCustomersAPI {
         );
         
         // Cache search results for 1 minute
-        CacheManager.set(cacheKey, result.data, 60000);
+        CacheManager.set(cacheKey, result.data, 60000, cacheVersion);
         return result.data;
       }
     );
@@ -171,6 +175,7 @@ export class OptimizedReportsAPI {
   // Get dashboard data with heavy caching
   static async getDashboardData(date: string) {
     const cacheKey = `dashboard:${date}`;
+    const cacheVersion = CacheManager.version;
     
     const cached = CacheManager.get(cacheKey);
     if (cached) {
@@ -192,7 +197,7 @@ export class OptimizedReportsAPI {
         };
         
         // Cache dashboard data for 10 minutes
-        CacheManager.set(cacheKey, result, 600000);
+        CacheManager.set(cacheKey, result, 600000, cacheVersion);
         return result;
       }
     );
@@ -201,6 +206,7 @@ export class OptimizedReportsAPI {
   // Get monthly reports with materialized views
   static async getMonthlyReport(year: number, month: number) {
     const cacheKey = `monthly:${year}:${month}`;
+    const cacheVersion = CacheManager.version;
     
     const cached = CacheManager.get(cacheKey);
     if (cached) {
@@ -223,7 +229,7 @@ export class OptimizedReportsAPI {
         if (error) throw error;
         
         // Cache monthly reports for 1 hour
-        CacheManager.set(cacheKey, data, 3600000);
+        CacheManager.set(cacheKey, data, 3600000, cacheVersion);
         return data;
       }
     );
@@ -245,6 +251,7 @@ export class PerformanceAPI {
 
         return {
           performance: performanceStats,
+          collection: performanceMonitor.getCollectionStats(),
           cache: cacheStats,
           connections: connectionStats,
           timestamp: new Date().toISOString()

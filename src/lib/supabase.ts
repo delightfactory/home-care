@@ -1,6 +1,7 @@
 // Supabase Client Configuration
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '../types/database.types'
+import { CacheManager } from '../utils/query-cache'
 
 // Get environment variables directly from import.meta.env
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -48,6 +49,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
       eventsPerSecond: 10
     }
   }
+})
+
+// The token stays private in memory; cached data never crosses an auth session.
+supabase.auth.onAuthStateChange((_event, session) => {
+  CacheManager.setScope(session ? `${session.user.id}:${session.access_token}` : null)
 })
 
 // Helper function to handle Supabase errors

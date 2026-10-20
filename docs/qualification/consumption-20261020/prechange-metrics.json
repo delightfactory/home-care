@@ -1,0 +1,271 @@
+[
+  {
+    "snapshot": {
+      "at": "2026-10-20T18:31:24.473149+00:00",
+      "wal": {
+        "wal_fpi": 2304878,
+        "wal_sync": 1341502,
+        "wal_bytes": 8394746715,
+        "wal_write": 89765136,
+        "stats_reset": "2026-06-25T01:02:14.7502+00:00",
+        "wal_records": 11511532,
+        "wal_sync_time": 0,
+        "wal_write_time": 0,
+        "wal_buffers_full": 88371705
+      },
+      "database": {
+        "datid": "5",
+        "datname": "postgres",
+        "blks_hit": 26050133403,
+        "sessions": 697570,
+        "blks_read": 99542,
+        "conflicts": 0,
+        "deadlocks": 0,
+        "temp_bytes": 52114864899,
+        "temp_files": 25134,
+        "active_time": 347309754.983,
+        "numbackends": 23,
+        "stats_reset": null,
+        "tup_deleted": 1530402,
+        "tup_fetched": 17756930890,
+        "tup_updated": 551774,
+        "xact_commit": 35939457,
+        "session_time": 128234945702.228,
+        "tup_inserted": 1332896,
+        "tup_returned": 45763040543,
+        "blk_read_time": 27535.266,
+        "xact_rollback": 906866,
+        "blk_write_time": 216.005,
+        "sessions_fatal": 8,
+        "sessions_killed": 0,
+        "checksum_failures": null,
+        "sessions_abandoned": 138,
+        "checksum_last_failure": null,
+        "idle_in_transaction_time": 70398124.783
+      },
+      "workload": [
+        {
+          "calls": 13007756,
+          "queryid": "7884900239001250579",
+          "wal_bytes": 3085447,
+          "shared_blks_hit": 21052444221,
+          "total_exec_time": 70424140.7930515,
+          "shared_blks_read": 5,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 21390,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 9735810,
+          "queryid": "721712053463325330",
+          "wal_bytes": 34,
+          "shared_blks_hit": 33290215868,
+          "total_exec_time": 65427584.8657387,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 50,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 296551,
+          "queryid": "7638429700233899447",
+          "wal_bytes": 476293,
+          "shared_blks_hit": 242733474,
+          "total_exec_time": 52962641.3606653,
+          "shared_blks_read": 2498,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 1157,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 47005,
+          "queryid": "6562125620994184094",
+          "wal_bytes": 7892,
+          "shared_blks_hit": 122159782,
+          "total_exec_time": 40316490.7158597,
+          "shared_blks_read": 15,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 4599,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 9644,
+          "queryid": "3549722258921713859",
+          "wal_bytes": 4346,
+          "shared_blks_hit": 107881435,
+          "total_exec_time": 37906020.46273,
+          "shared_blks_read": 3,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 2,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 167039,
+          "queryid": "7482768947482512955",
+          "wal_bytes": 2640338,
+          "shared_blks_hit": 219000921,
+          "total_exec_time": 14858928.5826258,
+          "shared_blks_read": 36,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 4102,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 13573,
+          "queryid": "2841952325399235265",
+          "wal_bytes": 56610,
+          "shared_blks_hit": 289931808,
+          "total_exec_time": 13135779.854458,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 37,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 296938,
+          "queryid": "1179356025609306912",
+          "wal_bytes": 858459,
+          "shared_blks_hit": 93184669,
+          "total_exec_time": 11406604.834143,
+          "shared_blks_read": 3082,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 6818,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 13949,
+          "queryid": "-8159815480886416800",
+          "wal_bytes": 23927,
+          "shared_blks_hit": 34052384,
+          "total_exec_time": 5017725.13513999,
+          "shared_blks_read": 1133,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 4,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 385063,
+          "queryid": "9149075242336269196",
+          "wal_bytes": 361944110,
+          "shared_blks_hit": 8637866,
+          "total_exec_time": 4529031.903314,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 92677,
+          "shared_blks_written": 12504
+        },
+        {
+          "calls": 12000,
+          "queryid": "7802266671075060724",
+          "wal_bytes": 32063,
+          "shared_blks_hit": 41379018,
+          "total_exec_time": 3965046.944835,
+          "shared_blks_read": 172,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 44,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 9419,
+          "queryid": "-7726440967385220442",
+          "wal_bytes": 0,
+          "shared_blks_hit": 0,
+          "total_exec_time": 2741959.96012599,
+          "shared_blks_read": 0,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 0,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 252320,
+          "queryid": "4303063351992923958",
+          "wal_bytes": 1789069901,
+          "shared_blks_hit": 6716131,
+          "total_exec_time": 2453012.63628604,
+          "shared_blks_read": 1493,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 589209,
+          "shared_blks_written": 980
+        },
+        {
+          "calls": 7820,
+          "queryid": "-4876014438390277116",
+          "wal_bytes": 1572130,
+          "shared_blks_hit": 26767879,
+          "total_exec_time": 2334479.033489,
+          "shared_blks_read": 465,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 4611,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 59120,
+          "queryid": "2511579201054265199",
+          "wal_bytes": 122603,
+          "shared_blks_hit": 7404639,
+          "total_exec_time": 1962178.73237501,
+          "shared_blks_read": 38,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 19,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 2127,
+          "queryid": "8686101448063127109",
+          "wal_bytes": 9490,
+          "shared_blks_hit": 27920037,
+          "total_exec_time": 1592722.555603,
+          "shared_blks_read": 7,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 38,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 9765,
+          "queryid": "-7002583216526699407",
+          "wal_bytes": 797759538,
+          "shared_blks_hit": 9011530,
+          "total_exec_time": 1453985.18591399,
+          "shared_blks_read": 677,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 245556,
+          "shared_blks_written": 6159
+        },
+        {
+          "calls": 6184,
+          "queryid": "-8481597651219459762",
+          "wal_bytes": 736,
+          "shared_blks_hit": 28882420,
+          "total_exec_time": 1290219.951696,
+          "shared_blks_read": 28,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 589,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 56609,
+          "queryid": "7235588904085855203",
+          "wal_bytes": 171359,
+          "shared_blks_hit": 12203535,
+          "total_exec_time": 1276827.54942599,
+          "shared_blks_read": 102,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 744,
+          "shared_blks_written": 0
+        },
+        {
+          "calls": 20317,
+          "queryid": "4399566470426054328",
+          "wal_bytes": 82503,
+          "shared_blks_hit": 7857322,
+          "total_exec_time": 1220773.634223,
+          "shared_blks_read": 207,
+          "temp_blks_written": 0,
+          "shared_blks_dirtied": 120,
+          "shared_blks_written": 0
+        }
+      ],
+      "stat_reset": "2026-06-25T01:02:14.554663+00:00"
+    }
+  }
+]

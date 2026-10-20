@@ -1,3 +1,4 @@
+import { exactCounts } from './exact-counts'
 import { LifecycleAPI, EditOrderSnapshot } from './lifecycle'
 // Orders API Layer
 import type { OrderCounts } from '../types'
@@ -158,6 +159,10 @@ export class OrdersAPI {
 
   // Get aggregated order counts by status (fast count queries)
   static async getCounts(): Promise<OrderCounts> {
+    return exactCounts<OrderCounts>('get_order_counts', ["total","pending","scheduled","in_progress","completed","cancelled"], () => this.getLegacyCounts());
+  }
+
+  private static async getLegacyCounts(): Promise<OrderCounts> {
     try {
       const { count: total, error: totalError } = await supabase
         .from('orders')

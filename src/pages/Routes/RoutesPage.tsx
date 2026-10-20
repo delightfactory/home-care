@@ -1,3 +1,4 @@
+import { CountsNotice } from '../../components/UI/CountsNotice'
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Calendar, Users, MapPin, ListTodo, Play, Check, Trash2, Pencil, Route as RouteIcon, Clock, CheckCircle, AlertTriangle, Package, RefreshCw } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
@@ -35,7 +36,7 @@ const RoutesPage: React.FC = () => {
   const { health: _health } = useSystemHealth()
 
   // Fetch aggregate route counts
-  const { counts } = useRouteCounts()
+  const { counts, error: countsError, refresh: refreshCounts } = useRouteCounts()
   const permissions = usePermissions()
   const { isAdmin } = permissions
   const extension = useRouteExtension(permissions, refresh)
@@ -182,13 +183,14 @@ const RoutesPage: React.FC = () => {
         </button>
       </div>
 
+      <CountsNotice error={countsError} onRetry={refreshCounts} />
       {/* Routes Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600">إجمالي المسارات</p>
-              <p className="text-2xl font-bold text-blue-800">{counts?.total ?? routes.length}</p>
+              <p className="text-2xl font-bold text-blue-800">{counts?.total ?? '—'}</p>
             </div>
             <div className="p-3 bg-blue-500 rounded-lg">
               <RouteIcon className="h-6 w-6 text-white" />
@@ -199,7 +201,7 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">مخططة</p>
-              <p className="text-2xl font-bold text-gray-800">{counts?.planned ?? routes.filter(r => r.status === 'planned').length}</p>
+              <p className="text-2xl font-bold text-gray-800">{counts?.planned ?? '—'}</p>
             </div>
             <div className="p-3 bg-gray-500 rounded-lg">
               <Calendar className="h-6 w-6 text-white" />
@@ -210,7 +212,7 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-yellow-600">قيد التنفيذ</p>
-              <p className="text-2xl font-bold text-yellow-800">{counts?.in_progress ?? routes.filter(r => r.status === 'in_progress').length}</p>
+              <p className="text-2xl font-bold text-yellow-800">{counts?.in_progress ?? '—'}</p>
             </div>
             <div className="p-3 bg-yellow-500 rounded-lg">
               <Clock className="h-6 w-6 text-white" />
@@ -221,7 +223,7 @@ const RoutesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">مكتملة</p>
-              <p className="text-2xl font-bold text-green-800">{counts?.completed ?? routes.filter(r => r.status === 'completed').length}</p>
+              <p className="text-2xl font-bold text-green-800">{counts?.completed ?? '—'}</p>
             </div>
             <div className="p-3 bg-green-500 rounded-lg">
               <CheckCircle className="h-6 w-6 text-white" />

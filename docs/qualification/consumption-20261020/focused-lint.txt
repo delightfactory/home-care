@@ -1,0 +1,9 @@
+
+C:\Users\DELL\AppData\Local\ai-dev-workflow\runs\home-care-io-20261020\worktree\src\contexts\AuthContext.tsx
+  98:6  warning  React Hook useEffect has a missing dependency: 'fetchUserProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\DELL\AppData\Local\ai-dev-workflow\runs\home-care-io-20261020\worktree\src\hooks\useResourceCounts.ts
+  50:22  warning  The ref value 'requestVersion.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'requestVersion.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+✖ 2 problems (0 errors, 2 warnings)
+

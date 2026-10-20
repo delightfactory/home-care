@@ -1099,6 +1099,10 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
+      get_order_counts: { Args: Record<string, never>; Returns: any }
+      get_route_counts: { Args: Record<string, never>; Returns: any }
+      get_customer_counts: { Args: Record<string, never>; Returns: any }
+      get_expense_counts: { Args: Record<string, never>; Returns: any }
       lifecycle_snapshot: {
         Args: { p_kind: string; p_id: string }
         Returns: any

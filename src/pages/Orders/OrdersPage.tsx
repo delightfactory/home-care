@@ -1,3 +1,4 @@
+import { CountsNotice } from '../../components/UI/CountsNotice'
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit, Eye, Search, Play, Check, XCircle, RefreshCw, Star } from 'lucide-react'
 import { ExportButton } from '../../components/UI'
@@ -155,7 +156,7 @@ const OrdersPage: React.FC = () => {
   }
 
   // Fetch aggregate order counts
-  const { counts } = useOrderCounts()
+  const { counts, error: countsError, refresh: refreshCounts } = useOrderCounts()
 
   // System health monitoring
   const { health } = useSystemHealth()
@@ -423,13 +424,14 @@ const OrdersPage: React.FC = () => {
         </div>
       </div>
 
+      <CountsNotice error={countsError} onRetry={refreshCounts} />
       {/* Orders Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card-compact bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600">إجمالي الطلبات</p>
-              <p className="text-2xl font-bold text-blue-800">{counts?.total ?? pagination?.total ?? filteredOrders.length}</p>
+              <p className="text-2xl font-bold text-blue-800">{counts?.total ?? '—'}</p>
               {pagination?.total && pagination.total > filteredOrders.length && (
                 <p className="text-xs text-blue-500">عرض {filteredOrders.length} من {pagination.total}</p>
               )}
@@ -443,7 +445,7 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-yellow-600">قيد الانتظار</p>
-              <p className="text-2xl font-bold text-yellow-800">{counts?.pending ?? filteredOrders.filter(o => o.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-yellow-800">{counts?.pending ?? '—'}</p>
             </div>
             <div className="p-3 bg-yellow-500 rounded-lg">
               <Play className="h-6 w-6 text-white" />
@@ -454,7 +456,7 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">مكتملة</p>
-              <p className="text-2xl font-bold text-green-800">{counts?.completed ?? filteredOrders.filter(o => o.status === 'completed').length}</p>
+              <p className="text-2xl font-bold text-green-800">{counts?.completed ?? '—'}</p>
             </div>
             <div className="p-3 bg-green-500 rounded-lg">
               <Check className="h-6 w-6 text-white" />
@@ -465,7 +467,7 @@ const OrdersPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-red-600">ملغية</p>
-              <p className="text-2xl font-bold text-red-800">{counts?.cancelled ?? filteredOrders.filter(o => o.status === 'cancelled').length}</p>
+              <p className="text-2xl font-bold text-red-800">{counts?.cancelled ?? '—'}</p>
             </div>
             <div className="p-3 bg-red-500 rounded-lg">
               <XCircle className="h-6 w-6 text-white" />

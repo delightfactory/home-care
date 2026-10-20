@@ -1,3 +1,4 @@
+import { exactCounts } from './exact-counts'
 import { LifecycleAPI, RouteSnapshot, DesiredLink, ExtensionSnapshot, OrderSnapshot } from './lifecycle'
 // Routes API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
@@ -21,6 +22,10 @@ export class RoutesAPI {
   }
   // Aggregate counts by status
   static async getCounts(): Promise<RouteCounts> {
+    return exactCounts<RouteCounts>('get_route_counts', ["total","planned","in_progress","completed"], () => this.getLegacyCounts());
+  }
+
+  private static async getLegacyCounts(): Promise<RouteCounts> {
     try {
       const { count: total, error: totalError } = await supabase
         .from('routes')

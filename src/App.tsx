@@ -2,6 +2,7 @@ import React, { Suspense, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
+import { NotificationsProvider } from './contexts/NotificationsContext'
 import { useAuth } from './hooks/useAuth'
 import Layout from './components/Layout/Layout'
 
@@ -447,6 +448,7 @@ const App: React.FC = () => {
 
   return (
     <AuthProvider>
+      <NotificationsProvider>
       <Router>
         <VoiceCallProvider>
           <div className="App">
@@ -487,6 +489,7 @@ const App: React.FC = () => {
           </div>
         </VoiceCallProvider>
       </Router>
+      </NotificationsProvider>
     </AuthProvider>
   )
 }

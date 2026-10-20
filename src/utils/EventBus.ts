@@ -1,4 +1,5 @@
 // -------------------------------------------------
+import { CacheManager } from './query-cache'
 // Global-singleton EventBus to avoid duplicate copies
 // after Vite/Rollup code-splitting in production.
 // -------------------------------------------------
@@ -16,6 +17,7 @@ class EventBus {
       this.channel.onmessage = (e) => {
         const { event, detail } = e.data || {}
         if (typeof event === 'string') {
+          this.invalidateChangedResource(event)
           this.emitter.dispatchEvent(new CustomEvent(event, { detail }))
         }
       }
@@ -23,8 +25,15 @@ class EventBus {
   }
 
   emit<T = any> (event: string, detail?: T) {
+    this.invalidateChangedResource(event)
     this.emitter.dispatchEvent(new CustomEvent(event, { detail }))
     this.channel?.postMessage({ event, detail })
+  }
+
+  private invalidateChangedResource(event: string) {
+    if (!event.endsWith(':changed')) return
+    const resource = event.slice(0, -':changed'.length)
+    CacheManager.invalidate(`enhanced:${resource.endsWith('s') ? resource.slice(0, -1) : resource}`)
   }
 
   on<T = any> (event: string, listener: (detail: T) => void) {

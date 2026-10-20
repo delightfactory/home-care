@@ -1,0 +1,12 @@
+ PASS exact count parity for seven roles, team isolation, grants, and protected fingerprints
+NOTICE:  BENCHMARK {"rows": 12087, "runs_per_path": 5, "legacy_mean_ms": 65.07, "aggregate_mean_ms": 30.99, "disk_io_reduction": "not measured by this benchmark", "database_calls_after": 1, "database_calls_before": 6}
+Regression: order-lifecycle.sql
+Regression: route-extension.sql
+Regression: route-extension-membership.sql
+ PASS participant left
+ PASS participant rejoined
+ PASS manual checkout
+ PASS second same day route
+ PASS stale membership snapshot
+ PASS batch ordering, validation rollback, second insert failure rollback, replay, audit count, old history and final automatic checkout
+Regression: order-edit-delete.sql

@@ -1,3 +1,4 @@
+import { exactCounts } from './exact-counts'
 // Expenses API Layer
 import { supabase, handleSupabaseError } from '../lib/supabase'
 import {
@@ -14,6 +15,10 @@ import {
 export class ExpensesAPI {
   // Aggregate counts by status
   static async getCounts(): Promise<import('../types').ExpenseCounts> {
+    return exactCounts<import('../types').ExpenseCounts>('get_expense_counts', ["total","pending","approved","rejected"], () => this.getLegacyCounts());
+  }
+
+  private static async getLegacyCounts(): Promise<import('../types').ExpenseCounts> {
     try {
       const { count: total, error: totalError } = await supabase
         .from('expenses')

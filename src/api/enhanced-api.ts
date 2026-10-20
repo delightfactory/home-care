@@ -56,6 +56,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<OrderWithDetails>> {
     const cacheKey = `enhanced:orders:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<OrderWithDetails>>(cacheKey);
@@ -72,7 +73,7 @@ export class EnhancedAPI {
         if (useCache) {
           // Cache based on data sensitivity
           const ttl = includeDetails ? 120000 : 60000; // 2min for details, 1min for basic
-          CacheManager.set(cacheKey, result, ttl);
+          CacheManager.set(cacheKey, result, ttl, cacheVersion);
         }
 
         return result;
@@ -82,6 +83,7 @@ export class EnhancedAPI {
 
   static async getOrderById(id: string, useCache = true): Promise<OrderWithDetails | undefined> {
     const cacheKey = `enhanced:order:${id}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<OrderWithDetails>(cacheKey);
@@ -96,7 +98,7 @@ export class EnhancedAPI {
         );
 
         if (result && useCache) {
-          CacheManager.set(cacheKey, result, 300000); // 5 minutes
+          CacheManager.set(cacheKey, result, 300000, cacheVersion); // 5 minutes
         }
 
         return result;
@@ -328,21 +330,11 @@ export class EnhancedAPI {
 
   // ===== ROUTES COUNTS =====
   static async getRouteCounts(useCache = true): Promise<RouteCounts> {
-    const cacheKey = 'enhanced:routes:counts';
-    if (useCache) {
-      const cached = CacheManager.get<RouteCounts>(cacheKey);
-      if (cached) return cached;
-    }
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.routes.getCounts',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() => RoutesAPI.getCounts());
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 60000); // 1 دقيقة
-        }
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => RoutesAPI.getCounts())
     );
+    return useCache ? CacheManager.load('enhanced:routes:counts', query, 60000) : query();
   }
 
   // ===== EXPENSES MUTATIONS =====
@@ -477,62 +469,29 @@ export class EnhancedAPI {
 
   // ===== EXPENSES COUNTS =====
   static async getExpenseCounts(useCache = true): Promise<ExpenseCounts> {
-    const cacheKey = 'enhanced:expenses:counts';
-    if (useCache) {
-      const cached = CacheManager.get<ExpenseCounts>(cacheKey);
-      if (cached) return cached;
-    }
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.expenses.getCounts',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() => ExpensesAPI.getCounts());
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 60000); // 1 minute
-        }
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => ExpensesAPI.getCounts())
     );
+    return useCache ? CacheManager.load('enhanced:expenses:counts', query, 60000) : query();
   }
 
   // ===== CUSTOMERS API =====
   static async getCustomerCounts(useCache = true): Promise<CustomerCounts> {
-
-    const cacheKey = 'enhanced:customers:counts';
-    if (useCache) {
-      const cached = CacheManager.get<CustomerCounts>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.customers.getCounts',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() => CustomersAPI.getCounts());
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 60000); // 1 دقيقة
-        }
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => CustomersAPI.getCounts())
     );
+    return useCache ? CacheManager.load('enhanced:customers:counts', query, 60000) : query();
   }
 
   // ===== ORDERS COUNTS =====
   static async getOrderCounts(useCache = true): Promise<OrderCounts> {
-    const cacheKey = 'enhanced:orders:counts';
-    if (useCache) {
-      const cached = CacheManager.get<OrderCounts>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.orders.getCounts',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() => OrdersAPI.getCounts());
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 60000); // 1 دقيقة
-        }
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => OrdersAPI.getCounts())
     );
+    return useCache ? CacheManager.load('enhanced:orders:counts', query, 60000) : query();
   }
 
   // ===== CUSTOMERS API =====
@@ -543,6 +502,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<CustomerWithOrders>> {
     const cacheKey = `enhanced:customers:${JSON.stringify(filters)}:${page}:${limit}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<CustomerWithOrders>>(cacheKey);
@@ -557,7 +517,7 @@ export class EnhancedAPI {
         );
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 180000); // 3 minutes
+          CacheManager.set(cacheKey, result, 180000, cacheVersion); // 3 minutes
         }
 
         return result;
@@ -569,6 +529,7 @@ export class EnhancedAPI {
     if (!searchTerm || searchTerm.length < 2) return [];
 
     const cacheKey = `enhanced:customers:search:${searchTerm}:${limit}`;
+    const cacheVersion = CacheManager.version;
     const cached = CacheManager.get<CustomerWithOrders[]>(cacheKey);
     if (cached) return cached;
 
@@ -581,7 +542,7 @@ export class EnhancedAPI {
           limit
         );
 
-        CacheManager.set(cacheKey, result.data, 60000); // 1 minute for search
+        CacheManager.set(cacheKey, result.data, 60000, cacheVersion); // 1 minute for search
         return result.data;
       }
     );
@@ -589,6 +550,7 @@ export class EnhancedAPI {
 
   static async getCustomerById(id: string, useCache = true): Promise<CustomerWithOrders | undefined> {
     const cacheKey = `enhanced:customer:${id}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<CustomerWithOrders>(cacheKey);
@@ -603,7 +565,7 @@ export class EnhancedAPI {
         );
 
         if (result && useCache) {
-          CacheManager.set(cacheKey, result, 300000); // 5 minutes
+          CacheManager.set(cacheKey, result, 300000, cacheVersion); // 5 minutes
         }
 
         return result;
@@ -667,6 +629,7 @@ export class EnhancedAPI {
   // ===== WORKERS & TEAMS API =====
   static async getWorkers(filters?: WorkerFilters, useCache = true, includeSalary = true): Promise<WorkerWithTeam[]> {
     const cacheKey = `enhanced:workers:${includeSalary ? 'full' : 'operational'}:${JSON.stringify(filters)}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<WorkerWithTeam[]>(cacheKey);
@@ -681,7 +644,7 @@ export class EnhancedAPI {
         );
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 300000); // 5 minutes
+          CacheManager.set(cacheKey, result, 300000, cacheVersion); // 5 minutes
         }
 
         return result;
@@ -691,6 +654,7 @@ export class EnhancedAPI {
 
   static async getTeams(useCache = true): Promise<TeamWithMembers[]> {
     const cacheKey = 'enhanced:teams:all';
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<TeamWithMembers[]>(cacheKey);
@@ -705,7 +669,7 @@ export class EnhancedAPI {
         );
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 300000); // 5 minutes
+          CacheManager.set(cacheKey, result, 300000, cacheVersion); // 5 minutes
         }
 
         return result;
@@ -807,6 +771,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<RouteWithOrders>> {
     const cacheKey = `enhanced:routes:${JSON.stringify(filters)}:${page}:${limit}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<RouteWithOrders>>(cacheKey);
@@ -819,7 +784,7 @@ export class EnhancedAPI {
       );
 
       if (useCache) {
-        CacheManager.set(cacheKey, result, 60000); // 1 minute
+        CacheManager.set(cacheKey, result, 60000, cacheVersion); // 1 minute
       }
 
       return result;
@@ -835,6 +800,7 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<ExpenseWithDetails>> {
     const cacheKey = `enhanced:expenses:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<PaginatedResponse<ExpenseWithDetails>>(cacheKey);
@@ -850,7 +816,7 @@ export class EnhancedAPI {
 
         if (useCache) {
           const ttl = includeDetails ? 120000 : 60000;
-          CacheManager.set(cacheKey, result, ttl);
+          CacheManager.set(cacheKey, result, ttl, cacheVersion);
         }
 
         return result;
@@ -861,6 +827,7 @@ export class EnhancedAPI {
   // ===== SERVICES API =====
   static async getServices(useCache = true): Promise<ServiceWithCategory[]> {
     const cacheKey = 'enhanced:services:all';
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get<ServiceWithCategory[]>(cacheKey);
@@ -875,7 +842,7 @@ export class EnhancedAPI {
         );
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 600000); // 10 minutes (services change rarely)
+          CacheManager.set(cacheKey, result, 600000, cacheVersion); // 10 minutes (services change rarely)
         }
 
         return result;
@@ -886,6 +853,7 @@ export class EnhancedAPI {
   // ===== REPORTS API =====
   static async getDashboardData(date: string, useCache = true) {
     const cacheKey = `enhanced:dashboard:${date}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -901,7 +869,7 @@ export class EnhancedAPI {
           if (optimizedResult.success && optimizedResult.data) {
             const result = optimizedResult.data;
             if (useCache) {
-              CacheManager.set(cacheKey, result, 600000); // 10 minutes
+              CacheManager.set(cacheKey, result, 600000, cacheVersion); // 10 minutes
             }
             return result;
           }
@@ -922,7 +890,7 @@ export class EnhancedAPI {
         };
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 600000); // 10 minutes
+          CacheManager.set(cacheKey, result, 600000, cacheVersion); // 10 minutes
         }
 
         return result;
@@ -933,6 +901,7 @@ export class EnhancedAPI {
   // Get comprehensive analytics dashboard
   static async getAnalyticsDashboard(period: 'week' | 'month' | 'quarter' = 'month', dateFrom?: string, dateTo?: string, useCache = true) {
     const cacheKey = `enhanced:analytics:${period}:${dateFrom ?? ''}:${dateTo ?? ''}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -945,7 +914,7 @@ export class EnhancedAPI {
         const result = await ReportsAPI.getAnalyticsDashboard(period, dateFrom, dateTo);
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 900000); // 15 minutes
+          CacheManager.set(cacheKey, result, 900000, cacheVersion); // 15 minutes
         }
 
         return result;
@@ -956,6 +925,7 @@ export class EnhancedAPI {
   // Get weekly statistics with optimized views
   static async getWeeklyStatsRange(startDate: string, endDate: string, useCache = true) {
     const cacheKey = `enhanced:weekly:range:${startDate}:${endDate}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -967,7 +937,7 @@ export class EnhancedAPI {
       async () => {
         const result = await ReportsAPI.getWeeklyStatsRange(startDate, endDate);
         if (useCache) {
-          CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+          CacheManager.set(cacheKey, result, 1800000, cacheVersion); // 30 minutes
         }
         return result;
       }
@@ -976,6 +946,7 @@ export class EnhancedAPI {
 
   static async getWeeklyStats(weekOffset = 0, useCache = true) {
     const cacheKey = `enhanced:weekly:${weekOffset}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -992,7 +963,7 @@ export class EnhancedAPI {
             // Apply offset to optimized data
             const result = optimizedResult.data.slice(weekOffset, weekOffset + 12);
             if (useCache) {
-              CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+              CacheManager.set(cacheKey, result, 1800000, cacheVersion); // 30 minutes
             }
             return result;
           }
@@ -1004,7 +975,7 @@ export class EnhancedAPI {
         const result = await ReportsAPI.getWeeklyStats(weekOffset);
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+          CacheManager.set(cacheKey, result, 1800000, cacheVersion); // 30 minutes
         }
 
         return result;
@@ -1015,6 +986,7 @@ export class EnhancedAPI {
   // Get quarterly statistics with optimized views
   static async getQuarterlyStats(yearOffset = 0, useCache = true) {
     const cacheKey = `enhanced:quarterly:${yearOffset}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -1031,7 +1003,7 @@ export class EnhancedAPI {
             // Apply year offset to optimized data
             const result = optimizedResult.data.slice(yearOffset * 4, (yearOffset + 1) * 4);
             if (useCache) {
-              CacheManager.set(cacheKey, result, 3600000); // 1 hour
+              CacheManager.set(cacheKey, result, 3600000, cacheVersion); // 1 hour
             }
             return result;
           }
@@ -1043,7 +1015,7 @@ export class EnhancedAPI {
         const result = await ReportsAPI.getQuarterlyStats(yearOffset);
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 3600000); // 1 hour
+          CacheManager.set(cacheKey, result, 3600000, cacheVersion); // 1 hour
         }
 
         return result;
@@ -1054,6 +1026,7 @@ export class EnhancedAPI {
   // Get performance trends
   static async getPerformanceTrends(days = 30, useCache = true) {
     const cacheKey = `enhanced:trends:${days}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -1066,7 +1039,7 @@ export class EnhancedAPI {
         const result = await ReportsAPI.getPerformanceTrends(days);
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 1200000); // 20 minutes
+          CacheManager.set(cacheKey, result, 1200000, cacheVersion); // 20 minutes
         }
 
         return result;
@@ -1077,6 +1050,7 @@ export class EnhancedAPI {
   // Get worker performance analytics
   static async getWorkerPerformanceAnalytics(workerId?: string, days = 30, useCache = true) {
     const cacheKey = `enhanced:worker-analytics:${workerId || 'all'}:${days}`;
+    const cacheVersion = CacheManager.version;
 
     if (useCache) {
       const cached = CacheManager.get(cacheKey);
@@ -1089,7 +1063,7 @@ export class EnhancedAPI {
         const result = await ReportsAPI.getWorkerPerformanceAnalytics(workerId, days);
 
         if (useCache) {
-          CacheManager.set(cacheKey, result, 1800000); // 30 minutes
+          CacheManager.set(cacheKey, result, 1800000, cacheVersion); // 30 minutes
         }
 
         return result;
@@ -1181,11 +1155,8 @@ export class EnhancedAPI {
       async () => {
         await BatchProcessor.bulkInsert('expenses', expenses, batchSize);
 
-        // Clear expenses cache
-        const cacheStats = CacheManager.getStats();
-        cacheStats.keys
-          .filter(key => key.startsWith('enhanced:expenses:'))
-          .forEach(key => CacheManager.set(key, null, 0));
+        this.clearCache('enhanced:expenses');
+        eventBus.emit('expenses:changed');
       }
     );
   }
@@ -1276,14 +1247,8 @@ export class EnhancedAPI {
 
   // ===== CACHE MANAGEMENT =====
   static clearCache(pattern?: string) {
-    if (pattern) {
-      const stats = CacheManager.getStats();
-      stats.keys
-        .filter(key => key.includes(pattern))
-        .forEach(key => CacheManager.set(key, null, 0));
-    } else {
-      CacheManager.clear();
-    }
+    if (pattern) CacheManager.invalidate(pattern);
+    else CacheManager.clear();
   }
 
   static getCacheStats() {

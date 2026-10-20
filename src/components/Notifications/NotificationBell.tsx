@@ -128,7 +128,7 @@ interface NotificationsPanelProps {
 }
 
 const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose }) => {
-    const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+    const { notifications, unreadCount, isLoading, error, refresh, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const panelRef = useRef<HTMLDivElement>(null);
@@ -244,13 +244,21 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose
                 )}
 
                 {/* Notifications List */}
+                {error && (
+                    <div role="alert" className="px-4 py-3 bg-amber-50 text-amber-900 text-sm flex-shrink-0">
+                        <p>تعذّر تحديث الإشعارات. قد تكون البيانات المعروضة غير محدثة.</p>
+                        <button type="button" onClick={() => { void refresh(); }} className="mt-2 underline font-medium">
+                            إعادة المحاولة
+                        </button>
+                    </div>
+                )}
                 <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
                     {isLoading ? (
                         <div className="p-8 text-center">
                             <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
                             <p className="mt-3 text-gray-500 text-sm">جاري التحميل...</p>
                         </div>
-                    ) : notifications.length === 0 ? (
+                    ) : error && notifications.length === 0 ? null : notifications.length === 0 ? (
                         <div className="p-10 text-center">
                             <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <Bell className="w-7 h-7 text-gray-400" />
@@ -297,12 +305,14 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose
 // =============== Notification Bell Component ===============
 const NotificationBell: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { unreadCount } = useNotifications();
+    const { unreadCount, error } = useNotifications();
 
     return (
         <div className="relative">
             <button
                 type="button"
+                aria-label={error ? 'تعذّر تحديث الإشعارات، افتح القائمة لإعادة المحاولة' : 'الإشعارات'}
+                title={error ? 'تعذّر تحديث الإشعارات' : 'الإشعارات'}
                 onClick={() => setIsOpen(!isOpen)}
                 className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
             >
@@ -310,6 +320,9 @@ const NotificationBell: React.FC = () => {
             </button>
 
             {/* Badge */}
+            {error && unreadCount === 0 && (
+                <span aria-hidden="true" className="absolute -top-1 -right-1 px-1 bg-amber-500 text-white text-xs rounded-full">!</span>
+            )}
             {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                     {unreadCount > 99 ? '99+' : unreadCount}

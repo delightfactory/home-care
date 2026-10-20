@@ -14,6 +14,13 @@ export interface NotificationFilters {
     to_date?: string;
 }
 
+export class InboxIdentityChangedError extends Error {
+    constructor() {
+        super('Authenticated user changed during notifications read');
+        this.name = 'InboxIdentityChangedError';
+    }
+}
+
 export class NotificationsAPI {
     /**
      * جلب الإشعارات مع pagination
@@ -89,6 +96,37 @@ export class NotificationsAPI {
             console.error('Error getting unread count:', error);
             return 0;
         }
+    }
+
+    /**
+     * لقطة صندوق الإشعارات (القائمة + عدد غير المقروء) لمستخدم محدد.
+     * بخلاف getNotifications/getUnreadCount: ترمي عند أي خطأ ولا تحوّل الفشل إلى صفر،
+     * وترفض النتيجة إذا تغيّر المستخدم المصادَق أثناء الطلب.
+     */
+    static async getInboxSnapshot(
+        userId: string,
+        limit = 50
+    ): Promise<{ notifications: AppNotification[]; unreadCount: number }> {
+        const [authResult, listResult] = await Promise.all([
+            supabase.auth.getUser(),
+            supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .range(0, limit - 1)
+        ]);
+
+        if (authResult.error) throw authResult.error;
+        if (authResult.data.user?.id !== userId) throw new InboxIdentityChangedError();
+        if (listResult.error) throw listResult.error;
+
+        const { data: count, error: countError } = await supabase
+            .rpc('get_unread_notifications_count', { p_user_id: userId });
+        if (countError) throw countError;
+        if (typeof count !== 'number') throw new Error('Invalid unread notifications count');
+
+        return { notifications: (listResult.data || []) as AppNotification[], unreadCount: count };
     }
 
     /**
