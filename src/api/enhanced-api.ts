@@ -56,29 +56,11 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<OrderWithDetails>> {
     const cacheKey = `enhanced:orders:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<PaginatedResponse<OrderWithDetails>>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.orders.getOrders',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() =>
-          OrdersAPI.getOrders(filters, page, limit, includeDetails)
-        );
-
-        if (useCache) {
-          // Cache based on data sensitivity
-          const ttl = includeDetails ? 120000 : 60000; // 2min for details, 1min for basic
-          CacheManager.set(cacheKey, result, ttl, cacheVersion);
-        }
-
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => OrdersAPI.getOrders(filters, page, limit, includeDetails))
     );
+    return useCache ? CacheManager.load(cacheKey, query, includeDetails ? 120000 : 60000) : query();
   }
 
   static async getOrderById(id: string, useCache = true): Promise<OrderWithDetails | undefined> {
@@ -502,27 +484,11 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<CustomerWithOrders>> {
     const cacheKey = `enhanced:customers:${JSON.stringify(filters)}:${page}:${limit}`;
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<PaginatedResponse<CustomerWithOrders>>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.customers.getCustomers',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() =>
-          CustomersAPI.getCustomers(filters, page, limit)
-        );
-
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 180000, cacheVersion); // 3 minutes
-        }
-
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => CustomersAPI.getCustomers(filters, page, limit))
     );
+    return useCache ? CacheManager.load(cacheKey, query, 180000) : query();
   }
 
   static async searchCustomers(searchTerm: string, limit = 10): Promise<CustomerWithOrders[]> {
@@ -629,52 +595,20 @@ export class EnhancedAPI {
   // ===== WORKERS & TEAMS API =====
   static async getWorkers(filters?: WorkerFilters, useCache = true, includeSalary = true): Promise<WorkerWithTeam[]> {
     const cacheKey = `enhanced:workers:${includeSalary ? 'full' : 'operational'}:${JSON.stringify(filters)}`;
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<WorkerWithTeam[]>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.workers.getWorkers',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() =>
-          WorkersAPI.getWorkers(filters, includeSalary)
-        );
-
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 300000, cacheVersion); // 5 minutes
-        }
-
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => WorkersAPI.getWorkers(filters, includeSalary))
     );
+    return useCache ? CacheManager.load(cacheKey, query, 300000) : query();
   }
 
   static async getTeams(useCache = true): Promise<TeamWithMembers[]> {
     const cacheKey = 'enhanced:teams:all';
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<TeamWithMembers[]>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.teams.getTeams',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() =>
-          TeamsAPI.getTeams()
-        );
-
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 300000, cacheVersion); // 5 minutes
-        }
-
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => TeamsAPI.getTeams())
     );
+    return useCache ? CacheManager.load(cacheKey, query, 300000) : query();
   }
 
   // ===== TEAMS MUTATIONS =====
@@ -771,24 +705,11 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<RouteWithOrders>> {
     const cacheKey = `enhanced:routes:${JSON.stringify(filters)}:${page}:${limit}`;
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<PaginatedResponse<RouteWithOrders>>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery('enhanced.routes.getRoutes', async () => {
-      const result = await ConnectionManager.executeWithConnection(() =>
-        RoutesAPI.getRoutes(filters, page, limit)
-      );
-
-      if (useCache) {
-        CacheManager.set(cacheKey, result, 60000, cacheVersion); // 1 minute
-      }
-
-      return result;
-    });
+    const query = () => performanceMonitor.monitorQuery(
+      'enhanced.routes.getRoutes',
+      () => ConnectionManager.executeWithConnection(() => RoutesAPI.getRoutes(filters, page, limit))
+    );
+    return useCache ? CacheManager.load(cacheKey, query, 60000) : query();
   }
 
   // ===== EXPENSES API =====
@@ -800,54 +721,21 @@ export class EnhancedAPI {
     useCache = true
   ): Promise<PaginatedResponse<ExpenseWithDetails>> {
     const cacheKey = `enhanced:expenses:${JSON.stringify(filters)}:${page}:${limit}:${includeDetails}`;
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<PaginatedResponse<ExpenseWithDetails>>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.expenses.getExpenses',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() =>
-          ExpensesAPI.getExpenses(filters, page, limit, includeDetails)
-        );
-
-        if (useCache) {
-          const ttl = includeDetails ? 120000 : 60000;
-          CacheManager.set(cacheKey, result, ttl, cacheVersion);
-        }
-
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => ExpensesAPI.getExpenses(filters, page, limit, includeDetails))
     );
+    return useCache ? CacheManager.load(cacheKey, query, includeDetails ? 120000 : 60000) : query();
   }
 
   // ===== SERVICES API =====
   static async getServices(useCache = true): Promise<ServiceWithCategory[]> {
     const cacheKey = 'enhanced:services:all';
-    const cacheVersion = CacheManager.version;
-
-    if (useCache) {
-      const cached = CacheManager.get<ServiceWithCategory[]>(cacheKey);
-      if (cached) return cached;
-    }
-
-    return performanceMonitor.monitorQuery(
+    const query = () => performanceMonitor.monitorQuery(
       'enhanced.services.getServices',
-      async () => {
-        const result = await ConnectionManager.executeWithConnection(() =>
-          ServicesAPI.getServices()
-        );
-
-        if (useCache) {
-          CacheManager.set(cacheKey, result, 600000, cacheVersion); // 10 minutes (services change rarely)
-        }
-
-        return result;
-      }
+      () => ConnectionManager.executeWithConnection(() => ServicesAPI.getServices())
     );
+    return useCache ? CacheManager.load(cacheKey, query, 600000) : query();
   }
 
   // ===== REPORTS API =====

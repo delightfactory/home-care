@@ -28,6 +28,14 @@ export class PerformanceMonitor {
   }, () => CacheManager.scopeVersion);
   private performanceThreshold = 1000; // 1 second threshold
 
+  constructor() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    window.addEventListener('pagehide', () => { void this.recorder.flush(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void this.recorder.flush();
+    });
+  }
+
   static getInstance(): PerformanceMonitor {
     if (!PerformanceMonitor.instance) {
       PerformanceMonitor.instance = new PerformanceMonitor();

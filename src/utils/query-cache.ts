@@ -8,11 +8,13 @@ export class CacheManager {
   private static pending = new Map<string, Promise<unknown>>();
   private static identity: string | null = null;
   private static profileIdentity: string | null = null;
+  private static authorizationVersion = 0;
   static version = 0;
   static scopeVersion = 0;
 
   static setScope(identity: string | null): void {
     if (identity === this.identity) return;
+    if (identity?.split(':', 1)[0] !== this.identity?.split(':', 1)[0]) this.authorizationVersion++;
     this.identity = identity;
     this.scopeVersion++;
     this.clear();
@@ -21,6 +23,7 @@ export class CacheManager {
   static setProfileScope(identity: string): void {
     if (identity === this.profileIdentity) return;
     this.profileIdentity = identity;
+    this.authorizationVersion++;
     this.scopeVersion++;
     this.clear();
   }
@@ -45,14 +48,25 @@ export class CacheManager {
   }
 
   static load<T>(key: string, loader: () => Promise<T>, ttl: number): Promise<T> {
+    return this.loadForScope(key, loader, ttl, 1);
+  }
+
+  private static loadForScope<T>(key: string, loader: () => Promise<T>, ttl: number, refreshAttempts: number): Promise<T> {
     const cached = this.get<T>(key);
     if (cached !== null) return Promise.resolve(cached);
     const existing = this.pending.get(key);
     if (existing) return existing as Promise<T>;
     const version = this.version;
     const scopeVersion = this.scopeVersion;
+    const authorizationVersion = this.authorizationVersion;
     const request = Promise.resolve().then(loader).then(response => {
-      if (scopeVersion !== this.scopeVersion) throw new Error('انتهت صلاحية نتيجة الجلسة السابقة');
+      if (scopeVersion !== this.scopeVersion) {
+        // Renew a token once without ever reusing data from the previous token.
+        if (authorizationVersion === this.authorizationVersion && refreshAttempts > 0) {
+          return this.loadForScope(key, loader, ttl, refreshAttempts - 1);
+        }
+        throw new Error('انتهت صلاحية نتيجة الجلسة السابقة');
+      }
       this.set(key, response, ttl, version);
       return response;
     }).finally(() => {

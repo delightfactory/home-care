@@ -8,7 +8,7 @@ export interface PerformanceEntry {
 export class PerformanceRecorder {
   private queue: { entry: PerformanceEntry; scope: number }[] = [];
   private sending = false;
-  private scheduled = false;
+  private timer: ReturnType<typeof setTimeout> | null = null;
   private written = 0;
   private dropped = 0;
   private failed = 0;
@@ -24,27 +24,30 @@ export class PerformanceRecorder {
       return;
     }
     this.queue.push({ entry, scope });
-    this.schedule();
+    if (this.queue.length >= 20) void this.flush();
+    else this.schedule();
   }
 
   getStats() {
     return { queued: this.queue.length, sending: this.sending, written: this.written, dropped: this.dropped, failed: this.failed };
   }
 
-  private schedule(): void {
-    if (this.sending || this.scheduled || !this.queue.length) return;
-    this.scheduled = true;
-    setTimeout(() => {
-      this.scheduled = false;
+  private schedule(delayMs = 1000): void {
+    if (this.sending || this.timer !== null || !this.queue.length) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
       void this.flush();
-    }, 0);
+    }, delayMs);
   }
 
-  private async flush(): Promise<void> {
+  async flush(): Promise<void> {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+    if (this.sending || !this.queue.length) return;
     const batch = this.queue.splice(0, 20);
     const entries = batch.filter(queued => queued.scope === this.scope()).map(queued => queued.entry);
     this.dropped += batch.length - entries.length;
-    if (!entries.length) { this.schedule(); return; }
+    if (!entries.length) { this.schedule(0); return; }
     this.sending = true;
     try {
       await this.send(entries);
@@ -54,7 +57,7 @@ export class PerformanceRecorder {
       console.warn('تعذر حفظ قياسات الأداء', failure);
     } finally {
       this.sending = false;
-      this.schedule();
+      this.schedule(0);
     }
   }
 }
