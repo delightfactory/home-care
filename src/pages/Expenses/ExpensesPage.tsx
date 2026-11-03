@@ -1,4 +1,3 @@
-import { CountsNotice } from '../../components/UI/CountsNotice'
 import React, { useState, useMemo } from 'react'
 import { Plus, Search, Edit, Trash2, Receipt, Check, XCircle, DollarSign, TrendingUp, Clock, FileText, Activity, Eye } from 'lucide-react'
 import EnhancedAPI from '../../api/enhanced-api'
@@ -11,7 +10,7 @@ import ExpenseFormModal from '../../components/Forms/ExpenseFormModal'
 import ExpenseDetailsModal from '../../components/Modals/ExpenseDetailsModal'
 import DeleteConfirmModal from '../../components/UI/DeleteConfirmModal'
 import toast from 'react-hot-toast'
-import { useExpenses, useSystemHealth, useExpenseCounts, useFilteredExpenseStats } from '../../hooks/useEnhancedAPI'
+import { useExpenses, useSystemHealth, useFilteredExpenseStats } from '../../hooks/useEnhancedAPI'
 import ExpensesFilterBar, { ExpensesFiltersUI } from '../../components/Expenses/ExpensesFilterBar'
 import { ExportButton } from '../../components/UI'
 import { AdminGuard, usePermissions } from '../../hooks/usePermissions'
@@ -58,10 +57,8 @@ const ExpensesPage: React.FC = () => {
     })
     return unsub
   }, [refresh])
-  // Real-time aggregate counts
-  const { counts, error: countsError, refresh: refreshCounts } = useExpenseCounts()
   // Filtered statistics for current view
-  const { stats: filteredStats } = useFilteredExpenseStats(apiFilters)
+  const { stats: filteredStats, loading: statsLoading, error: statsError, refresh: refreshStats } = useFilteredExpenseStats(apiFilters)
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
   const { health } = useSystemHealth()
@@ -303,8 +300,7 @@ const ExpensesPage: React.FC = () => {
     expense.category?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || []
 
-  // Calculate statistics - use filtered stats if available, fallback to current page data
-  const totalAmount = filteredStats?.totalAmount || expenses?.reduce((sum: number, expense: any) => sum + expense.amount, 0) || 0
+  const visibleStats = !statsLoading && !statsError ? filteredStats : null
 
   return (
     <div className="space-y-6">
@@ -362,14 +358,19 @@ const ExpensesPage: React.FC = () => {
         </div>
       )}
 
-      <CountsNotice error={countsError} onRetry={refreshCounts} />
+      {statsError && (
+        <div role="status" className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p>تعذّر تحديث إحصائيات المصروفات. أعد المحاولة للحصول على أحدث البيانات.</p>
+          <button type="button" onClick={() => { void refreshStats(); }} className="mt-1 underline font-medium">إعادة المحاولة</button>
+        </div>
+      )}
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="card-compact bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">إجمالي المصروفات</p>
-              <p className="text-2xl font-bold">{filteredStats?.totalCount ?? counts?.total ?? '—'}</p>
+              <p className="text-2xl font-bold">{visibleStats?.totalCount ?? '—'}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <FileText className="h-6 w-6" />
@@ -381,7 +382,7 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm font-medium">إجمالي المبلغ</p>
-              <p className="text-2xl font-bold">{totalAmount.toLocaleString()} ج.م</p>
+              <p className="text-2xl font-bold">{visibleStats ? `${visibleStats.totalAmount.toLocaleString()} ج.م` : '—'}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <DollarSign className="h-6 w-6" />
@@ -393,7 +394,7 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm font-medium">في الانتظار</p>
-              <p className="text-2xl font-bold">{filteredStats?.pendingCount ?? counts?.pending ?? '—'}</p>
+              <p className="text-2xl font-bold">{visibleStats?.pendingCount ?? '—'}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <Clock className="h-6 w-6" />
@@ -405,7 +406,7 @@ const ExpensesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm font-medium">موافق عليها</p>
-              <p className="text-2xl font-bold">{filteredStats?.approvedCount ?? counts?.approved ?? '—'}</p>
+              <p className="text-2xl font-bold">{visibleStats?.approvedCount ?? '—'}</p>
             </div>
             <div className="p-3 bg-white/20 rounded-lg">
               <TrendingUp className="h-6 w-6" />

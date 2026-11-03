@@ -12,7 +12,39 @@ import {
   ApiResponse
 } from '../types'
 
+export interface FilteredExpenseStats {
+  totalAmount: number;
+  totalCount: number;
+  pendingCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+}
+
+const filteredCountFields = ['totalCount', 'pendingCount', 'approvedCount', 'rejectedCount'] as const;
+
+function validateFilteredStats(value: unknown): FilteredExpenseStats {
+  const stats = value as FilteredExpenseStats | null;
+  if (!stats || typeof stats.totalAmount !== 'number' || !Number.isFinite(stats.totalAmount) ||
+      filteredCountFields.some(field => !Number.isSafeInteger(stats[field]) || stats[field] < 0) ||
+      stats.pendingCount + stats.approvedCount + stats.rejectedCount > stats.totalCount) {
+    throw new Error('تعذر التحقق من إحصائيات المصروفات');
+  }
+  return stats;
+}
+
 export class ExpensesAPI {
+  static async getFilteredStats(filters?: ExpenseFilters): Promise<FilteredExpenseStats> {
+    if ([filters?.amount_min, filters?.amount_max].some(amount => amount === Infinity || amount === -Infinity)) {
+      throw new Error('أدخل مبلغًا صحيحًا في فلاتر المصروفات');
+    }
+    const normalizedFilters = { ...filters };
+    if (filters?.date_from && !filters.date_from.includes('T')) normalizedFilters.date_from = `${filters.date_from}T00:00:00.000Z`;
+    if (filters?.date_to && !filters.date_to.includes('T')) normalizedFilters.date_to = `${filters.date_to}T23:59:59.999Z`;
+    const { data, error } = await supabase.rpc('get_filtered_expense_stats', { p_filters: normalizedFilters });
+    if (error) throw new Error(handleSupabaseError(error));
+    return validateFilteredStats(data);
+  }
+
   // Aggregate counts by status
   static async getCounts(): Promise<import('../types').ExpenseCounts> {
     return exactCounts<import('../types').ExpenseCounts>('get_expense_counts', ["total","pending","approved","rejected"], () => this.getLegacyCounts());

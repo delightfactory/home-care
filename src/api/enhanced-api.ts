@@ -17,7 +17,7 @@ import { CustomersAPI } from './customers';
 import { ReportsAPI } from './reports';
 import { ViewOptimizer } from './view-optimizer';
 import { WorkersAPI, TeamsAPI } from './workers';
-import { ExpensesAPI } from './expenses';
+import { ExpensesAPI, FilteredExpenseStats } from './expenses';
 import { ServicesAPI } from './services';
 import { RoutesAPI } from './routes';
 
@@ -456,6 +456,14 @@ export class EnhancedAPI {
       () => ConnectionManager.executeWithConnection(() => ExpensesAPI.getCounts())
     );
     return useCache ? CacheManager.load('enhanced:expenses:counts', query, 60000) : query();
+  }
+
+  static async getFilteredExpenseStats(filters?: ExpenseFilters, useCache = true): Promise<FilteredExpenseStats> {
+    const query = () => performanceMonitor.monitorQuery(
+      'enhanced.expenses.filteredStats',
+      () => ConnectionManager.executeWithConnection(() => ExpensesAPI.getFilteredStats(filters))
+    );
+    return useCache ? CacheManager.load(`enhanced:expenses:filtered-stats:${JSON.stringify(filters)}`, query, 60000) : query();
   }
 
   // ===== CUSTOMERS API =====

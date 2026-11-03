@@ -1,4 +1,5 @@
 import { useResourceCounts } from './useResourceCounts';
+import { useAuth } from './useAuth';
 // React Hooks for Enhanced API with Performance Optimization
 // React Hooks للـ API المحسن مع تحسينات الأداء
 
@@ -703,6 +704,14 @@ const loadExpenseCounts = () => EnhancedAPI.getExpenseCounts();
 
 // Hook to get filtered expense statistics
 export function useFilteredExpenseStats(filters?: ExpenseFilters) {
+  const { user, session } = useAuth();
+  const authenticated = Boolean(user && session?.user.id === user.id);
+  const permissions = (user as { role?: { permissions?: unknown } } | null)?.role?.permissions;
+  const identity = JSON.stringify([session?.access_token, user?.id, user?.role_id, permissions, user?.is_active]);
+  const filtersKey = JSON.stringify(filters);
+  const snapshotKey = JSON.stringify([identity, filtersKey]);
+  const requestVersion = useRef(0);
+  const [resultKey, setResultKey] = useState(snapshotKey);
   const [stats, setStats] = useState<{
     totalAmount: number;
     totalCount: number;
@@ -714,35 +723,30 @@ export function useFilteredExpenseStats(filters?: ExpenseFilters) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
+    if (!authenticated) return;
+    const version = ++requestVersion.current;
     setLoading(true);
     setError(null);
     try {
-      // جلب جميع المصروفات مع الفلاتر المطبقة
-      const result = await EnhancedAPI.getExpenses(filters, 1, 10000); // حد عالي لجلب جميع البيانات
-      const expenses = result.data;
-      
-      const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const totalCount = expenses.length;
-      const pendingCount = expenses.filter(e => e.status === 'pending').length;
-      const approvedCount = expenses.filter(e => e.status === 'approved').length;
-      const rejectedCount = expenses.filter(e => e.status === 'rejected').length;
-      
-      setStats({
-        totalAmount,
-        totalCount,
-        pendingCount,
-        approvedCount,
-        rejectedCount
-      });
+      const result = await EnhancedAPI.getFilteredExpenseStats(filters);
+      if (version === requestVersion.current) {
+        setStats(result);
+        setResultKey(snapshotKey);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
+      if (version === requestVersion.current) {
+        setStats(null);
+        setResultKey(snapshotKey);
+        setError(err instanceof Error ? err.message : 'حدث خطأ في جلب الإحصائيات');
+      }
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
-  }, [JSON.stringify(filters)]);
+  }, [snapshotKey, authenticated]);
 
   useEffect(() => {
     fetchStats();
+    return () => { requestVersion.current++; };
   }, [fetchStats]);
 
   // Listen to expenses:changed events for real-time updates
@@ -753,7 +757,8 @@ export function useFilteredExpenseStats(filters?: ExpenseFilters) {
     return off;
   }, [fetchStats]);
 
-  return { stats, loading, error, refresh: fetchStats };
+  const currentSnapshot = authenticated && resultKey === snapshotKey;
+  return { stats: currentSnapshot ? stats : null, loading: authenticated && (loading || !currentSnapshot), error: currentSnapshot ? error : null, refresh: fetchStats };
 }
 
 export function useCacheManager() {
